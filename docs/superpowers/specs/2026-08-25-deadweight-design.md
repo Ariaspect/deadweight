@@ -68,13 +68,16 @@ tiltAcc    = torque − damping·tiltVel − stiffness·tilt          // stiffne
 tiltVel   += tiltAcc·dt
 tilt      += tiltVel·dt
 
-if braced:   speed = 0; impulse absorbed; tiltVel *= braceDamp; reserve −= braceDrain·dt
+if braced:   speed = braceSpeed (creep); impulse absorbed; tiltVel *= braceDamp; reserve −= braceDrain·dt
 else:        x += gaitSpeed[gait]·dt
-reserve   −= baseDrain·dt                                        // speed itself is free
+reserve   −= drainRate·dt   where drainRate = reserveBudget·100·gaitSpeed[2] / route.length
+             // gait 2 spends reserveBudget of the reserve on any route; gait 1 stalls ~75 % in; speed itself is free
 if recovering > 0: recovering−−; speed = 0; all other dynamics frozen
 ```
 
-Speed's cost is **shorter lookahead** (viewport width ÷ speed = reaction window) and twitchier tilt (higher `k_slope` exposure per second). Speed's benefit is reserve left at arrival.
+Speed's cost is **shorter lookahead** (viewport width ÷ speed = reaction window), twitchier tilt, and harder hazard impulses (`hazardGaitScale[gait]`). Speed's benefit is reserve left at arrival.
+
+Brace creeps at `braceSpeed` rather than stopping: a zero-speed brace can never cross the hazard it is bracing for.
 
 ### 2.3 Per-item drift (the feedback spiral)
 
@@ -92,9 +95,9 @@ condition = clamp(1 − stress, 0, 1)
 
 ### 2.4 Events
 
-- **Hazard crossed** (`x` passes `hazard.x`): if `braced` or cancelled by a trace → absorbed. Else `impulse` added to `tiltVel` for one tick and `strapJolt` subtracted from `strap`.
+- **Hazard crossed** (`x` passes `hazard.x`): if `braced` or cancelled by a trace → absorbed. Else `impulse · hazardGaitScale[gait]` added to `tiltVel` and `strapJolt · strapJoltMul` subtracted from `strap`.
 - **Strap tap**: `strap += strapTap`, clamped 100. No natural decay; only jolts loosen.
-- **Spill** (`|tilt| ≥ 1`): item with largest `|slotPos + offset|` becomes `lost`; its mass leaves `loadOffset`; `tilt` reduced by its contribution. All items lost → `ended = 'spilled'`.
+- **Spill** (`|tilt| ≥ 1`): item with largest `|slotPos + offset|` becomes `lost`; its mass leaves `loadOffset`; `tilt` pulled back toward 0 by `spillRelief`, `tiltVel = 0`. All items lost → `ended = 'spilled'`, but the run stays open for RECOVER for ~5 s.
 - **RECOVER** (input while any item lost and `recovering == 0`): `recovering = 480`; first lost item returns with `stress += 0.5`; `reserve −= recoverCost`.
 - **Stall** (`reserve ≤ 0`): `ended = 'stalled'`. Partial payout.
 - **Rush deadline** (M2): item has `deadlineTick`; past it, that item's payout is 0 (condition still shown).
@@ -120,7 +123,7 @@ length:   outpost.lengthM  (≈ 90 s × gaitSpeed[2])
 
 ### 2.7 Headless bot (`bot.ts`)
 
-`policy(state, route, lagTicks) → InputFrame`. PID on ballast against slope at `x + lookaheadM`, brace when a hazard is within `telegraphM`, strap tap when `strap < 60`, gait 2 fixed. `lagTicks` delays the bot's view of state. A route is **solvable** if the bot with `lagTicks = 15` (250 ms) arrives with ≥ 1 star. Difficulty tier = the largest lag that still passes.
+`policy(state, route, lagTicks) → InputFrame`. Feed-forward on the slope `bot.leadSec` ahead plus PD on tilt, brace when an impulse hazard is within `bot.braceAheadM`, strap tap when `strap < bot.strapBelow`, gait 3 cruise / 2 near hazards / 1 through rubble and scree. `lagTicks` delays the bot's view of state. A route is **solvable** if the bot with `lagTicks = 15` (250 ms) arrives with ≥ 1 star. Difficulty tier = the largest lag that still passes.
 
 ### 2.8 Determinism
 
@@ -214,7 +217,7 @@ upgrades.json    { id, name, cost, effect:{ key, value } } → applied as tuning
 reviews.json     { bucket 0–4, behavior | "any", lines[] }                                                          ~60
 hq.json          { context: dispatch|hazard|arrival|spill, behavior | "any", lines[] }                              ~40
 traces.seed.json { seed, x, type, ownerName, useCount, ageHours }                                                   ×25
-tuning.json      every constant in §2 + gaitSpeed[5] + lookaheadM + drains + slot positions + star buckets
+tuning.json      every constant in §2 + gaitSpeed[5] + reserveBudget + braceSpeed + spillRelief + hazardGaitScale + slot positions + star buckets
 ```
 
 Save (`localStorage`, versioned): `{ v, cash, runs, upgrades[], bestByOutpost{}, traces[] }`. Corrupt or old version → reset, with a teleprinter notice.
