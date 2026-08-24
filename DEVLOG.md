@@ -9,7 +9,7 @@
 - Three.js viewport behind a Renderer interface; panel is DOM.
 
 ## What AI built
-- (fill per milestone)
+- M0: seeded piecewise-linear terrain generator, fixed-step loop with input log, Three.js ribbon + procedural hexapod behind a Renderer interface.
 
 ## Problems solved
 - (fill per milestone)
