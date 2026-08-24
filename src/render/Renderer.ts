@@ -1,0 +1,9 @@
+import type { RigState, RouteDef } from '../sim/types';
+export interface RenderPrev { x: number; tilt: number }
+export interface Renderer {
+  mount(el: HTMLElement): void;
+  setRoute(route: RouteDef): void;
+  draw(curr: RigState, prev: RenderPrev, alpha: number): void;
+  resize(): void;
+  dispose(): void;
+}
