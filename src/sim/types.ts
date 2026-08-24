@@ -62,7 +62,7 @@ export interface Tuning {
   ballastRange: number; ballastRate: number; autoTrim: number;
   strapStart: number; strapTap: number; strapJoltMul: number;
   driftThreshold: number; graceTicks: number; kDrift: number; sloshGain: number; sloshStiff: number; sloshDamp: number; kLive: number; precariousMul: number;
-  kStress: number; kCrush: number; spillTilt: number;
+  kStress: number; kCrush: number; spillTilt: number; spillRelief: number; hazardGaitScale: number[];
   recoverTicks: number; recoverCost: number; recoverStress: number;
   kBonus: number; stallMultiplier: number; starBuckets: number[];
   slotPos: number[]; capacity: number; kitCostMul: number;
