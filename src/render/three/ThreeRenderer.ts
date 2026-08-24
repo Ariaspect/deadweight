@@ -33,7 +33,7 @@ export class ThreeRenderer implements Renderer {
   }
 
   setRoute(route: RouteDef): void {
-    if (this.terrain) { this.scene.remove(this.terrain); this.terrain.geometry.dispose(); }
+    if (this.terrain) { this.scene.remove(this.terrain); this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); }
     this.route = route;
     this.terrain = buildTerrain(route);
     this.scene.add(this.terrain);
@@ -61,5 +61,9 @@ export class ThreeRenderer implements Renderer {
     this.camera.updateProjectionMatrix();
   }
 
-  dispose(): void { this.gl.dispose(); this.gl.domElement.remove(); }
+  dispose(): void {
+    if (this.terrain) { this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); }
+    this.rig.dispose();
+    this.gl.dispose(); this.gl.domElement.remove();
+  }
 }

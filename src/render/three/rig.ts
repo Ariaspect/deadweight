@@ -5,7 +5,7 @@ const L1 = 1.7, L2 = 1.9;             // leg segment lengths
 const HIP_Y = 1.7, BODY_Y = 2.3;
 const STRIDE = 1.1, LIFT = 0.7;
 const STEP_RATE = [0, 3.2, 4.6, 6.0, 7.6]; // rad/s gait phase advance
-const MAX_PITCH = 0.5;                 // rad at |tilt| = 1
+const MAX_PITCH = 0.5;                 // rad at |tilt| = 1; sign: +tilt = nose up
 
 interface Leg { hipX: number; side: 1 | -1; phase: number; upper: THREE.Mesh; lower: THREE.Mesh; foot: THREE.Mesh }
 
@@ -44,7 +44,7 @@ export class Rig {
 
   update(x: number, y: number, tilt: number, gait: Gait, tick: number, route: RouteDef): void {
     this.group.position.set(x, y, 0);
-    this.group.rotation.z = -tilt * MAX_PITCH;
+    this.group.rotation.z = tilt * MAX_PITCH;   // Rz(+θ) lifts +X (nose) → positive tilt = nose up
     const dtick = tick - this.lastTick; this.lastTick = tick;
     this.phase += STEP_RATE[gait]! * dtick / 60;
     const hip = new THREE.Vector3(), foot = new THREE.Vector3(), knee = new THREE.Vector3();
@@ -68,5 +68,11 @@ export class Rig {
       setCylinder(leg.lower, knee, foot);
       leg.foot.position.copy(foot);
     }
+  }
+
+  dispose(): void {
+    this.body.geometry.dispose(); (this.body.material as THREE.Material).dispose();
+    for (const leg of this.legs) { leg.upper.geometry.dispose(); leg.foot.geometry.dispose(); }
+    this.legMat.dispose(); this.footMat.dispose();
   }
 }
