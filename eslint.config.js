@@ -11,7 +11,7 @@ export default tseslint.config(
     files: ['src/sim/**/*.ts'],
     rules: {
       'no-restricted-imports': ['error', {
-        patterns: [{ group: ['three', 'three/*', '**/render/*', '**/ui/*', '**/game/*', '**/audio/*'], message: 'src/sim must stay pure.' }],
+        patterns: [{ group: ['three', 'three/**', '**/render/**', '**/ui/**', '**/game/**', '**/audio/**'], message: 'src/sim must stay pure.' }],
       }],
       'no-restricted-globals': ['error', 'window', 'document', 'navigator', 'performance', 'requestAnimationFrame', 'localStorage'],
       'no-restricted-properties': ['error',
