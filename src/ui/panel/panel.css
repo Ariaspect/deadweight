@@ -1,0 +1,17 @@
+:root {
+  --cream: #e8dcc0; --cream-2: #d8c8a0; --orange: #c8622a; --gun: #3a3f45; --gun-2: #2a2e33; --red: #d12b1f; --ink: #1c1a16;
+  --font: "Arial Black", "Helvetica Neue", Impact, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--gun-2); color: var(--cream); font-family: var(--font); -webkit-user-select: none; user-select: none; touch-action: none; }
+#app { display: grid; height: 100dvh; grid-template-rows: 45% 55%; grid-template-areas: "viewport" "panel"; }
+#viewport { grid-area: viewport; position: relative; overflow: hidden; background: #d9c9a3; }
+#viewport canvas { display: block; width: 100%; height: 100%; }
+#panel { grid-area: panel; padding: 12px; background: linear-gradient(180deg, var(--gun) 0, var(--gun-2) 100%); border-top: 6px solid var(--orange); box-shadow: inset 0 2px 0 rgba(255,255,255,.08); overflow: hidden; }
+#panel h1 { margin: 0 0 8px; font-size: 20px; letter-spacing: .18em; color: var(--cream); }
+#status { margin: 0; font-size: 12px; opacity: .7; }
+@media (orientation: landscape) and (min-width: 900px) {
+  #app { grid-template-columns: 1fr minmax(560px, 60%) 1fr; grid-template-rows: 1fr; grid-template-areas: "panel viewport panel"; }
+  #viewport { border: 10px solid var(--gun); border-radius: 12px; margin: 16px 0; }
+  #panel { border-top: 0; }
+}
