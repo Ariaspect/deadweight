@@ -1394,9 +1394,10 @@ html, body { margin: 0; height: 100%; background: var(--gun-2); color: var(--cre
 #panel h1 { margin: 0 0 8px; font-size: 20px; letter-spacing: .18em; color: var(--cream); }
 #status { margin: 0; font-size: 12px; opacity: .7; }
 @media (orientation: landscape) and (min-width: 900px) {
-  #app { grid-template-columns: 1fr minmax(560px, 60%) 1fr; grid-template-rows: 1fr; grid-template-areas: "panel viewport panel"; }
-  #viewport { border: 10px solid var(--gun); border-radius: 12px; margin: 16px 0; }
-  #panel { border-top: 0; }
+  /* one DOM panel cannot wrap a grid cell ("panel viewport panel" is an invalid, non-rectangular area) — two columns instead */
+  #app { grid-template-columns: minmax(560px, 60%) 1fr; grid-template-rows: 1fr; grid-template-areas: "viewport panel"; }
+  #viewport { border: 10px solid var(--gun); border-radius: 12px; margin: 16px 0 16px 16px; }
+  #panel { border-top: 0; border-left: 6px solid var(--orange); overflow-y: auto; }
 }
 ```
 
@@ -4087,7 +4088,7 @@ Check and fix each:
 
 - [ ] **Step 2: Landscape / desktop pass** (1280×800)
 
-Viewport centred with the panel wrapping; panel columns don't collapse below 560 px viewport width. If the panel is too tall, allow `#panel` to `overflow-y: auto`.
+Viewport left, panel right; viewport never narrower than 560 px. Panel scrolls internally if too tall (`overflow-y: auto`).
 
 - [ ] **Step 3: Cold-load check**
 

@@ -198,7 +198,7 @@ UPGRADE   2×3 grid; buy or skip → DISPATCH.
 - Orders are generated at runtime: outpost → 3 cargo with `tier ≤ playerTier` → HQ flavour line from `hq.json`. No static order table.
 - `playerTier = min(3, floor(runsCompleted / 3))` gates outposts and cargo.
 - Portrait phone: viewport top 45 %, panel bottom 55 %. Ballast drag on viewport; three buttons directly under it; throttle rail on right edge.
-- Landscape / desktop: viewport centred, panel wraps it. Same DOM; CSS grid switch.
+- Landscape / desktop: viewport left (~60 %), panel in a right column. Same DOM; CSS grid switch. (A single DOM panel cannot wrap a grid cell — `"panel viewport panel"` is not a valid grid area.)
 - Keyboard: A/D ballast (held = ramps), W/S gait, Space strap, Shift brace, E deploy, R recover.
 
 ---
