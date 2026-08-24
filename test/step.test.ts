@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createRun, step, drainRate } from '../src/sim/step';
 import { mulberry32 } from '../src/sim/rng';
 import { tuning } from '../src/content';
-import { flatRoute, frame } from './helpers';
+import { flatRoute, frame, crateDef } from './helpers';
 
 describe('createRun', () => {
   it('starts at x=0 with full reserve and starting strap', () => {
@@ -11,6 +11,14 @@ describe('createRun', () => {
     expect(s.reserve).toBe(tuning.reserveStart);
     expect(s.strap).toBe(tuning.strapStart);
     expect(s.ended).toBeNull();
+  });
+  it('sets deadlineTick from rush (presence, not truthiness)', () => {
+    const rushDef = { ...crateDef(), rush: 55 };
+    const zeroDef = { ...crateDef({ id: 'z' }), rush: 0 };
+    const s = createRun(flatRoute(), [{ def: rushDef, slot: 0 }, { def: zeroDef, slot: 2 }, { def: crateDef({ id: 'n' }), slot: 1 }], tuning);
+    expect(s.items[0]!.deadlineTick).toBe(Math.round(55 / tuning.dt));
+    expect(s.items[1]!.deadlineTick).toBe(0);
+    expect(s.items[2]!.deadlineTick).toBe(-1);
   });
 });
 

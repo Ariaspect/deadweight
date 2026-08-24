@@ -7,7 +7,7 @@ export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tunin
     id: li.def.id, slot: li.slot, mass: li.def.mass, tolerance: li.def.tolerance, crushLimit: li.def.crushLimit,
     behavior: li.def.behavior, payout: li.def.payout,
     offset: 0, offsetVel: 0, stress: 0, lost: false,
-    deadlineTick: li.def.rush ? Math.round(li.def.rush / tuning.dt) : -1,
+    deadlineTick: li.def.rush !== undefined ? Math.round(li.def.rush / tuning.dt) : -1,
   }));
   return {
     t: 0, x: 0, tilt: 0, tiltVel: 0, gait: 0, ballast: 0,
