@@ -2,19 +2,26 @@ import type { Gait, RigState, Tuning } from '../../sim/types';
 
 export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace(on: boolean): void; onRecover(): void }
 
+function clamp(v: number, lo: number, hi: number): number { return v < lo ? lo : v > hi ? hi : v; }
+function rpmAngle(rpm: number): number { return -120 + 240 * rpm / 3000; }
+
 export class Panel {
   private needle!: HTMLElement; private reserveFill!: HTMLElement; private ballastFill!: HTMLElement; private ballastText!: HTMLElement;
   private strapFill!: HTMLElement; private message!: HTMLElement; private gaitBtns: HTMLElement[] = [];
   private recoverBtn!: HTMLButtonElement; private hazardLamp!: HTMLElement; private rush!: HTMLElement;
+  private rpmNeedle!: HTMLElement; private rpmTarget!: HTMLElement; private rpmVal!: HTMLElement;
+  private cargoFill!: HTMLElement; private cargoVal!: HTMLElement;
 
   constructor(private readonly root: HTMLElement, private readonly h: PanelHandlers) {
     root.innerHTML = `
       <div class="panel-grid">
         <div class="brand">DEADWEIGHT <span class="sub">MULE-7 REMOTE OPERATOR</span></div>
         <div class="gauge tilt"><div class="dial"><div class="zone"></div><div class="needle"></div></div><label>TILT</label></div>
+        <div class="gauge rpm"><div class="dial"><div class="zone rpm"></div><div class="target"></div><div class="needle"></div></div><label>RPM <span class="val">600</span></label></div>
         <div class="gauges">
           <div class="gauge reserve"><div class="bar"><div class="fill"></div></div><label>RESERVE</label></div>
           <div class="gauge strap m2"><div class="bar"><div class="fill"></div></div><label>STRAP</label></div>
+          <div class="gauge cargo"><div class="bar"><div class="fill"></div></div><label>CARGO <span class="val">100%</span></label></div>
           <div class="gauge ballast"><div class="bar centred"><div class="fill"></div></div><label>BALLAST <span class="val">0</span></label></div>
         </div>
         <div class="rail"><label>GAIT</label>${[4, 3, 2, 1, 0].map((g) => `<button data-gait="${g}">${g}</button>`).join('')}</div>
@@ -31,6 +38,8 @@ export class Panel {
     this.needle = q('.tilt .needle'); this.reserveFill = q('.reserve .fill'); this.strapFill = q('.strap .fill');
     this.ballastFill = q('.ballast .fill'); this.ballastText = q('.ballast .val'); this.message = q('.tele');
     this.hazardLamp = q('.lamp.hazard'); this.recoverBtn = q('button.recover'); this.rush = q('.rush');
+    this.rpmNeedle = q('.rpm .needle'); this.rpmTarget = q('.rpm .target'); this.rpmVal = q('.rpm .val');
+    this.cargoFill = q('.cargo .fill'); this.cargoVal = q('.cargo .val');
     this.gaitBtns = Array.from(root.querySelectorAll<HTMLElement>('.rail button'));
     for (const b of this.gaitBtns) b.addEventListener('pointerdown', () => { const g = Number(b.dataset.gait) as Gait; this.setGait(g); h.onGait(g); });
     q<HTMLButtonElement>('button.strap').addEventListener('pointerdown', () => h.onStrap());
@@ -52,6 +61,18 @@ export class Panel {
     this.reserveFill.style.width = `${Math.max(0, s.reserve)}%`;
     this.reserveFill.classList.toggle('low', s.reserve < 20);
     this.strapFill.style.width = `${s.strap}%`;
+    const vmax = tuning.gaitSpeed[4]! * tuning.gaitSpeedMul;
+    const rpm = 600 + 2400 * clamp(s.speed / vmax, 0, 1);
+    const targetSpeed = s.braced ? tuning.braceSpeed : tuning.gaitSpeed[s.gait]! * tuning.gaitSpeedMul;
+    const targetRpm = 600 + 2400 * clamp(targetSpeed / vmax, 0, 1);
+    this.rpmNeedle.style.transform = `rotate(${rpmAngle(rpm)}deg)`;
+    this.rpmTarget.style.transform = `rotate(${rpmAngle(targetRpm)}deg)`;
+    this.rpmVal.textContent = String(Math.round(rpm));
+    const carried = s.items.filter((it) => !it.lost);
+    const cargoCond = carried.length ? carried.reduce((a, it) => a + clamp(1 - it.stress, 0, 1), 0) / carried.length : 0;
+    this.cargoFill.style.width = `${cargoCond * 100}%`;
+    this.cargoFill.classList.toggle('low', cargoCond < 0.5);
+    this.cargoVal.textContent = `${Math.round(cargoCond * 100)}%`;
     const r = tuning.ballastRange;
     const pct = (s.ballast / r) * 50;
     this.ballastFill.style.left = `${50 + Math.min(0, pct)}%`;

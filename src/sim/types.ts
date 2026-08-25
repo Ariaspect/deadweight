@@ -41,7 +41,7 @@ export interface ItemState {
 }
 
 export interface RigState {
-  t: number; x: number; tilt: number; tiltVel: number; gait: Gait; ballast: number;
+  t: number; x: number; tilt: number; tiltVel: number; gait: Gait; speed: number; ballast: number;
   strap: number; reserve: number; braced: boolean; items: ItemState[];
   recovering: number; hazardCursor: number; overTiltTicks: number; ended: EndReason | null;
 }
@@ -56,13 +56,13 @@ export interface TerrainTuning { segMin: number; segMax: number; slopeSigma: num
 export interface BotTuning { kp: number; kd: number; lagTicks: number; strapBelow: number; braceAheadM: number; leadSec: number }
 
 export interface Tuning {
-  dt: number; gaitSpeed: number[]; gaitSpeedMul: number;
+  dt: number; gaitSpeed: number[]; gaitSpeedMul: number; gaitAccel: number; gaitDecel: number;
   kSlope: number; kBallast: number; kLoad: number; damping: number; stiffness: number; braceDamp: number; braceSpeed: number;
   reserveBudget: number; braceDrain: number; reserveStart: number;
   ballastRange: number; ballastRate: number; autoTrim: number;
   strapStart: number; strapTap: number; strapJoltMul: number;
   driftThreshold: number; graceTicks: number; kDrift: number; sloshGain: number; sloshStiff: number; sloshDamp: number; kLive: number; precariousMul: number;
-  kStress: number; kCrush: number; spillTilt: number; spillRelief: number; hazardGaitScale: number[];
+  kStress: number; kCrush: number; spillTilt: number; spillRelief: number; hazardScaleMin: number; hazardScaleMax: number;
   recoverTicks: number; recoverCost: number; recoverStress: number;
   kBonus: number; stallMultiplier: number; starBuckets: number[];
   slotPos: number[]; capacity: number; kitCostMul: number;

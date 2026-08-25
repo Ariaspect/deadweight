@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createRun, step, drainRate } from '../src/sim/step';
+import { createRun, step, drainRate, hazardScale } from '../src/sim/step';
 import { routeFromSegments } from '../src/sim/terrain';
 import { mulberry32 } from '../src/sim/rng';
 import { tuning } from '../src/content';
@@ -28,7 +28,7 @@ describe('strap and brace', () => {
     s.tiltVel = 1;
     step(s, frame({ gait: 4, brace: true }), r, [], tuning, rng);
     expect(s.braced).toBe(true);
-    expect(s.x).toBeCloseTo(tuning.braceSpeed * tuning.dt);
+    expect(s.x).toBeCloseTo(Math.min(tuning.braceSpeed, tuning.gaitAccel * tuning.dt) * tuning.dt);
     expect(s.reserve).toBeCloseTo(tuning.reserveStart - (drainRate(r, tuning) + tuning.braceDrain) * tuning.dt);
     expect(Math.abs(s.tiltVel)).toBeLessThan(1);
   });
@@ -53,10 +53,16 @@ describe('hazards', () => {
     expect(s.hazardCursor).toBe(1);
     expect(s.ended).toBeNull();
   });
-  it('impulse scales with gait', () => {
-    const r = hzRoute([hz({ x: 60 })]);
-    const peak = (g: 1 | 4) => { const s = createRun(r, [], tuning); const rng = mulberry32(1); while (s.x < 60) step(s, frame({ gait: g }), r, [], tuning, rng); step(s, frame({ gait: g }), r, [], tuning, rng); return Math.abs(s.tiltVel); };
+  it('impulse scales with speed', () => {
+    const r = hzRoute([hz({ x: 200 })]);
+    const peak = (g: 1 | 4) => { const s = createRun(r, [], tuning); const rng = mulberry32(1); while (s.x < 200) step(s, frame({ gait: g }), r, [], tuning, rng); step(s, frame({ gait: g }), r, [], tuning, rng); return Math.abs(s.tiltVel); };
     expect(peak(4)).toBeGreaterThan(peak(1) * 1.5);
+  });
+  it('hazardScale is 0.6 at rest and 1.5 at full speed', () => {
+    const s = createRun(flatRoute(), [], tuning);
+    expect(hazardScale(s, tuning)).toBeCloseTo(tuning.hazardScaleMin);
+    s.speed = tuning.gaitSpeed[4]! * tuning.gaitSpeedMul;
+    expect(hazardScale(s, tuning)).toBeCloseTo(tuning.hazardScaleMax);
   });
   it('grade hazards have no impulse', () => {
     const r = hzRoute([hz({ type: 'grade', impulse: 0, strapJolt: 0 })]);
@@ -88,6 +94,7 @@ describe('recover', () => {
     expect(s.items[0]!.lost).toBe(false);
     expect(s.items[0]!.stress).toBeCloseTo(stressBefore + tuning.recoverStress);
     expect(s.x).toBe(xBefore);
+    expect(s.speed).toBe(0);
   });
 
   it('is ignored when reserve cannot cover recoverCost', () => {

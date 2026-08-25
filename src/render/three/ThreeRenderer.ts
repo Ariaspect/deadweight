@@ -59,8 +59,9 @@ export class ThreeRenderer implements Renderer {
     if (!this.route) return;
     const x = prev.x + (curr.x - prev.x) * alpha;
     const tilt = prev.tilt + (curr.tilt - prev.tilt) * alpha;
+    const speed = prev.speed + (curr.speed - prev.speed) * alpha;
     const y = this.route.heightAt(x);
-    this.rig.update(x, y, tilt, curr.gait, curr.t + alpha, this.route);
+    this.rig.update(x, y, tilt, speed, curr.gait, curr.t + alpha, this.route);
     this.cargo.sync(curr.items, tuning, this.rig.group.position);
     const now = performance.now(); const dtSec = this.lastDrawMs ? Math.min(0.05, (now - this.lastDrawMs) / 1000) : 0; this.lastDrawMs = now;
     this.cargo.tickDebris(dtSec, (px) => this.route!.heightAt(px));

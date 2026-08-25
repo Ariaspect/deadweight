@@ -1,5 +1,5 @@
 import type { ItemDef, RigState, RouteDef } from '../sim/types';
-export interface RenderPrev { x: number; tilt: number }
+export interface RenderPrev { x: number; tilt: number; speed: number }
 export interface Renderer {
   mount(el: HTMLElement): void;
   setLoadout(items: ItemDef[]): void;

@@ -8,6 +8,7 @@
 - Fixed outpost map (12 permanent seeds) so traces accumulate per route.
 - Three.js viewport behind a Renderer interface; panel is DOM.
 - One-button RECOVER (8 s freeze) instead of a reverse-and-winch sequence.
+- Gait changes are not instant: rig speed converges at gaitAccel/gaitDecel; hazard impulse scales by actual speed, so slowing down only helps if you actually slowed. RPM dial shows actual vs target.
 
 ## What AI built
 - M0: seeded piecewise-linear terrain generator, fixed-step loop with input log, Three.js ribbon + procedural hexapod behind a Renderer interface.
@@ -90,6 +91,7 @@ Lantern Reach   3     30  stress   arrived   2      28
 PASS: all 12 outposts solvable at lag 15
 ```
 - M2: content — 20 cargo, 12 outposts, 5 hazards, 6 upgrades, 46 review lines, 20 HQ lines; dispatch/loadout/workshop screens with predicted-trim readout; bot v2 (gap bracing, strap, recover).
+- Cosmetic instruments: RPM dial (actual + target marker), CARGO health bar, viewport HUD (slope°, altitude, km/h).
 
 ## Problems solved
 - M1 fun gate (Task 17), headless metrics pass in place of human playtesting — 5/6 categories within target on the first constant change; full table in `.superpowers/sdd/2026-08-25-deadweight-core-loop/task-17-report.md`.

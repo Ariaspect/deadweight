@@ -23,12 +23,49 @@ describe('createRun', () => {
 });
 
 describe('step v0', () => {
-  it('advances x by gaitSpeed[gait]*dt', () => {
-    const s = createRun(flatRoute(), [], tuning);
-    step(s, frame({ gait: 2 }), flatRoute(), [], tuning, mulberry32(1));
-    expect(s.x).toBeCloseTo(tuning.gaitSpeed[2]! * tuning.dt);
+  it('accelerates toward gaitSpeed[gait] at gaitAccel', () => {
+    const r = flatRoute();
+    const s = createRun(r, [], tuning);
+    const rng = mulberry32(1);
+    step(s, frame({ gait: 2 }), r, [], tuning, rng);
+    expect(s.speed).toBe(Math.min(tuning.gaitSpeed[2]!, tuning.gaitAccel * tuning.dt));
+    expect(s.x).toBe(s.speed * tuning.dt);
     expect(s.t).toBe(1);
     expect(s.gait).toBe(2);
+    let maxSpeed = s.speed;
+    for (let i = 1; i < 600; i++) {
+      step(s, frame({ gait: 2 }), r, [], tuning, rng);
+      maxSpeed = Math.max(maxSpeed, s.speed);
+    }
+    expect(Math.abs(s.speed - tuning.gaitSpeed[2]!)).toBeLessThan(1e-9);
+    expect(maxSpeed).toBeLessThanOrEqual(tuning.gaitSpeed[2]!);
+  });
+  it('decelerates at gaitDecel and never overshoots', () => {
+    const r = flatRoute(5000); const s = createRun(r, [], tuning); const rng = mulberry32(1);
+    for (let i = 0; i < 600; i++) step(s, frame({ gait: 4 }), r, [], tuning, rng);
+    expect(s.speed).toBeCloseTo(tuning.gaitSpeed[4]!, 9);
+    let prev = s.speed;
+    let reached = false;
+    for (let i = 0; i < 200; i++) {
+      step(s, frame({ gait: 1 }), r, [], tuning, rng);
+      if (!reached && s.speed > tuning.gaitSpeed[1]!) {
+        expect(prev - s.speed).toBeCloseTo(tuning.gaitDecel * tuning.dt, 9);
+      } else {
+        reached = true;
+        expect(s.speed).toBeCloseTo(tuning.gaitSpeed[1]!, 9);
+      }
+      prev = s.speed;
+    }
+    expect(reached).toBe(true);
+  });
+  it('brace decelerates to braceSpeed', () => {
+    const r = flatRoute(2000); const s = createRun(r, [], tuning); const rng = mulberry32(1);
+    for (let i = 0; i < 600; i++) step(s, frame({ gait: 3 }), r, [], tuning, rng);
+    expect(s.speed).toBeCloseTo(tuning.gaitSpeed[3]!, 9);
+    step(s, frame({ gait: 3, brace: true }), r, [], tuning, rng);
+    expect(s.braced).toBe(true);
+    for (let i = 0; i < 200; i++) step(s, frame({ gait: 3, brace: true }), r, [], tuning, rng);
+    expect(s.speed).toBeCloseTo(tuning.braceSpeed, 9);
   });
   it('drains reserve by drainRate*dt per tick, scaled to route length', () => {
     const r = flatRoute(500); const s = createRun(r, [], tuning);

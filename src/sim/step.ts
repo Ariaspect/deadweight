@@ -10,7 +10,7 @@ export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tunin
     deadlineTick: li.def.rush !== undefined ? Math.round(li.def.rush / tuning.dt) : -1,
   }));
   return {
-    t: 0, x: 0, tilt: 0, tiltVel: 0, gait: 0, ballast: 0,
+    t: 0, x: 0, tilt: 0, tiltVel: 0, gait: 0, speed: 0, ballast: 0,
     strap: tuning.strapStart, reserve: tuning.reserveStart, braced: false,
     items, recovering: 0, hazardCursor: 0, overTiltTicks: 0, ended: null,
   };
@@ -56,9 +56,16 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   if (s.braced) s.tiltVel *= tuning.braceDamp;
   s.tilt += s.tiltVel * dt;
 
-  const speed = s.braced ? tuning.braceSpeed : tuning.gaitSpeed[s.gait]! * tuning.gaitSpeedMul;
-  s.x += speed * dt;
+  const target = s.braced ? tuning.braceSpeed : tuning.gaitSpeed[s.gait]! * tuning.gaitSpeedMul;
+  const delta = target - s.speed;
+  s.speed += clamp(delta, -tuning.gaitDecel * dt, tuning.gaitAccel * dt);
+  s.x += s.speed * dt;
   s.reserve -= (drainRate(route, tuning) + (s.braced ? tuning.braceDrain : 0)) * dt;
+}
+
+export function hazardScale(s: RigState, tuning: Tuning): number {
+  const vmax = tuning.gaitSpeed[4]! * tuning.gaitSpeedMul;
+  return tuning.hazardScaleMin + (tuning.hazardScaleMax - tuning.hazardScaleMin) * clamp(s.speed / vmax, 0, 1);
 }
 
 function traceCancels(h: HazardInstance, traces: Trace[], route: RouteDef): boolean {
@@ -72,7 +79,7 @@ function crossHazards(s: RigState, route: RouteDef, traces: Trace[], tuning: Tun
     const h = hz[s.hazardCursor]!;
     s.hazardCursor++;
     if (h.impulse === 0 || s.braced || traceCancels(h, traces, route)) continue;
-    s.tiltVel += h.dir * h.impulse * tuning.hazardGaitScale[s.gait]!;
+    s.tiltVel += h.dir * h.impulse * hazardScale(s, tuning);
     s.strap = Math.max(0, s.strap - h.strapJolt * tuning.strapJoltMul);
   }
 }
@@ -147,6 +154,7 @@ function stepRecovering(s: RigState, tuning: Tuning): void {
   const it = s.items.find((i) => i.lost);
   if (it) { it.lost = false; it.offset = 0; it.offsetVel = 0; it.stress += tuning.recoverStress; }
   s.overTiltTicks = 0;
+  s.speed = 0;
 }
 
 export function step(s: RigState, input: InputFrame, route: RouteDef, traces: Trace[], tuning: Tuning, rng: Rng): void {

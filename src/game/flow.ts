@@ -11,6 +11,7 @@ import { renderDispatch } from '../ui/screens/dispatch';
 import { renderLoadout } from '../ui/screens/loadout';
 import { renderResult } from '../ui/screens/result';
 import { renderUpgrade } from '../ui/screens/upgrade';
+import { Hud } from '../ui/hud';
 import type { Renderer, RenderPrev } from '../render/Renderer';
 import type { Panel } from '../ui/panel/panel';
 import type { InputController } from '../ui/input';
@@ -35,12 +36,14 @@ export class Flow {
   private loadout: LoadoutItem[] = [];
   private readonly metaRng = mulberry32((Date.now() & 0x7fffffff) >>> 0);
   private readonly telegraph: Record<HazardType, number>;
+  private readonly hud: Hud;
 
   constructor(private readonly d: FlowDeps) {
     const { data, reset } = loadSave(d.storage);
     this.save = data;
     this.tuning = applyUpgrades(d.baseTuning, data.upgrades, d.content.upgrades);
     this.telegraph = Object.fromEntries(d.content.hazards.map((h) => [h.type, h.telegraphM])) as Record<HazardType, number>;
+    this.hud = new Hud(d.viewportEl);
     if (reset) d.panel.setMessage('HQ: Save data unreadable. Fresh ledger opened.');
     d.renderer.then((r) => { this.renderer = r; });
   }
@@ -70,7 +73,7 @@ export class Flow {
     this.loop?.stop();
     const state = createRun(route, loadout, tuning);
     const rng = mulberry32(hashSeed(route.seed, this.runNonce++));
-    const prev: RenderPrev = { x: 0, tilt: 0 };
+    const prev: RenderPrev = { x: 0, tilt: 0, speed: 0 };
     input.reset(); input.setTuning(tuning); input.setGait(2); panel.setGait(2);
     panel.setMessage(`HQ: ${this.offers!.outpost.name}. ${loadout.length} aboard. Trim against the slope. Go.`);
     const defs = loadout.map((l) => l.def);
@@ -84,13 +87,14 @@ export class Flow {
       sampleInput: () => input.sample(),
       step: (inp) => {
         if (finished) return;
-        prev.x = state.x; prev.tilt = state.tilt;
+        prev.x = state.x; prev.tilt = state.tilt; prev.speed = state.speed;
         step(state, inp, route, this.save.traces, tuning, rng);
         if (state.ended) { if (++linger > LINGER[state.ended]) { finished = true; this.finish(state, loop); } } else linger = 0;
       },
       render: (alpha) => {
         this.renderer?.draw(state, prev, alpha);
         panel.update(state, tuning);
+        this.hud.update(state, route);
         panel.setHazard(route.hazards.some((h) => h.impulse > 0 && h.x > state.x && h.x <= state.x + this.telegraph[h.type]));
       },
     });
