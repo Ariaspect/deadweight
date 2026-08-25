@@ -24,7 +24,7 @@ html, body { margin: 0; height: 100%; background: var(--gun-2); color: var(--cre
 .dial .zone { position: absolute; inset: 6px; border-radius: 50%; background: conic-gradient(transparent 0 42deg, var(--red) 42deg 72deg, transparent 72deg 288deg, var(--red) 288deg 318deg, transparent 318deg); opacity: .8; } /* needle: 0° = up, ±60° at |tilt| = 1, red class above 0.7 (±42°) */
 .dial .zone.rpm { background: conic-gradient(transparent 0 88deg, var(--red) 88deg 120deg, transparent 120deg); } /* redline 2600–3000 rpm, angle = -120 + 240·rpm/3000 measured from top */
 .dial .needle { position: absolute; left: 50%; bottom: 50%; width: 4px; height: 44px; margin-left: -2px; background: var(--ink); transform-origin: 50% 100%; border-radius: 2px 2px 0 0; transition: transform 40ms linear; }
-.dial .needle.red { background: var(--red); }
+.dial .needle.red { background: var(--ink); box-shadow: 0 0 0 2px var(--cream), 0 0 10px var(--red); }
 .dial .target { position: absolute; left: 50%; bottom: 50%; width: 2px; height: 48px; margin-left: -1px; background: var(--cream); transform-origin: 50% 100%; border-radius: 1px; }
 .gauges { grid-area: gauges; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
 .bar { position: relative; height: 16px; background: #1e2124; border: 2px solid #6b6f74; border-radius: 3px; overflow: hidden; }
