@@ -1,32 +1,32 @@
 import './ui/panel/panel.css';
+import './ui/screens/screens.css';
 import { tuning } from './content';
 import { generateRoute } from './sim/terrain';
-import { createRun, step } from './sim/step';
-import { mulberry32, hashSeed } from './sim/rng';
-import { GameLoop } from './game/loop';
-import type { Renderer, RenderPrev } from './render/Renderer';
-import type { InputFrame } from './sim/types';
+import { Panel } from './ui/panel/panel';
+import { InputController } from './ui/input';
+import { Flow } from './game/flow';
+import type { Renderer } from './render/Renderer';
+import type { ItemDef } from './sim/types';
 
 const viewportEl = document.getElementById('viewport')!;
+const panelEl = document.getElementById('panel')!;
+const screenEl = document.getElementById('screen')!;
 
-const route = generateRoute(4417, 700, 0, [], tuning.terrain);
-const state = createRun(route, [], tuning);
-const rng = mulberry32(hashSeed(route.seed, 1));
-const prev: RenderPrev = { x: 0, tilt: 0 };
-let renderer: Renderer | null = null;
-const idle: InputFrame = { gait: 2, ballast: 0, strap: false, brace: false, deploy: 0, recover: false };
-
-const loop = new GameLoop({
-  dt: tuning.dt,
-  sampleInput: () => idle,
-  step: (input) => { prev.x = state.x; prev.tilt = state.tilt; step(state, input, route, [], tuning, rng); },
-  render: (alpha) => renderer?.draw(state, prev, alpha),
+const input = new InputController(tuning);
+input.attach(viewportEl, document);
+const panel = new Panel(panelEl, {
+  onGait: (g) => input.setGait(g),
+  onStrap: () => input.queueStrap(),
+  onBrace: (on) => input.setBrace(on),
+  onRecover: () => input.queueRecover(),
 });
-loop.start();
 
-import('./render/three/ThreeRenderer').then(({ ThreeRenderer }) => {
-  renderer = new ThreeRenderer();
-  renderer.mount(viewportEl);
-  renderer.setRoute(route);
-  window.addEventListener('resize', () => renderer?.resize());
+const renderer: Promise<Renderer> = import('./render/three/ThreeRenderer').then(({ ThreeRenderer }) => {
+  const r = new ThreeRenderer(); r.mount(viewportEl);
+  window.addEventListener('resize', () => r.resize());
+  return r;
 });
+
+const flow = new Flow({ viewportEl, panel, screenEl, input, renderer, tuning });
+const crate: ItemDef = { id: 'crate', name: 'Sealed Crate', mass: 1.5, tolerance: 0.6, crushLimit: 100, behavior: 'static', payout: 120, tier: 0, art: { shape: 'box', color: '#8a6d3b' } };
+flow.startHaul(generateRoute(4417, 560, 0, [], tuning.terrain), [{ def: crate, slot: 0 }]);

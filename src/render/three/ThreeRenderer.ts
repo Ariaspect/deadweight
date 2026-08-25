@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import type { Renderer, RenderPrev } from '../Renderer';
-import type { RigState, RouteDef } from '../../sim/types';
+import type { ItemDef, RigState, RouteDef } from '../../sim/types';
 import { buildTerrain } from './terrain';
 import { Rig } from './rig';
+import { CargoView } from './cargo';
+import { tuning } from '../../content';
 
 const SKY = '#d9c9a3';
 
@@ -14,6 +16,8 @@ export class ThreeRenderer implements Renderer {
   private terrain: THREE.Mesh | null = null;
   private route: RouteDef | null = null;
   private readonly rig = new Rig();
+  private readonly cargo = new CargoView();
+  private lastDrawMs = 0;
   private readonly camPos = new THREE.Vector3();
   private readonly camTarget = new THREE.Vector3();
   private firstFrame = true;
@@ -29,7 +33,13 @@ export class ThreeRenderer implements Renderer {
     const sun = new THREE.DirectionalLight('#ffe9c4', 1.4);
     sun.position.set(-30, 50, 40);
     this.scene.add(hemi, sun, this.rig.group);
+    this.rig.group.add(this.cargo.group);
+    this.scene.add(this.cargo.debrisGroup);
     this.resize();
+  }
+
+  setLoadout(items: ItemDef[]): void {
+    this.cargo.setLoadout(items);
   }
 
   setRoute(route: RouteDef): void {
@@ -46,6 +56,9 @@ export class ThreeRenderer implements Renderer {
     const tilt = prev.tilt + (curr.tilt - prev.tilt) * alpha;
     const y = this.route.heightAt(x);
     this.rig.update(x, y, tilt, curr.gait, curr.t + alpha, this.route);
+    this.cargo.sync(curr.items, tuning, this.rig.group.position);
+    const now = performance.now(); const dtSec = this.lastDrawMs ? Math.min(0.05, (now - this.lastDrawMs) / 1000) : 0; this.lastDrawMs = now;
+    this.cargo.tickDebris(dtSec, (px) => this.route!.heightAt(px));
     this.camPos.set(x - 6, y + 5.5, 13);
     this.camTarget.set(x + 4, y + 1.2, 0);
     if (this.firstFrame) { this.camera.position.copy(this.camPos); this.firstFrame = false; }
