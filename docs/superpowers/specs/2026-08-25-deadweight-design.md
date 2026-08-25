@@ -190,7 +190,7 @@ DISPATCH  One outpost per dispatch (rotates through outposts with tier ≤ playe
 LOAD      Picks go into slots. slotPos: fore −1 / mid 0 / aft +1. Capacity 2 = fore+aft; 3 = all three.
           Live readout of predicted neutral trim ("TRIM −30"). This is the planning half.
 HAUL      loop.ts runs. Ends on arrival | all items lost | reserve 0.
-ARRIVAL   ~4 s: rig walks into outpost; per-item condition bars fill.
+ARRIVAL   ~1 s linger after the run ends (M2). The 4 s walk-in with condition bars filling is M4 polish.
 REVIEW    Stars, review line, cash, next-unlock silhouette, ♥ pings (M3).
 UPGRADE   2×3 grid; buy or skip → DISPATCH.
 ```
@@ -214,8 +214,8 @@ hazards.json     { type, impulse, strapJolt, telegraphM, counter, weight, minTie
                  scree (repeated small impulses; counter: slow + brace)
 upgrades.json    { id, name, cost, effect:{ key, value } } → applied as tuning overrides                            ×6
                  ballastRange 130 · autoTrim 0.3 · strapJoltMul 0.6 · capacity +1 · gaitSpeedMul 1.2 · kitCostMul 0.5
-reviews.json     { bucket 0–4, behavior | "any", lines[] }                                                          ~60
-hq.json          { context: dispatch|hazard|arrival|spill, behavior | "any", lines[] }                              ~40
+reviews.json     { stars 1–5, behavior | "any", lines[] }                                                            46 shipped in M2; ~60 by M4
+hq.json          { context: dispatch|arrival|spill|stall, behavior | "any", lines[] }                               20 shipped in M2; ~40 by M4
 traces.seed.json { seed, x, type, ownerName, useCount, ageHours }                                                   ×25
 tuning.json      every constant in §2 + gaitSpeed[5] + reserveBudget + braceSpeed + spillRelief + hazardGaitScale + slot positions + star buckets
 ```
