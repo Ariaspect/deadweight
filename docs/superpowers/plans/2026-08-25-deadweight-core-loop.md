@@ -2500,6 +2500,13 @@ function geometryFor(shape: ItemDef['art']['shape']): THREE.BufferGeometry {
 
 interface Debris { mesh: THREE.Mesh; vel: THREE.Vector3; life: number }
 
+const DEBRIS_GEO = new THREE.BoxGeometry(0.25, 0.25, 0.25);   // shared; never disposed per particle
+
+function disposeMesh(m: THREE.Mesh, geometry = true): void {
+  if (geometry) m.geometry.dispose();
+  (m.material as THREE.Material).dispose();
+}
+
 export class CargoView {
   readonly group = new THREE.Group();          // parented to the rig group
   readonly debrisGroup = new THREE.Group();    // parented to the scene
@@ -2508,6 +2515,7 @@ export class CargoView {
   private debris: Debris[] = [];
 
   setLoadout(items: ItemDef[]): void {
+    for (const m of this.meshes.values()) disposeMesh(m);
     this.group.clear(); this.meshes.clear(); this.wasLost.clear();
     for (const def of items) {
       const m = new THREE.Mesh(geometryFor(def.art.shape), new THREE.MeshLambertMaterial({ color: def.art.color, flatShading: true, wireframe: def.art.shape === 'cage' }));
@@ -2528,7 +2536,7 @@ export class CargoView {
 
   private burst(at: THREE.Vector3, color: THREE.Color): void {
     for (let i = 0; i < 7; i++) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.25), new THREE.MeshLambertMaterial({ color }));
+      const mesh = new THREE.Mesh(DEBRIS_GEO, new THREE.MeshLambertMaterial({ color }));
       mesh.position.copy(at);
       this.debrisGroup.add(mesh);
       this.debris.push({ mesh, vel: new THREE.Vector3((Math.random() - 0.5) * 6, 3 + Math.random() * 3, (Math.random() - 0.5) * 6), life: 1.4 });
@@ -2541,7 +2549,13 @@ export class CargoView {
       const g = groundY(d.mesh.position.x);
       if (d.mesh.position.y < g) { d.mesh.position.y = g; d.vel.set(d.vel.x * 0.5, 0, d.vel.z * 0.5); }
     }
-    this.debris = this.debris.filter((d) => { if (d.life <= 0) { this.debrisGroup.remove(d.mesh); return false; } return true; });
+    this.debris = this.debris.filter((d) => { if (d.life <= 0) { this.debrisGroup.remove(d.mesh); disposeMesh(d.mesh, false); return false; } return true; });
+  }
+
+  dispose(): void {
+    for (const m of this.meshes.values()) disposeMesh(m);
+    for (const d of this.debris) disposeMesh(d.mesh, false);
+    this.meshes.clear(); this.debris = []; this.group.clear(); this.debrisGroup.clear();
   }
 }
 ```
@@ -2555,6 +2569,7 @@ In `ThreeRenderer.ts`:
 - add fields `private readonly cargo = new CargoView(); private lastDrawMs = 0;`
 - in `mount()`: `this.rig.group.add(this.cargo.group); this.scene.add(this.cargo.debrisGroup);`
 - add `setLoadout(items: ItemDef[]): void { this.cargo.setLoadout(items); }`
+- in `dispose()`, call `this.cargo.dispose();` before `this.rig.dispose();`
 - in `draw()`, after `this.rig.update(...)`: 
   ```ts
   this.cargo.sync(curr.items, tuning, this.rig.group.position);
@@ -2642,13 +2657,15 @@ export class Flow {
     if (this.renderer) attachRenderer(this.renderer); else this.d.renderer.then(attachRenderer);
 
     let linger = 0;   // own counter: state.t freezes once the run has ended
+    let finished = false;   // GameLoop.tick() may run several steps after stop(); finish exactly once
     const loop = new GameLoop({
       dt: tuning.dt,
       sampleInput: () => input.sample(),
       step: (inp) => {
+        if (finished) return;
         prev.x = state.x; prev.tilt = state.tilt;
         step(state, inp, route, [], tuning, rng);
-        if (state.ended && ++linger > 60) this.finish(state, loop);   // 1 s linger after end
+        if (state.ended && ++linger > 60) { finished = true; this.finish(state, loop); }   // 1 s linger after end
       },
       render: (alpha) => { this.renderer?.draw(state, prev, alpha); panel.update(state, tuning); },
     });
@@ -3683,13 +3700,15 @@ export class Flow {
     if (this.renderer) attach(this.renderer); else d.renderer.then(attach);
 
     let linger = 0;
+    let finished = false;   // GameLoop.tick() may run several steps after stop(); finish exactly once
     const loop = new GameLoop({
       dt: tuning.dt,
       sampleInput: () => input.sample(),
       step: (inp) => {
+        if (finished) return;
         prev.x = state.x; prev.tilt = state.tilt;
         step(state, inp, route, this.save.traces, tuning, rng);
-        if (state.ended) { if (++linger > LINGER[state.ended]) this.finish(state, loop); } else linger = 0;
+        if (state.ended) { if (++linger > LINGER[state.ended]) { finished = true; this.finish(state, loop); } } else linger = 0;
       },
       render: (alpha) => {
         this.renderer?.draw(state, prev, alpha);
