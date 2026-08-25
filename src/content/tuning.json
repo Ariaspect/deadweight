@@ -17,7 +17,7 @@
   "strapStart": 70,
   "strapTap": 15,
   "strapJoltMul": 1,
-  "driftThreshold": 0.25,
+  "driftThreshold": 0.08,
   "graceTicks": 24,
   "kDrift": 0.8,
   "sloshGain": 1.2,
