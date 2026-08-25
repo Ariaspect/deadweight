@@ -76,6 +76,7 @@ export class ThreeRenderer implements Renderer {
 
   dispose(): void {
     if (this.terrain) { this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); }
+    this.cargo.dispose();
     this.rig.dispose();
     this.gl.dispose(); this.gl.domElement.remove();
   }

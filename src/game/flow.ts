@@ -36,13 +36,15 @@ export class Flow {
     if (this.renderer) attachRenderer(this.renderer); else this.d.renderer.then(attachRenderer);
 
     let linger = 0;   // own counter: state.t freezes once the run has ended
+    let finished = false;   // GameLoop.tick() may run several steps after stop(); finish exactly once
     const loop = new GameLoop({
       dt: tuning.dt,
       sampleInput: () => input.sample(),
       step: (inp) => {
+        if (finished) return;
         prev.x = state.x; prev.tilt = state.tilt;
         step(state, inp, route, [], tuning, rng);
-        if (state.ended && ++linger > 60) this.finish(state, loop);   // 1 s linger after end
+        if (state.ended && ++linger > 60) { finished = true; this.finish(state, loop); }   // 1 s linger after end
       },
       render: (alpha) => { this.renderer?.draw(state, prev, alpha); panel.update(state, tuning); },
     });
