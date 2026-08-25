@@ -8,6 +8,7 @@
   "damping": 1.3,
   "stiffness": 2.0,
   "braceDamp": 0.85,
+  "braceSpeed": 3,
   "reserveBudget": 0.75,
   "braceDrain": 2.5,
   "reserveStart": 100,

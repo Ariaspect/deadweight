@@ -1,4 +1,4 @@
-import type { InputFrame, ItemState, LoadoutItem, RigState, RouteDef, Trace, Tuning } from './types';
+import type { HazardInstance, InputFrame, ItemState, LoadoutItem, RigState, RouteDef, Trace, Tuning } from './types';
 import type { Rng } from './rng';
 
 export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tuning): RigState {
@@ -36,16 +36,38 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   const dt = tuning.dt;
   s.gait = input.gait;
   s.ballast = clamp(Math.round(input.ballast), -tuning.ballastRange, tuning.ballastRange);
+  s.braced = input.brace;
+  if (input.strap) s.strap = Math.min(100, s.strap + tuning.strapTap);
 
   const slope = route.slopeAt(s.x);
   const load = loadOffsetOf(s.items, tuning);
-  const torque = tuning.kSlope * slope + tuning.kBallast * (s.ballast / 100) + tuning.kLoad * load;
+  const ideal = -(tuning.kSlope * slope + tuning.kLoad * load) / tuning.kBallast * 100;
+  const effBallast = s.ballast + tuning.autoTrim * (ideal - s.ballast);
+  const torque = tuning.kSlope * slope + tuning.kBallast * (effBallast / 100) + tuning.kLoad * load;
   const acc = torque - tuning.damping * s.tiltVel - tuning.stiffness * s.tilt;
   s.tiltVel += acc * dt;
+  if (s.braced) s.tiltVel *= tuning.braceDamp;
   s.tilt += s.tiltVel * dt;
 
-  s.x += tuning.gaitSpeed[s.gait]! * tuning.gaitSpeedMul * dt;
-  s.reserve -= drainRate(route, tuning) * dt;
+  const speed = s.braced ? tuning.braceSpeed : tuning.gaitSpeed[s.gait]! * tuning.gaitSpeedMul;
+  s.x += speed * dt;
+  s.reserve -= (drainRate(route, tuning) + (s.braced ? tuning.braceDrain : 0)) * dt;
+}
+
+function traceCancels(h: HazardInstance, traces: Trace[], route: RouteDef): boolean {
+  if (h.type !== 'gap') return false;
+  return traces.some((t) => t.seed === route.seed && t.type === 'plank' && Math.abs(t.x - h.x) <= 5);
+}
+
+function crossHazards(s: RigState, route: RouteDef, traces: Trace[], tuning: Tuning): void {
+  const hz = route.hazards;
+  while (s.hazardCursor < hz.length && hz[s.hazardCursor]!.x <= s.x) {
+    const h = hz[s.hazardCursor]!;
+    s.hazardCursor++;
+    if (h.impulse === 0 || s.braced || traceCancels(h, traces, route)) continue;
+    s.tiltVel += h.dir * h.impulse * tuning.hazardGaitScale[s.gait]!;
+    s.strap = Math.max(0, s.strap - h.strapJolt * tuning.strapJoltMul);
+  }
 }
 
 export function stepItems(s: RigState, tuning: Tuning, rng: Rng): void {
@@ -98,15 +120,34 @@ function spillCheck(s: RigState, tuning: Tuning): void {
 }
 
 export function stepEvents(s: RigState, input: InputFrame, route: RouteDef, traces: Trace[], tuning: Tuning, rng: Rng): void {
-  void input; void traces; void rng;
+  void rng;
+  crossHazards(s, route, traces, tuning);
   spillCheck(s, tuning);
+  if (input.recover && s.recovering === 0 && s.items.some((it) => it.lost)) {
+    s.recovering = tuning.recoverTicks;
+    s.reserve -= tuning.recoverCost;
+    s.ended = null;
+  }
   if (s.ended) return;
   if (s.reserve <= 0) { s.reserve = 0; s.ended = 'stalled'; return; }
   if (s.x >= route.length) { s.x = route.length; s.ended = 'arrived'; }
 }
 
+function stepRecovering(s: RigState, tuning: Tuning): void {
+  s.recovering--;
+  if (s.recovering > 0) return;
+  const it = s.items.find((i) => i.lost);
+  if (it) { it.lost = false; it.offset = 0; it.offsetVel = 0; it.stress += tuning.recoverStress; }
+  s.overTiltTicks = 0;
+}
+
 export function step(s: RigState, input: InputFrame, route: RouteDef, traces: Trace[], tuning: Tuning, rng: Rng): void {
-  if (s.ended) return;
+  if (s.recovering > 0) { stepRecovering(s, tuning); s.t += 1; return; }
+  if (s.ended) {
+    // A spilled run stays open for RECOVER; stalled/arrived are final.
+    if (s.ended === 'spilled' && input.recover) stepEvents(s, input, route, traces, tuning, rng);
+    return;
+  }
   stepRig(s, input, route, tuning);
   stepItems(s, tuning, rng);
   stepEvents(s, input, route, traces, tuning, rng);

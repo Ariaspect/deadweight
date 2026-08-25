@@ -57,7 +57,7 @@ export interface BotTuning { kp: number; kd: number; lagTicks: number; strapBelo
 
 export interface Tuning {
   dt: number; gaitSpeed: number[]; gaitSpeedMul: number;
-  kSlope: number; kBallast: number; kLoad: number; damping: number; stiffness: number; braceDamp: number;
+  kSlope: number; kBallast: number; kLoad: number; damping: number; stiffness: number; braceDamp: number; braceSpeed: number;
   reserveBudget: number; braceDrain: number; reserveStart: number;
   ballastRange: number; ballastRate: number; autoTrim: number;
   strapStart: number; strapTap: number; strapJoltMul: number;
