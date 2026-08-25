@@ -5,10 +5,10 @@
   { "id": "tallow", "name": "Tallow Ridge", "seed": 3350, "lengthM": 680, "tier": 1, "flavor": "One long grade. Trim early or trim never." },
   { "id": "kettle", "name": "Kettle Pass", "seed": 9026, "lengthM": 700, "tier": 1, "flavor": "Gusts funnel through the pass at exactly the wrong moment." },
   { "id": "marrow", "name": "Marrow Flats", "seed": 5518, "lengthM": 720, "tier": 1, "flavor": "Flat. Deceptively. Rubble everywhere." },
-  { "id": "halfmast", "name": "Halfmast", "seed": 6142, "lengthM": 780, "tier": 2, "flavor": "The flag has been at half mast since the last piano." },
+  { "id": "halfmast", "name": "Halfmast", "seed": 6142, "lengthM": 780, "tier": 2, "flavor": "The flag has been at half mast since the last piano. The hammer is unrelated." },
   { "id": "brine", "name": "Brine Terrace", "seed": 2870, "lengthM": 800, "tier": 2, "flavor": "Terraced. Gaps between every terrace. Bring planks." },
   { "id": "signal", "name": "Old Signal", "seed": 8809, "lengthM": 820, "tier": 2, "flavor": "Nobody remembers what it signals." },
-  { "id": "cinder", "name": "Cinder Stair", "seed": 1499, "lengthM": 880, "tier": 3, "flavor": "Not stairs. Worse." },
-  { "id": "shelf", "name": "The Shelf", "seed": 7263, "lengthM": 900, "tier": 3, "flavor": "A shelf. With a drop. Scree on the drop." },
-  { "id": "lantern", "name": "Lantern Reach", "seed": 3928, "lengthM": 960, "tier": 3, "flavor": "Longest route on the books. Reserve is the enemy." }
+  { "id": "cinder", "name": "Cinder Stair", "seed": 1499, "lengthM": 880, "tier": 3, "flavor": "Not stairs. Worse. The crusher has no emergency stop." },
+  { "id": "shelf", "name": "The Shelf", "seed": 7263, "lengthM": 900, "tier": 3, "flavor": "A shelf, a drop, three fans and somebody's launch ramp." },
+  { "id": "lantern", "name": "Lantern Reach", "seed": 3928, "lengthM": 960, "tier": 3, "flavor": "Longest route on the books. Every safety inspector quit." }
 ]

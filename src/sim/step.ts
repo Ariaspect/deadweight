@@ -10,9 +10,10 @@ export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tunin
     deadlineTick: li.def.rush !== undefined ? Math.round(li.def.rush / tuning.dt) : -1,
   }));
   return {
-    t: 0, x: 0, tilt: 0, tiltVel: 0, gait: 0, speed: 0, ballast: 0,
+    t: 0, x: 0, z: 0, lateralVel: 0, lift: 0, liftVel: 0, grounded: true,
+    tilt: 0, tiltVel: 0, gait: 0, speed: 0, ballast: 0,
     strap: tuning.strapStart, reserve: tuning.reserveStart, braced: false,
-    items, recovering: 0, hazardCursor: 0, overTiltTicks: 0, ended: null,
+    items, foundDiscoveries: [], recovering: 0, hazardCursor: 0, overTiltTicks: 0, ended: null,
   };
 }
 
@@ -50,16 +51,38 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   const load = loadOffsetOf(s.items, tuning);
   const ideal = -(tuning.kSlope * slope + tuning.kLoad * load) / tuning.kBallast * 100;
   const effBallast = s.ballast + tuning.autoTrim * (ideal - s.ballast);
-  const torque = tuning.kSlope * slope + tuning.kBallast * (effBallast / 100) + tuning.kLoad * load;
+  const torque = tuning.kSlope * slope + tuning.kBallast * (effBallast / 100) + tuning.kLoad * load - s.lateralVel * 0.045;
   const acc = torque - tuning.damping * s.tiltVel - tuning.stiffness * s.tilt;
   s.tiltVel += acc * dt;
   if (s.braced) s.tiltVel *= tuning.braceDamp;
   s.tilt += s.tiltVel * dt;
 
-  const target = s.braced ? tuning.braceSpeed : tuning.gaitSpeed[s.gait]! * tuning.gaitSpeedMul;
+  let target = tuning.gaitSpeed[s.gait]! * tuning.gaitSpeedMul;
+  if (input.throttle === 1) target = tuning.gaitSpeed[4]! * tuning.gaitSpeedMul;
+  else if (input.throttle === -1) target = -tuning.gaitSpeed[1]! * tuning.gaitSpeedMul;
+  if (s.braced) target = Math.sign(target || s.speed || 1) * tuning.braceSpeed;
   const delta = target - s.speed;
   s.speed += clamp(delta, -tuning.gaitDecel * dt, tuning.gaitAccel * dt);
-  s.x += s.speed * dt;
+  s.x = Math.max(0, s.x + s.speed * dt);
+
+  const steer = input.steer ?? 0;
+  const traction = s.grounded ? 1 : 0.28;
+  s.lateralVel += steer * tuning.steerAccel * traction * dt;
+  s.lateralVel *= Math.max(0, 1 - tuning.lateralDamping * dt * (steer === 0 ? 1 : 0.35));
+  s.z += s.lateralVel * dt;
+  const courseCenter = route.centerAt(s.x);
+  const offset = s.z - courseCenter;
+  if (Math.abs(offset) > tuning.courseHalfWidth) {
+    s.z = courseCenter + Math.sign(offset) * tuning.courseHalfWidth;
+    s.lateralVel *= -0.32;
+    s.tiltVel += -Math.sign(offset) * 0.18;
+  }
+
+  if (input.jump && s.grounded) { s.grounded = false; s.liftVel = tuning.jumpSpeed; }
+  if (!s.grounded) {
+    s.liftVel -= tuning.gravity * dt; s.lift += s.liftVel * dt;
+    if (s.lift <= 0) { s.lift = 0; s.liftVel = 0; s.grounded = true; s.tiltVel += Math.abs(s.speed) * 0.018; }
+  }
   s.reserve -= (drainRate(route, tuning) + (s.braced ? tuning.braceDrain : 0)) * dt;
 }
 
@@ -73,14 +96,48 @@ function traceCancels(h: HazardInstance, traces: Trace[], route: RouteDef): bool
   return traces.some((t) => t.seed === route.seed && t.type === 'plank' && Math.abs(t.x - h.x) <= 5);
 }
 
+function spatiallyHits(s: RigState, h: HazardInstance, route: RouteDef): boolean {
+  const centre = h.z ?? route.centerAt(h.x);
+  if (h.type === 'gap') return Math.abs(s.z - centre) < 5 && s.lift < 0.55;
+  if (h.type === 'rubble' || h.type === 'scree' || h.type === 'hammer') {
+    const hz = (h.z ?? route.centerAt(h.x)) + h.dir * 2.1;
+    return Math.abs(s.z - hz) < 1.65 && s.lift < 0.8;
+  }
+  if (h.type === 'crusher') {
+    if (Math.abs(s.z - centre) > 3.8) return false;
+    const cycleTick = (s.t + h.id * 73) % 180;
+    const open = cycleTick > 105 && cycleTick < 155;
+    return !open;
+  }
+  if (h.type === 'launchpad') return Math.abs(s.z - centre) < 3.8;
+  return true;
+}
+
 function crossHazards(s: RigState, route: RouteDef, traces: Trace[], tuning: Tuning): void {
   const hz = route.hazards;
   while (s.hazardCursor < hz.length && hz[s.hazardCursor]!.x <= s.x) {
     const h = hz[s.hazardCursor]!;
     s.hazardCursor++;
-    if (h.impulse === 0 || s.braced || traceCancels(h, traces, route)) continue;
+    if (h.type === 'launchpad' && spatiallyHits(s, h, route)) {
+      s.grounded = false; s.liftVel = Math.max(s.liftVel, tuning.jumpSpeed * 1.28);
+      s.tiltVel += h.dir * h.impulse * 0.35; s.strap = Math.max(0, s.strap - h.strapJolt * 0.5 * tuning.strapJoltMul);
+      continue;
+    }
+    if (h.impulse === 0 || s.braced || traceCancels(h, traces, route) || !spatiallyHits(s, h, route)) continue;
     s.tiltVel += h.dir * h.impulse * hazardScale(s, tuning);
     s.strap = Math.max(0, s.strap - h.strapJolt * tuning.strapJoltMul);
+    if (h.type === 'fan') s.lateralVel += h.dir * 6.5 * hazardScale(s, tuning);
+  }
+}
+
+function collectDiscoveries(s: RigState, route: RouteDef, tuning: Tuning): void {
+  for (const discovery of route.discoveries) {
+    if (s.foundDiscoveries.includes(discovery.id)) continue;
+    const dx = s.x - discovery.x, dz = s.z - discovery.z;
+    if (dx * dx + dz * dz > 3.2 * 3.2) continue;
+    s.foundDiscoveries.push(discovery.id);
+    s.reserve = Math.min(100, s.reserve + tuning.cacheReserve);
+    for (const item of s.items) item.stress = Math.max(0, item.stress - tuning.cacheRepair);
   }
 }
 
@@ -136,6 +193,7 @@ function spillCheck(s: RigState, tuning: Tuning): void {
 export function stepEvents(s: RigState, input: InputFrame, route: RouteDef, traces: Trace[], tuning: Tuning, rng: Rng): void {
   void rng;
   crossHazards(s, route, traces, tuning);
+  collectDiscoveries(s, route, tuning);
   spillCheck(s, tuning);
   if (input.recover && s.recovering === 0 && s.reserve > tuning.recoverCost && s.items.some((it) => it.lost)) {
     // cannot afford → ignored (else recovering + stalled in one tick)

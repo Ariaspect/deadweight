@@ -35,8 +35,8 @@ describe('content schemas', () => {
     expect(new Set(outposts.map((o) => o.seed)).size).toBe(12);
     for (let t = 0; t < 4; t++) expect(outposts.filter((o) => o.tier === t)).toHaveLength(3);
   });
-  it('hazards: 5 distinct types with a counter line', () => {
-    expect(new Set(hazards.map((h) => h.type)).size).toBe(5);
+  it('hazards: 9 distinct types with a counter line', () => {
+    expect(new Set(hazards.map((h) => h.type)).size).toBe(9);
     for (const h of hazards) { expect(h.counter.length).toBeGreaterThan(10); expect(h.telegraphM).toBeGreaterThan(0); }
   });
   it('upgrades: exactly 6, unique effect keys', () => {

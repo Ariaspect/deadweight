@@ -14,9 +14,11 @@ const input = new InputController(tuning);
 input.attach(viewportEl, document);
 const panel = new Panel(panelEl, {
   onGait: (g) => input.setGait(g),
+  onCargoSelect: (index) => input.selectCargo(index),
   onStrap: () => input.queueStrap(),
   onBrace: (on) => input.setBrace(on),
   onRecover: () => input.queueRecover(),
+  onJump: () => input.queueJump(),
 });
 const renderer: Promise<Renderer> = import('./render/three/ThreeRenderer').then(({ ThreeRenderer }) => {
   const r = new ThreeRenderer(); r.mount(viewportEl);

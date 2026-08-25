@@ -33,7 +33,7 @@ export class CargoView {
     this.group.clear(); this.meshes.clear(); this.wasLost.clear();
     for (const def of items) {
       const m = new THREE.Mesh(geometryFor(def.art.shape), new THREE.MeshLambertMaterial({ color: def.art.color, flatShading: true, wireframe: def.art.shape === 'cage' }));
-      m.position.y = BODY_TOP + 0.45;
+      m.position.y = BODY_TOP + 0.45; m.castShadow = true;
       this.group.add(m); this.meshes.set(def.id, m);
     }
   }

@@ -1,6 +1,6 @@
 import type { Gait, RigState, Tuning } from '../../sim/types';
 
-export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace(on: boolean): void; onRecover(): void }
+export interface PanelHandlers { onGait(g: Gait): void; onCargoSelect(index: number): void; onStrap(): void; onBrace(on: boolean): void; onRecover(): void; onJump(): void }
 
 function clamp(v: number, lo: number, hi: number): number { return v < lo ? lo : v > hi ? hi : v; }
 function rpmAngle(rpm: number): number { return -120 + 240 * rpm / 3000; }
@@ -15,20 +15,21 @@ export class Panel {
   constructor(private readonly root: HTMLElement, private readonly h: PanelHandlers) {
     root.innerHTML = `
       <div class="panel-grid">
-        <div class="brand">DEADWEIGHT <span class="sub">MULE-7 REMOTE OPERATOR</span></div>
+        <div class="brand"><span class="brand-mark">DW</span><span>DEADWEIGHT<small>MULE-7 REMOTE OPERATOR</small></span><i>LINKED</i></div>
         <div class="gauge tilt"><div class="dial"><div class="zone"></div><div class="needle"></div></div><label>TILT</label></div>
         <div class="gauge rpm"><div class="dial"><div class="zone rpm"></div><div class="target"></div><div class="needle"></div></div><label>RPM <span class="val">600</span></label></div>
         <div class="gauges">
           <div class="gauge reserve"><div class="bar"><div class="fill"></div></div><label>RESERVE</label></div>
-          <div class="gauge strap m2"><div class="bar"><div class="fill"></div></div><label>STRAP</label></div>
+          <div class="gauge strap m2"><div class="bar"><div class="fill"></div></div><label>ACTIVE RESTRAINT</label></div>
           <div class="gauge cargo"><div class="bar"><div class="fill"></div></div><label>CARGO <span class="val">100%</span></label></div>
           <div class="gauge ballast"><div class="bar centred"><div class="fill"></div></div><label>BALLAST <span class="val">0</span></label></div>
         </div>
-        <div class="rail"><label>GAIT</label>${[4, 3, 2, 1, 0].map((g) => `<button data-gait="${g}">${g}</button>`).join('')}</div>
+        <div class="rail"><label>CARGO BAY</label>${[3, 2, 1].map((bay) => `<button data-bay="${bay - 1}">${bay}</button>`).join('')}</div>
         <div class="buttons">
-          <button class="big strap m2">STRAP</button>
-          <button class="big brace m2">BRACE</button>
-          <button class="big recover m2" disabled>RECOVER</button>
+          <button class="big jump">JUMP <kbd>SPACE</kbd></button>
+          <button class="big strap m2">RATCHET BAY <kbd>F</kbd></button>
+          <button class="big brace m2">BRACE <kbd>SHIFT</kbd></button>
+          <button class="big recover m2" disabled>RECOVER <kbd>R</kbd></button>
         </div>
         <div class="lamp hazard m2">HAZARD</div>
         <pre class="tele"></pre>
@@ -41,8 +42,9 @@ export class Panel {
     this.rpmNeedle = q('.rpm .needle'); this.rpmTarget = q('.rpm .target'); this.rpmVal = q('.rpm .val');
     this.cargoFill = q('.cargo .fill'); this.cargoVal = q('.cargo .val');
     this.gaitBtns = Array.from(root.querySelectorAll<HTMLElement>('.rail button'));
-    for (const b of this.gaitBtns) b.addEventListener('pointerdown', () => { const g = Number(b.dataset.gait) as Gait; this.setGait(g); h.onGait(g); });
+    for (const b of this.gaitBtns) b.addEventListener('pointerdown', () => { const bay = Number(b.dataset.bay); this.setCargoBay(bay); h.onCargoSelect(bay); });
     q<HTMLButtonElement>('button.strap').addEventListener('pointerdown', () => h.onStrap());
+    q<HTMLButtonElement>('button.jump').addEventListener('pointerdown', () => h.onJump());
     const brace = q<HTMLButtonElement>('button.brace');
     brace.addEventListener('pointerdown', (e) => { brace.setPointerCapture(e.pointerId); brace.classList.add('on'); h.onBrace(true); });
     const off = (): void => { brace.classList.remove('on'); h.onBrace(false); };
@@ -51,10 +53,12 @@ export class Panel {
   }
 
   setGait(g: Gait): void { for (const b of this.gaitBtns) b.classList.toggle('on', Number(b.dataset.gait) === g); }
+  setCargoBay(index: number): void { for (const b of this.gaitBtns) b.classList.toggle('on', Number(b.dataset.bay) === index); }
   setMessage(text: string): void { this.message.textContent = text; }
   setHazard(on: boolean): void { this.hazardLamp.classList.toggle('on', on); }
 
   update(s: RigState, tuning: Tuning): void {
+    if (s.selectedCargo !== undefined) this.setCargoBay(s.selectedCargo);
     const deg = Math.max(-1.2, Math.min(1.2, s.tilt)) * 60;
     this.needle.style.transform = `rotate(${deg}deg)`;
     this.needle.classList.toggle('red', Math.abs(s.tilt) > 0.7);

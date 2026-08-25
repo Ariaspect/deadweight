@@ -45,4 +45,10 @@ describe('evaluate', () => {
     const r = evaluate(s, tuning);
     expect(r.stars).toBe(1); expect(r.total).toBe(0);
   });
+  it('adds a salvage bonus for exploration discoveries', () => {
+    const s = state([0]); s.foundDiscoveries = [0, 2];
+    const r = evaluate(s, tuning);
+    expect(r.discoveryBonus).toBe(tuning.cacheBonus * 2);
+    expect(r.total).toBe(Math.round(r.payout + r.bonus + r.discoveryBonus));
+  });
 });

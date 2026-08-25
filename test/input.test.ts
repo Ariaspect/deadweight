@@ -3,24 +3,34 @@ import { initialInput, applyKey, applyDragStart, applyDragMove, applyDragEnd, sa
 import { tuning } from '../src/content';
 
 describe('input reducers', () => {
-  it('holding A ramps ballast negative at ballastRate and clamps', () => {
-    const st = initialInput(); applyKey(st, 'KeyA', true);
+  it('holding Q ramps ballast negative at ballastRate and clamps', () => {
+    const st = initialInput(); applyKey(st, 'KeyQ', true);
     for (let i = 0; i < 30; i++) sampleFrame(st, tuning);
     expect(sampleFrame(st, tuning).ballast).toBeCloseTo(-Math.round(tuning.ballastRate * 31 / 60), 0);
     for (let i = 0; i < 120; i++) sampleFrame(st, tuning);
     expect(sampleFrame(st, tuning).ballast).toBe(-tuning.ballastRange);
   });
-  it('W/S step gait within 0..4 and digits set it directly', () => {
+  it('W/S drive and A/D steer while digits set cruise gait', () => {
     const st = initialInput();
-    applyKey(st, 'KeyW', true); applyKey(st, 'KeyW', false); expect(st.gait).toBe(1);
+    applyKey(st, 'KeyW', true); applyKey(st, 'KeyA', true);
+    expect(sampleFrame(st, tuning)).toMatchObject({ throttle: 1, steer: -1 });
+    applyKey(st, 'KeyW', false); applyKey(st, 'KeyA', false);
     applyKey(st, 'Digit4', true); expect(st.gait).toBe(4);
-    applyKey(st, 'KeyW', true); expect(st.gait).toBe(4);
-    applyKey(st, 'KeyS', true); expect(st.gait).toBe(3);
   });
-  it('strap tap is delivered exactly once', () => {
-    const st = initialInput(); applyKey(st, 'Space', true);
+  it('selects cargo bays with 1/2/3 as a one-shot command', () => {
+    const st = initialInput(); applyKey(st, 'Digit2', true);
+    expect(sampleFrame(st, tuning).cargoSelect).toBe(1);
+    expect(sampleFrame(st, tuning).cargoSelect).toBeUndefined();
+  });
+  it('strap tap is delivered exactly once with F', () => {
+    const st = initialInput(); applyKey(st, 'KeyF', true);
     expect(sampleFrame(st, tuning).strap).toBe(true);
     expect(sampleFrame(st, tuning).strap).toBe(false);
+  });
+  it('jump is delivered exactly once with Space', () => {
+    const st = initialInput(); applyKey(st, 'Space', true);
+    expect(sampleFrame(st, tuning).jump).toBe(true);
+    expect(sampleFrame(st, tuning).jump).toBe(false);
   });
   it('shift is a held brace', () => {
     const st = initialInput(); applyKey(st, 'ShiftLeft', true);

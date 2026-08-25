@@ -1,6 +1,6 @@
 export type Gait = 0 | 1 | 2 | 3 | 4;
 export type Behavior = 'static' | 'slosh' | 'livestock' | 'precarious';
-export type HazardType = 'gust' | 'rubble' | 'gap' | 'grade' | 'scree';
+export type HazardType = 'gust' | 'rubble' | 'gap' | 'grade' | 'scree' | 'hammer' | 'crusher' | 'fan' | 'launchpad';
 export type KitId = 'plank' | 'rope' | 'drum' | 'sign';
 export type TraceType = KitId | 'wreckage';
 export type EndReason = 'arrived' | 'spilled' | 'stalled';
@@ -25,34 +25,42 @@ export interface UpgradeDef {
   effect: { key: 'ballastRange' | 'autoTrim' | 'strapJoltMul' | 'capacity' | 'gaitSpeedMul' | 'kitCostMul'; value: number };
 }
 
-export interface Segment { x0: number; x1: number; slope: number; y0: number }
-export interface HazardInstance { id: number; type: HazardType; x: number; impulse: number; strapJolt: number; dir: 1 | -1 }
+export interface Segment { x0: number; x1: number; slope: number; y0: number; z0?: number; z1?: number }
+export interface HazardInstance { id: number; type: HazardType; x: number; z?: number; impulse: number; strapJolt: number; dir: 1 | -1 }
+export interface Discovery { id: number; x: number; z: number; name: string }
 
 export interface RouteDef {
-  seed: number; length: number; segments: Segment[]; hazards: HazardInstance[];
+  seed: number; length: number; segments: Segment[]; hazards: HazardInstance[]; discoveries: Discovery[];
   slopeProfile: number[];            // sampled every terrain.profileStepM
   slopeAt(x: number): number;
   heightAt(x: number): number;
+  centerAt(x: number): number;
 }
 
 export interface ItemState {
   id: string; slot: number; mass: number; tolerance: number; crushLimit: number; behavior: Behavior; payout: number;
-  offset: number; offsetVel: number; stress: number; lost: boolean; deadlineTick: number; // -1 = none
+  offset: number; offsetVel: number; stress: number; lost: boolean; deadlineTick: number; restraint?: number; // -1 deadline = none
 }
 
 export interface RigState {
-  t: number; x: number; tilt: number; tiltVel: number; gait: Gait; speed: number; ballast: number;
-  strap: number; reserve: number; braced: boolean; items: ItemState[];
+  t: number; x: number; z: number; lateralVel: number; lift: number; liftVel: number; grounded: boolean;
+  tilt: number; tiltVel: number; gait: Gait; speed: number; ballast: number;
+  strap: number; reserve: number; braced: boolean; items: ItemState[]; foundDiscoveries: number[];
   recovering: number; hazardCursor: number; overTiltTicks: number; ended: EndReason | null;
+  courseTime?: number; courseResets?: number; selectedCargo?: number;
 }
 
-export interface InputFrame { gait: Gait; ballast: number; strap: boolean; brace: boolean; deploy: KitId | 0; recover: boolean }
+export interface InputFrame {
+  gait: Gait; ballast: number; strap: boolean; brace: boolean; deploy: KitId | 0; recover: boolean;
+  throttle?: -1 | 0 | 1; steer?: -1 | 0 | 1; jump?: boolean;
+  moveX?: number; moveZ?: number; cargoSelect?: number;
+}
 
 export interface LoadoutItem { def: ItemDef; slot: number }
 
 export interface Trace { id: string; seed: number; x: number; type: TraceType; ownerName: string; useCount: number; ageHours: number }
 
-export interface TerrainTuning { segMin: number; segMax: number; slopeSigma: number[]; maxSlope: number; gradeSlope: number; hazardJitter: number; profileStepM: number; safeStartM: number; safeEndM: number }
+export interface TerrainTuning { segMin: number; segMax: number; slopeSigma: number[]; maxSlope: number; gradeSlope: number; hazardJitter: number; profileStepM: number; safeStartM: number; safeEndM: number; pathWander: number; discoveryOffset: number }
 export interface BotTuning { kp: number; kd: number; lagTicks: number; strapBelow: number; braceAheadM: number; leadSec: number }
 
 export interface Tuning {
@@ -66,11 +74,13 @@ export interface Tuning {
   recoverTicks: number; recoverCost: number; recoverStress: number;
   kBonus: number; stallMultiplier: number; starBuckets: number[];
   slotPos: number[]; capacity: number; kitCostMul: number;
+  steerAccel: number; lateralDamping: number; courseHalfWidth: number; jumpSpeed: number; gravity: number;
+  cacheReserve: number; cacheRepair: number; cacheBonus: number;
   terrain: TerrainTuning; bot: BotTuning;
 }
 
 export interface ItemResult { id: string; condition: number; payout: number; lost: boolean; late: boolean }
-export interface RunResult { items: ItemResult[]; stars: number; payout: number; bonus: number; total: number; ended: EndReason }
+export interface RunResult { items: ItemResult[]; stars: number; payout: number; bonus: number; discoveryBonus: number; total: number; ended: EndReason; elapsed?: number; resets?: number }
 
 export interface ReviewDef { stars: 1 | 2 | 3 | 4 | 5; behavior: Behavior | 'any'; lines: string[] }
 export interface HqDef { context: 'dispatch' | 'arrival' | 'spill' | 'stall'; behavior: Behavior | 'any'; lines: string[] }
