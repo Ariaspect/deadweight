@@ -32,6 +32,13 @@ export function loadOffsetOf(items: ItemState[], tuning: Tuning): number {
   return m > 0 ? sum / m : 0;
 }
 
+export function predictTrim(loadout: LoadoutItem[], tuning: Tuning): number {
+  let m = 0, sum = 0;
+  for (const l of loadout) { m += l.def.mass; sum += l.def.mass * tuning.slotPos[l.slot]!; }
+  const load = m > 0 ? sum / m : 0;
+  return Math.round(-(tuning.kLoad * load) / tuning.kBallast * 100) || 0; // normalise -0 (balanced load) to 0
+}
+
 export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning: Tuning): void {
   const dt = tuning.dt;
   s.gait = input.gait;
@@ -123,7 +130,8 @@ export function stepEvents(s: RigState, input: InputFrame, route: RouteDef, trac
   void rng;
   crossHazards(s, route, traces, tuning);
   spillCheck(s, tuning);
-  if (input.recover && s.recovering === 0 && s.items.some((it) => it.lost)) {
+  if (input.recover && s.recovering === 0 && s.reserve > tuning.recoverCost && s.items.some((it) => it.lost)) {
+    // cannot afford → ignored (else recovering + stalled in one tick)
     s.recovering = tuning.recoverTicks;
     s.reserve -= tuning.recoverCost;
     s.ended = null;

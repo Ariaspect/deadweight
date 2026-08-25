@@ -1,41 +1,83 @@
 import { createRun, step } from '../sim/step';
 import { evaluate } from '../sim/score';
+import { generateRoute } from '../sim/terrain';
+import { applyUpgrades } from '../sim/upgrades';
 import { mulberry32, hashSeed } from '../sim/rng';
 import { GameLoop } from './loop';
+import { loadSave, writeSave, type SaveData, type StorageLike } from './save';
+import { generateOffers, playerTier, type Offers } from './orders';
+import { pickHq, pickReview } from './reviews';
+import { renderDispatch } from '../ui/screens/dispatch';
+import { renderLoadout } from '../ui/screens/loadout';
 import { renderResult } from '../ui/screens/result';
+import { renderUpgrade } from '../ui/screens/upgrade';
 import type { Renderer, RenderPrev } from '../render/Renderer';
 import type { Panel } from '../ui/panel/panel';
 import type { InputController } from '../ui/input';
-import type { InputFrame, LoadoutItem, RigState, RouteDef, RunResult, Tuning } from '../sim/types';
+import type { HazardDef, HazardType, HqDef, ItemDef, LoadoutItem, OutpostDef, ReviewDef, RigState, RouteDef, RunResult, Tuning, UpgradeDef } from '../sim/types';
 
+export interface Content { cargo: ItemDef[]; outposts: OutpostDef[]; hazards: HazardDef[]; upgrades: UpgradeDef[]; reviews: ReviewDef[]; hq: HqDef[] }
 export interface FlowDeps {
   viewportEl: HTMLElement; panel: Panel; screenEl: HTMLElement; input: InputController;
-  renderer: Promise<Renderer>; tuning: Tuning;
-  onRunEnd?(result: RunResult, state: RigState, log: InputFrame[]): void;
+  renderer: Promise<Renderer>; baseTuning: Tuning; content: Content; storage: StorageLike;
 }
 
+const LINGER: Record<NonNullable<RigState['ended']>, number> = { arrived: 60, stalled: 90, spilled: 300 };
+
 export class Flow {
-  private loop: GameLoop | null = null;
+  save: SaveData;
+  tuning: Tuning;
   private renderer: Renderer | null = null;
+  private loop: GameLoop | null = null;
   private runNonce = 1;
+  private offers: Offers | null = null;
+  private route: RouteDef | null = null;
+  private loadout: LoadoutItem[] = [];
+  private readonly metaRng = mulberry32((Date.now() & 0x7fffffff) >>> 0);
+  private readonly telegraph: Record<HazardType, number>;
 
   constructor(private readonly d: FlowDeps) {
+    const { data, reset } = loadSave(d.storage);
+    this.save = data;
+    this.tuning = applyUpgrades(d.baseTuning, data.upgrades, d.content.upgrades);
+    this.telegraph = Object.fromEntries(d.content.hazards.map((h) => [h.type, h.telegraphM])) as Record<HazardType, number>;
+    if (reset) d.panel.setMessage('HQ: Save data unreadable. Fresh ledger opened.');
     d.renderer.then((r) => { this.renderer = r; });
   }
 
-  startHaul(route: RouteDef, loadout: LoadoutItem[]): void {
+  start(): void { this.dispatch(); }
+
+  private dispatch(): void {
+    const { content, panel, screenEl } = this.d;
+    const offers = generateOffers(content.outposts, content.cargo, this.save.runs, this.metaRng);
+    this.offers = offers;
+    this.route = generateRoute(offers.outpost.seed, offers.outpost.lengthM, offers.outpost.tier, content.hazards, this.tuning.terrain);
+    const hqLine = pickHq(content.hq, 'dispatch', offers.cargo[0]?.behavior ?? 'any', this.metaRng);
+    panel.setMessage(hqLine);
+    renderDispatch(screenEl, {
+      offers, profile: this.route.slopeProfile, profileStepM: this.tuning.terrain.profileStepM, hqLine,
+      capacity: this.tuning.capacity, cash: this.save.cash, tier: playerTier(this.save.runs), traceCount: 0,
+    }, (selected) => this.load(selected));
+  }
+
+  private load(selected: ItemDef[]): void {
+    renderLoadout(this.d.screenEl, { items: selected, tuning: this.tuning }, (loadout) => { this.loadout = loadout; this.haul(); });
+  }
+
+  private haul(): void {
+    const route = this.route!; const loadout = this.loadout;
+    const { tuning, d } = this; const { panel, input } = d;
     this.loop?.stop();
-    const { tuning, panel, input } = this.d;
     const state = createRun(route, loadout, tuning);
     const rng = mulberry32(hashSeed(route.seed, this.runNonce++));
     const prev: RenderPrev = { x: 0, tilt: 0 };
     input.setGait(2); panel.setGait(2);
-    panel.setMessage(`HQ: Route ${route.seed}. ${loadout.length} item(s) aboard. Counter the slope with ballast. Go.`);
+    panel.setMessage(`HQ: ${this.offers!.outpost.name}. ${loadout.length} aboard. Trim against the slope. Go.`);
     const defs = loadout.map((l) => l.def);
-    const attachRenderer = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); };
-    if (this.renderer) attachRenderer(this.renderer); else this.d.renderer.then(attachRenderer);
+    const attach = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); };
+    if (this.renderer) attach(this.renderer); else d.renderer.then(attach);
 
-    let linger = 0;   // own counter: state.t freezes once the run has ended
+    let linger = 0;
     let finished = false;   // GameLoop.tick() may run several steps after stop(); finish exactly once
     const loop = new GameLoop({
       dt: tuning.dt,
@@ -43,23 +85,49 @@ export class Flow {
       step: (inp) => {
         if (finished) return;
         prev.x = state.x; prev.tilt = state.tilt;
-        step(state, inp, route, [], tuning, rng);
-        if (state.ended && ++linger > 60) { finished = true; this.finish(state, loop); }   // 1 s linger after end
+        step(state, inp, route, this.save.traces, tuning, rng);
+        if (state.ended) { if (++linger > LINGER[state.ended]) { finished = true; this.finish(state, loop); } } else linger = 0;
       },
-      render: (alpha) => { this.renderer?.draw(state, prev, alpha); panel.update(state, tuning); },
+      render: (alpha) => {
+        this.renderer?.draw(state, prev, alpha);
+        panel.update(state, tuning);
+        panel.setHazard(route.hazards.some((h) => h.impulse > 0 && h.x > state.x && h.x <= state.x + this.telegraph[h.type]));
+      },
     });
     this.loop = loop;
     loop.start();
-    this.lastRoute = route; this.lastLoadout = loadout;
   }
-
-  private lastRoute: RouteDef | null = null;
-  private lastLoadout: LoadoutItem[] = [];
 
   private finish(state: RigState, loop: GameLoop): void {
     loop.stop();
-    const result = evaluate(state, this.d.tuning);
-    this.d.onRunEnd?.(result, state, loop.log);
-    renderResult(this.d.screenEl, result, this.lastLoadout.map((l) => l.def), () => { if (this.lastRoute) this.startHaul(this.lastRoute, this.lastLoadout); });
+    const result = evaluate(state, this.tuning);
+    this.review(result, state);
+  }
+
+  private review(result: RunResult, state: RigState): void {
+    const { content, panel, screenEl, storage } = this.d;
+    const outpost = this.offers!.outpost;
+    this.save.cash += result.total;
+    this.save.runs += 1;
+    if (result.stars > (this.save.bestByOutpost[outpost.id] ?? 0)) this.save.bestByOutpost[outpost.id] = result.stars;
+    writeSave(storage, this.save);
+    const worst = [...state.items].sort((a, b) => (a.lost ? 2 : a.stress) - (b.lost ? 2 : b.stress)).at(-1);
+    const line = pickReview(content.reviews, result.stars, worst?.behavior ?? 'any', this.metaRng);
+    panel.setMessage(pickHq(content.hq, result.ended === 'arrived' ? 'arrival' : result.ended === 'spilled' ? 'spill' : 'stall', 'any', this.metaRng));
+    renderResult(screenEl, result, this.loadout.map((l) => l.def), () => this.upgrade(), line, 'CONTINUE');
+  }
+
+  private upgrade(): void {
+    const { content, screenEl, storage } = this.d;
+    renderUpgrade(screenEl, { defs: content.upgrades, save: this.save }, {
+      onBuy: (id) => {
+        const def = content.upgrades.find((u) => u.id === id);
+        if (!def || this.save.upgrades.includes(id) || this.save.cash < def.cost) return;
+        this.save.cash -= def.cost; this.save.upgrades.push(id);
+        this.tuning = applyUpgrades(this.d.baseTuning, this.save.upgrades, content.upgrades);
+        writeSave(storage, this.save);
+      },
+      onDone: () => this.dispatch(),
+    });
   }
 }

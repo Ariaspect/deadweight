@@ -89,6 +89,16 @@ describe('recover', () => {
     expect(s.items[0]!.stress).toBeCloseTo(stressBefore + tuning.recoverStress);
     expect(s.x).toBe(xBefore);
   });
+
+  it('is ignored when reserve cannot cover recoverCost', () => {
+    const r = slopeRoute(0.5, 5000);
+    const s = createRun(r, [{ def: crateDef(), slot: 1 }], tuning); const rng = mulberry32(1);
+    while (!s.items[0]!.lost) step(s, frame({ gait: 1 }), r, [], tuning, rng);
+    s.reserve = tuning.recoverCost;
+    step(s, frame({ recover: true }), r, [], tuning, rng);
+    expect(s.recovering).toBe(0);
+    expect(s.ended).toBe('spilled');
+  });
 });
 
 describe('autoTrim', () => {
