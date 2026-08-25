@@ -3155,7 +3155,7 @@ export function stepEvents(s: RigState, input: InputFrame, route: RouteDef, trac
   void rng;
   crossHazards(s, route, traces, tuning);
   spillCheck(s, tuning);
-  if (input.recover && s.recovering === 0 && s.items.some((it) => it.lost)) {
+  if (input.recover && s.recovering === 0 && s.reserve > tuning.recoverCost && s.items.some((it) => it.lost)) {   // cannot afford → ignored (else recovering + stalled in one tick)
     s.recovering = tuning.recoverTicks;
     s.reserve -= tuning.recoverCost;
     s.ended = null;
