@@ -4101,6 +4101,8 @@ Claude-Session: https://claude.ai/code/session_01WagjbdSgfWVTyxfLcgt9s6"
 
 - [ ] **Step 1: Portrait phone pass** (Chrome device toolbar, 390×844 and 360×740)
 
+First fix the known gauge overlap: the three gauges share the `gauges` grid area via `margin-top` offsets and their labels hide under the next bar. Replace with a wrapper — in `panel.ts` wrap the reserve/strap/ballast `.gauge` divs in `<div class="gauges">…</div>`, and in `panel.css` replace the three `.gauge.reserve/.strap/.ballast { grid-area: gauges; margin-top: … }` rules with `.gauges { grid-area: gauges; display: flex; flex-direction: column; justify-content: center; gap: 10px; }`.
+
 Check and fix each:
 - Panel grid fits without scroll: if not, reduce `.dial` to 96 px and `.tele` min-height to 32 px under `@media (max-height: 760px)`.
 - Buttons ≥ 44 px tall; gait rail buttons ≥ 40 px.
