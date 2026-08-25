@@ -36,7 +36,7 @@ describe('bot', () => {
 });
 
 describe('bot v2', () => {
-  it('braces ahead of an impulse hazard and not for grades', () => {
+  it('braces ahead of a gap, not for gusts or grades', () => {
     const r = routeFromSegments(3, [{ x0: 0, x1: 300, slope: 0, y0: 0 }], [
       { id: 0, type: 'gap', x: 100, impulse: 1.4, strapJolt: 20, dir: 1 },
       { id: 1, type: 'grade', x: 200, impulse: 0, strapJolt: 0, dir: 1 },
@@ -45,6 +45,8 @@ describe('bot v2', () => {
     expect(botPolicy(v(100 - tuning.bot.braceAheadM + 1), r, tuning).brace).toBe(true);
     expect(botPolicy(v(50), r, tuning).brace).toBe(false);
     expect(botPolicy(v(195), r, tuning).brace).toBe(false);
+    const gust = routeFromSegments(5, [{ x0: 0, x1: 300, slope: 0, y0: 0 }], [{ id: 0, type: 'gust', x: 100, impulse: 0.9, strapJolt: 12, dir: 1 }], 10);
+    expect(botPolicy(v(100 - tuning.bot.braceAheadM + 1), gust, tuning).brace).toBe(false);   // gusts are ridden out on the PD loop; bracing everything starves reserve
   });
   it('taps strap when loose and recovers when an item is lost', () => {
     const r = flatRoute();
