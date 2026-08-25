@@ -28,7 +28,8 @@ describe('stepItems', () => {
     expect(held(0.6, 100).offset).toBe(0);
   });
   it('precarious drifts faster than static', () => {
-    expect(held(0.6, 0, crateDef({ behavior: 'precarious' })).offset).toBeGreaterThan(held(0.6, 0).offset * 2);
+    // 60 ticks = 36 drifting ticks after the grace window: static ≈ 0.29, precarious ≈ 0.86 — neither hits the ±1.5 clamp
+    expect(held(0.6, 0, crateDef({ behavior: 'precarious' }), 60).offset).toBeGreaterThan(held(0.6, 0, crateDef(), 60).offset * 2);
   });
   it('slosh chases tilt even with full straps', () => {
     expect(Math.abs(held(0.6, 100, crateDef({ behavior: 'slosh' })).offset)).toBeGreaterThan(0.1);
