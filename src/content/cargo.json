@@ -1,0 +1,22 @@
+[
+  { "id": "crate", "name": "Sealed Crate", "mass": 1.5, "tolerance": 0.65, "crushLimit": 100, "behavior": "static", "payout": 110, "tier": 0, "art": { "shape": "box", "color": "#8a6d3b" } },
+  { "id": "soup", "name": "Soup Cauldron", "mass": 2.0, "tolerance": 0.6, "crushLimit": 95, "behavior": "slosh", "payout": 150, "tier": 0, "art": { "shape": "cylinder", "color": "#6d4b2a" } },
+  { "id": "cake", "name": "Wedding Cake", "mass": 1.0, "tolerance": 0.35, "crushLimit": 55, "behavior": "precarious", "payout": 260, "tier": 0, "art": { "shape": "cylinder", "color": "#f2e8f0" } },
+  { "id": "chicken", "name": "Live Chicken", "mass": 0.5, "tolerance": 0.7, "crushLimit": 70, "behavior": "livestock", "payout": 90, "tier": 0, "art": { "shape": "cage", "color": "#e0b040" } },
+  { "id": "dishes", "name": "Stack of Unwashed Dishes", "mass": 1.0, "tolerance": 0.3, "crushLimit": 65, "behavior": "precarious", "payout": 120, "tier": 0, "art": { "shape": "cylinder", "color": "#c9d3d8" } },
+  { "id": "pizzas", "name": "40 Pizzas", "mass": 0.8, "tolerance": 0.65, "crushLimit": 60, "behavior": "static", "payout": 130, "rush": 55, "tier": 0, "art": { "shape": "box", "color": "#c8622a" } },
+  { "id": "pickles", "name": "Barrels of Pickles", "mass": 2.2, "tolerance": 0.6, "crushLimit": 95, "behavior": "slosh", "payout": 150, "tier": 0, "art": { "shape": "cylinder", "color": "#5f7a3a" } },
+  { "id": "grandmother", "name": "Nervous Grandmother", "mass": 1.2, "tolerance": 0.5, "crushLimit": 60, "behavior": "livestock", "payout": 320, "tier": 1, "art": { "shape": "cage", "color": "#b48cc8" } },
+  { "id": "fishtank", "name": "Fish Tank", "mass": 2.0, "tolerance": 0.45, "crushLimit": 75, "behavior": "slosh", "payout": 220, "tier": 1, "art": { "shape": "box", "color": "#5aa7c8" } },
+  { "id": "bearings", "name": "400 Ball Bearings", "mass": 1.8, "tolerance": 0.5, "crushLimit": 100, "behavior": "slosh", "payout": 180, "tier": 1, "art": { "shape": "box", "color": "#9aa0a6" } },
+  { "id": "ticking", "name": "Unlabeled Crate (ticking)", "mass": 1.5, "tolerance": 0.6, "crushLimit": 85, "behavior": "static", "payout": 300, "tier": 1, "art": { "shape": "box", "color": "#3a3f45" } },
+  { "id": "goat", "name": "Goat", "mass": 1.4, "tolerance": 0.7, "crushLimit": 65, "behavior": "livestock", "payout": 160, "tier": 1, "art": { "shape": "cage", "color": "#d8c8a0" } },
+  { "id": "swan", "name": "Ice Sculpture (swan)", "mass": 1.5, "tolerance": 0.4, "crushLimit": 50, "behavior": "precarious", "payout": 280, "rush": 75, "tier": 1, "art": { "shape": "sphere", "color": "#dff3ff" } },
+  { "id": "piano", "name": "Grand Piano", "mass": 3.0, "tolerance": 0.55, "crushLimit": 90, "behavior": "static", "payout": 400, "tier": 2, "art": { "shape": "box", "color": "#1c1a16" } },
+  { "id": "beehive", "name": "Beehive", "mass": 1.0, "tolerance": 0.6, "crushLimit": 70, "behavior": "livestock", "payout": 210, "tier": 2, "art": { "shape": "cylinder", "color": "#e8b830" } },
+  { "id": "server", "name": "Server Rack", "mass": 2.5, "tolerance": 0.5, "crushLimit": 100, "behavior": "static", "payout": 350, "tier": 2, "art": { "shape": "box", "color": "#2f3338" } },
+  { "id": "chandelier", "name": "Crystal Chandelier", "mass": 1.6, "tolerance": 0.35, "crushLimit": 55, "behavior": "precarious", "payout": 380, "tier": 2, "art": { "shape": "sphere", "color": "#f8f4e0" } },
+  { "id": "organ", "name": "Organ Cooler", "mass": 0.6, "tolerance": 0.5, "crushLimit": 80, "behavior": "static", "payout": 420, "rush": 50, "tier": 2, "art": { "shape": "box", "color": "#e8e8e8" } },
+  { "id": "hottub", "name": "Hot Tub (full)", "mass": 3.0, "tolerance": 0.5, "crushLimit": 100, "behavior": "slosh", "payout": 330, "tier": 3, "art": { "shape": "cylinder", "color": "#4a8ab0" } },
+  { "id": "jenga", "name": "Championship Jenga Tower", "mass": 0.7, "tolerance": 0.25, "crushLimit": 40, "behavior": "precarious", "payout": 240, "tier": 3, "art": { "shape": "box", "color": "#d4a86a" } }
+]

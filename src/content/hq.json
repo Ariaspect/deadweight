@@ -1,0 +1,9 @@
+[
+  { "context": "dispatch", "behavior": "any", "lines": ["HQ: Three orders on the wire. Pick what you can carry, not what you want to.", "HQ: Reminder that reviews are public and so is your callsign.", "HQ: Reserve is charged to your account. Speed is free. Draw your own conclusions.", "HQ: Route conditions unchanged since the last incident.", "HQ: New operator? Ballast against the slope. Everything else is detail.", "HQ: Customer has requested 'no drama'. Logged, not promised."] },
+  { "context": "dispatch", "behavior": "slosh", "lines": ["HQ: Liquid cargo. Straps will not help you. Trim will.", "HQ: It sloshes. It will keep sloshing after you stop. Plan for that."] },
+  { "context": "dispatch", "behavior": "livestock", "lines": ["HQ: Cargo is alive and has preferences. Ignore them.", "HQ: Livestock shifts its weight on its own schedule. Keep the straps snug."] },
+  { "context": "dispatch", "behavior": "precarious", "lines": ["HQ: Fragile. Do not over-tighten. Do not under-tighten. Good luck.", "HQ: Tolerance on this one is lower than your last review."] },
+  { "context": "arrival", "behavior": "any", "lines": ["HQ: Outpost confirms receipt. Review pending.", "HQ: Rig docked. Cargo being counted. Hold.", "HQ: Arrived. Reserve balance noted with interest."] },
+  { "context": "spill", "behavior": "any", "lines": ["HQ: Cargo overboard. RECOVER is on the panel for a reason.", "HQ: That was audible from here.", "HQ: Wreckage logged at your position. Someone will salvage it. Not you."] },
+  { "context": "stall", "behavior": "any", "lines": ["HQ: Reserve exhausted. Rig is a statue. Partial credit issued.", "HQ: Next time, faster. Or shorter. Or both."] }
+]

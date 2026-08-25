@@ -1,0 +1,8 @@
+[
+  { "id": "wide-trim", "name": "Wide Trim Rack", "cost": 250, "blurb": "Ballast dial swings to ±130.", "effect": { "key": "ballastRange", "value": 130 } },
+  { "id": "governor", "name": "Trim Assist Governor", "cost": 400, "blurb": "Pulls 30% of the way to neutral for you.", "effect": { "key": "autoTrim", "value": 0.3 } },
+  { "id": "straps", "name": "Reinforced Straps", "cost": 300, "blurb": "Jolts loosen straps 40% less.", "effect": { "key": "strapJoltMul", "value": 0.6 } },
+  { "id": "bay", "name": "Third Cargo Bay", "cost": 500, "blurb": "Carry three orders at once.", "effect": { "key": "capacity", "value": 3 } },
+  { "id": "stride", "name": "Long-Stride Actuators", "cost": 350, "blurb": "Every gait 20% faster.", "effect": { "key": "gaitSpeedMul", "value": 1.2 } },
+  { "id": "surplus", "name": "Kit Surplus Contract", "cost": 200, "blurb": "Infrastructure kits half price.", "effect": { "key": "kitCostMul", "value": 0.5 } }
+]

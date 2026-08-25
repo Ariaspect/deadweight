@@ -1,0 +1,7 @@
+[
+  { "type": "gust", "impulse": 0.9, "strapJolt": 12, "telegraphM": 25, "counter": "Tap STRAP and lead ballast into the gust.", "weight": 0.35, "minTier": 0 },
+  { "type": "rubble", "impulse": 0.35, "strapJolt": 25, "telegraphM": 20, "counter": "Throttle down before rubble.", "weight": 0.4, "minTier": 0 },
+  { "type": "grade", "impulse": 0, "strapJolt": 0, "telegraphM": 35, "counter": "Counter-set ballast before the grade.", "weight": 0.3, "minTier": 0 },
+  { "type": "gap", "impulse": 1.4, "strapJolt": 20, "telegraphM": 30, "counter": "BRACE over the gap, or use a plank.", "weight": 0.25, "minTier": 1 },
+  { "type": "scree", "impulse": 0.25, "strapJolt": 6, "telegraphM": 20, "counter": "Slow down and brace through scree.", "weight": 0.3, "minTier": 1, "count": 5, "spreadM": 12 }
+]

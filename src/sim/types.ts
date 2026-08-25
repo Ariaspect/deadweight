@@ -71,3 +71,6 @@ export interface Tuning {
 
 export interface ItemResult { id: string; condition: number; payout: number; lost: boolean; late: boolean }
 export interface RunResult { items: ItemResult[]; stars: number; payout: number; bonus: number; total: number; ended: EndReason }
+
+export interface ReviewDef { stars: 1 | 2 | 3 | 4 | 5; behavior: Behavior | 'any'; lines: string[] }
+export interface HqDef { context: 'dispatch' | 'arrival' | 'spill' | 'stall'; behavior: Behavior | 'any'; lines: string[] }

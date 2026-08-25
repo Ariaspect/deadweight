@@ -1,0 +1,15 @@
+[
+  { "stars": 1, "behavior": "any", "lines": ["It arrived in the sense that the rig arrived.", "I have photographed the remains for the insurer.", "The driver waved. The cargo did not.", "One star because zero is not an option.", "My neighbour saw it fall off. She is still laughing.", "I ordered a delivery, not a demonstration."] },
+  { "stars": 2, "behavior": "any", "lines": ["Technically present. Spiritually absent.", "Half of it works. The wrong half.", "The box was upside down and so, eventually, was I.", "It smells like the route.", "I have questions and the courier had none.", "Two stars. One for each surviving corner."] },
+  { "stars": 3, "behavior": "any", "lines": ["Fine. It's fine. Everything is fine.", "Some dents. Character, my wife says.", "Arrived on time, arrived with opinions.", "I will use this company again, out of spite.", "Adequate, like the weather.", "The strap marks will buff out. Probably."] },
+  { "stars": 4, "behavior": "any", "lines": ["Nearly perfect. The 'nearly' is load-bearing.", "One scuff. I named it.", "Better than the last three couriers combined.", "Arrived warm, which was either great or alarming.", "I'd tip if the panel had a slot for it.", "Four stars. The fifth was on the slope."] },
+  { "stars": 5, "behavior": "any", "lines": ["Immaculate. I checked twice.", "Whoever was on the ballast dial: marry me.", "Not a scratch. Not a slosh. Not a sound.", "I did not know this route could be done cleanly.", "Perfect. Suspiciously perfect.", "Five stars and a photograph on the outpost wall."] },
+  { "stars": 1, "behavior": "slosh", "lines": ["Cauldron delivered. Soup delivered separately, across three kilometres.", "It is now a bowl."] },
+  { "stars": 1, "behavior": "livestock", "lines": ["The chicken has left a review of its own. It is worse.", "Grandmother arrived. She would like to speak to a manager."] },
+  { "stars": 1, "behavior": "precarious", "lines": ["Cake delivered: 41% intact. My daughter is crying.", "Every tier of the cake arrived at a different time."] },
+  { "stars": 3, "behavior": "slosh", "lines": ["Three-quarters full. Rounding up.", "Some of the fish are new fish."] },
+  { "stars": 3, "behavior": "livestock", "lines": ["The goat is calm. The goat is never calm. What did you do.", "Grandmother is quiet. This is not a compliment."] },
+  { "stars": 5, "behavior": "slosh", "lines": ["Not a drop over the rim. Not one.", "The soup was still spinning. In a good way."] },
+  { "stars": 5, "behavior": "livestock", "lines": ["The chicken laid an egg on the way. Bonus cargo.", "Grandmother says the operator has 'lovely hands'."] },
+  { "stars": 5, "behavior": "precarious", "lines": ["Every dish still stacked. I am framing the invoice.", "The tower stands. The tournament is saved."] }
+]
