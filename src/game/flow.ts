@@ -71,7 +71,7 @@ export class Flow {
     const state = createRun(route, loadout, tuning);
     const rng = mulberry32(hashSeed(route.seed, this.runNonce++));
     const prev: RenderPrev = { x: 0, tilt: 0 };
-    input.setGait(2); panel.setGait(2);
+    input.reset(); input.setTuning(tuning); input.setGait(2); panel.setGait(2);
     panel.setMessage(`HQ: ${this.offers!.outpost.name}. ${loadout.length} aboard. Trim against the slope. Go.`);
     const defs = loadout.map((l) => l.def);
     const attach = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); };

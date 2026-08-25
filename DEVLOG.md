@@ -89,7 +89,7 @@ Lantern Reach   3     15  stress   arrived   2      23
 Lantern Reach   3     30  stress   arrived   2      28
 PASS: all 12 outposts solvable at lag 15
 ```
-- M2: content — 20 cargo, 12 outposts, 5 hazards, 6 upgrades, 30 review lines, 20 HQ lines; dispatch/loadout/workshop screens with predicted-trim readout; bot v2 (gap bracing, strap, recover).
+- M2: content — 20 cargo, 12 outposts, 5 hazards, 6 upgrades, 46 review lines, 20 HQ lines; dispatch/loadout/workshop screens with predicted-trim readout; bot v2 (gap bracing, strap, recover).
 
 ## Problems solved
 - M1 fun gate (Task 17), headless metrics pass in place of human playtesting — 5/6 categories within target on the first constant change; full table in `.superpowers/sdd/2026-08-25-deadweight-core-loop/task-17-report.md`.

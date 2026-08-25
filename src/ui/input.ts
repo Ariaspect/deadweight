@@ -35,6 +35,11 @@ export function applyDragMove(st: InputState, px: number, pxPerFullRange: number
 }
 export function applyDragEnd(st: InputState): void { st.dragging = false; }
 
+export function resetInput(st: InputState): void {
+  st.ballast = 0; st.brace = false; st.keyFore = false; st.keyAft = false;
+  st.strapQueued = false; st.recoverQueued = false; st.deployQueued = 0; st.dragging = false;
+}
+
 export function sampleFrame(st: InputState, tuning: Tuning): InputFrame {
   const r = tuning.ballastRange;
   if (!st.dragging) {
@@ -51,7 +56,8 @@ export class InputController {
   readonly state = initialInput();
   private viewport: HTMLElement | null = null;
   private doc: Document | null = null;
-  constructor(private readonly tuning: Tuning) {}
+  private tuning: Tuning;
+  constructor(tuning: Tuning) { this.tuning = tuning; }
 
   attach(viewport: HTMLElement, doc: Document): void {
     this.viewport = viewport; this.doc = doc;
@@ -71,6 +77,8 @@ export class InputController {
     this.viewport?.removeEventListener('pointercancel', this.onPointerUp);
   }
   sample(): InputFrame { return sampleFrame(this.state, this.tuning); }
+  setTuning(t: Tuning): void { this.tuning = t; }
+  reset(): void { resetInput(this.state); }
   setGait(g: Gait): void { this.state.gait = g; }
   queueStrap(): void { this.state.strapQueued = true; }
   queueRecover(): void { this.state.recoverQueued = true; }

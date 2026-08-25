@@ -17,7 +17,8 @@ function script(i: number): InputFrame {
 function play(inputs: InputFrame[]) {
   const s = createRun(route, loadout, tuning);
   const rng = mulberry32(hashSeed(route.seed, 7));
-  for (const inp of inputs) { if (s.ended) break; step(s, inp, route, [], tuning, rng); }
+  // 'spilled' stays open (RECOVER window; t keeps advancing) — only stalled/arrived freeze the state.
+  for (const inp of inputs) { if (s.ended === 'stalled' || s.ended === 'arrived') break; step(s, inp, route, [], tuning, rng); }
   return s;
 }
 

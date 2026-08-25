@@ -99,6 +99,17 @@ describe('recover', () => {
     expect(s.recovering).toBe(0);
     expect(s.ended).toBe('spilled');
   });
+
+  it('the spilled window still costs real time while no recover is queued', () => {
+    const r = slopeRoute(0.5, 5000);
+    const s = createRun(r, [{ def: crateDef(), slot: 1 }], tuning); const rng = mulberry32(1);
+    while (!s.items[0]!.lost) step(s, frame({ gait: 1 }), r, [], tuning, rng);
+    expect(s.ended).toBe('spilled');
+    const tBefore = s.t; const xBefore = s.x;
+    for (let i = 0; i < 60; i++) step(s, frame({ gait: 1 }), r, [], tuning, rng);
+    expect(s.t).toBe(tBefore + 60);
+    expect(s.x).toBe(xBefore);
+  });
 });
 
 describe('autoTrim', () => {

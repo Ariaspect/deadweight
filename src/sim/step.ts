@@ -152,8 +152,11 @@ function stepRecovering(s: RigState, tuning: Tuning): void {
 export function step(s: RigState, input: InputFrame, route: RouteDef, traces: Trace[], tuning: Tuning, rng: Rng): void {
   if (s.recovering > 0) { stepRecovering(s, tuning); s.t += 1; return; }
   if (s.ended) {
-    // A spilled run stays open for RECOVER; stalled/arrived are final.
-    if (s.ended === 'spilled' && input.recover) stepEvents(s, input, route, traces, tuning, rng);
+    // A spilled run stays open for RECOVER; stalled/arrived are final. The window costs real time either way.
+    if (s.ended === 'spilled') {
+      if (input.recover) stepEvents(s, input, route, traces, tuning, rng);
+      s.t += 1;
+    }
     return;
   }
   stepRig(s, input, route, tuning);

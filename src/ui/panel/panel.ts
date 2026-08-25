@@ -58,7 +58,7 @@ export class Panel {
     this.ballastFill.style.width = `${Math.abs(pct)}%`;
     this.ballastText.textContent = (s.ballast > 0 ? '+' : '') + String(s.ballast);
     const lost = s.items.some((it) => it.lost);
-    this.recoverBtn.disabled = !(lost && s.recovering === 0 && (s.ended === null || s.ended === 'spilled'));
+    this.recoverBtn.disabled = !(lost && s.recovering === 0 && (s.ended === null || s.ended === 'spilled') && s.reserve > tuning.recoverCost);
     const rushItems = s.items.filter((it) => it.deadlineTick >= 0 && !it.lost);
     this.rush.textContent = rushItems.map((it) => `RUSH ${it.id.toUpperCase()} ${Math.max(0, Math.ceil((it.deadlineTick - s.t) * tuning.dt))}s`).join('  ');
     this.root.classList.toggle('recovering', s.recovering > 0);

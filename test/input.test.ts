@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { initialInput, applyKey, applyDragStart, applyDragMove, applyDragEnd, sampleFrame } from '../src/ui/input';
+import { initialInput, applyKey, applyDragStart, applyDragMove, applyDragEnd, sampleFrame, resetInput } from '../src/ui/input';
 import { tuning } from '../src/content';
 
 describe('input reducers', () => {
@@ -41,5 +41,16 @@ describe('input reducers', () => {
   it('sampleFrame emits integer ballast', () => {
     const st = initialInput(); st.ballast = 33.6;
     expect(sampleFrame(st, tuning).ballast).toBe(34);
+  });
+  it('resetInput zeroes ballast, clears holds and queues', () => {
+    const st = initialInput(); st.ballast = 77; st.brace = true; st.keyFore = true; st.strapQueued = true; st.recoverQueued = true; st.deployQueued = 'plank'; st.dragging = true; st.gait = 3;
+    resetInput(st);
+    expect(st).toMatchObject({ ballast: 0, brace: false, keyFore: false, keyAft: false, strapQueued: false, recoverQueued: false, deployQueued: 0, dragging: false, gait: 3 });
+  });
+  it('sampleFrame honours a swapped tuning ballastRange', () => {
+    const st = initialInput(); st.ballast = 125;
+    expect(sampleFrame(st, tuning).ballast).toBe(tuning.ballastRange);
+    st.ballast = 125;
+    expect(sampleFrame(st, { ...tuning, ballastRange: 130 }).ballast).toBe(125);
   });
 });

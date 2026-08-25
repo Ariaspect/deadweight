@@ -11,7 +11,14 @@ export function loadSave(storage: StorageLike): { data: SaveData; reset: boolean
   if (raw === null) return { data: defaultSave(), reset: false };
   try {
     const parsed = JSON.parse(raw) as Partial<SaveData>;
-    if (parsed.v !== 1 || typeof parsed.cash !== 'number' || !Array.isArray(parsed.upgrades)) throw new Error('version');
+    if (
+      parsed.v !== 1 ||
+      typeof parsed.cash !== 'number' ||
+      typeof parsed.runs !== 'number' ||
+      !Array.isArray(parsed.upgrades) ||
+      !parsed.bestByOutpost || typeof parsed.bestByOutpost !== 'object' || Array.isArray(parsed.bestByOutpost) ||
+      !Array.isArray(parsed.traces)
+    ) throw new Error('version');
     return { data: { ...defaultSave(), ...parsed, v: 1 }, reset: false };
   } catch {
     storage.removeItem(KEY);
