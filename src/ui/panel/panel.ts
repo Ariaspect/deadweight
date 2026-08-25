@@ -1,0 +1,60 @@
+import type { Gait, RigState, Tuning } from '../../sim/types';
+
+export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace(on: boolean): void; onRecover(): void }
+
+export class Panel {
+  private needle!: HTMLElement; private reserveFill!: HTMLElement; private ballastFill!: HTMLElement; private ballastText!: HTMLElement;
+  private strapFill!: HTMLElement; private message!: HTMLElement; private gaitBtns: HTMLElement[] = [];
+  private recoverBtn!: HTMLButtonElement; private hazardLamp!: HTMLElement;
+
+  constructor(private readonly root: HTMLElement, private readonly h: PanelHandlers) {
+    root.innerHTML = `
+      <div class="panel-grid">
+        <div class="brand">DEADWEIGHT <span class="sub">MULE-7 REMOTE OPERATOR</span></div>
+        <div class="gauge tilt"><div class="dial"><div class="zone"></div><div class="needle"></div></div><label>TILT</label></div>
+        <div class="gauge reserve"><div class="bar"><div class="fill"></div></div><label>RESERVE</label></div>
+        <div class="gauge strap m2"><div class="bar"><div class="fill"></div></div><label>STRAP</label></div>
+        <div class="gauge ballast"><div class="bar centred"><div class="fill"></div></div><label>BALLAST <span class="val">0</span></label></div>
+        <div class="rail"><label>GAIT</label>${[4, 3, 2, 1, 0].map((g) => `<button data-gait="${g}">${g}</button>`).join('')}</div>
+        <div class="buttons">
+          <button class="big strap m2">STRAP</button>
+          <button class="big brace m2">BRACE</button>
+          <button class="big recover m2" disabled>RECOVER</button>
+        </div>
+        <div class="lamp hazard m2">HAZARD</div>
+        <pre class="tele"></pre>
+      </div>`;
+    const q = <T extends HTMLElement>(sel: string): T => root.querySelector(sel) as T;
+    this.needle = q('.tilt .needle'); this.reserveFill = q('.reserve .fill'); this.strapFill = q('.strap .fill');
+    this.ballastFill = q('.ballast .fill'); this.ballastText = q('.ballast .val'); this.message = q('.tele');
+    this.hazardLamp = q('.lamp.hazard'); this.recoverBtn = q('button.recover');
+    this.gaitBtns = Array.from(root.querySelectorAll<HTMLElement>('.rail button'));
+    for (const b of this.gaitBtns) b.addEventListener('pointerdown', () => { const g = Number(b.dataset.gait) as Gait; this.setGait(g); h.onGait(g); });
+    q<HTMLButtonElement>('button.strap').addEventListener('pointerdown', () => h.onStrap());
+    const brace = q<HTMLButtonElement>('button.brace');
+    brace.addEventListener('pointerdown', (e) => { brace.setPointerCapture(e.pointerId); brace.classList.add('on'); h.onBrace(true); });
+    const off = (): void => { brace.classList.remove('on'); h.onBrace(false); };
+    brace.addEventListener('pointerup', off); brace.addEventListener('pointercancel', off);
+    this.recoverBtn.addEventListener('pointerdown', () => h.onRecover());
+  }
+
+  setGait(g: Gait): void { for (const b of this.gaitBtns) b.classList.toggle('on', Number(b.dataset.gait) === g); }
+  setMessage(text: string): void { this.message.textContent = text; }
+  setHazard(on: boolean): void { this.hazardLamp.classList.toggle('on', on); }
+
+  update(s: RigState, tuning: Tuning): void {
+    const deg = Math.max(-1.2, Math.min(1.2, s.tilt)) * 60;
+    this.needle.style.transform = `rotate(${deg}deg)`;
+    this.needle.classList.toggle('red', Math.abs(s.tilt) > 0.7);
+    this.reserveFill.style.width = `${Math.max(0, s.reserve)}%`;
+    this.reserveFill.classList.toggle('low', s.reserve < 20);
+    this.strapFill.style.width = `${s.strap}%`;
+    const r = tuning.ballastRange;
+    const pct = (s.ballast / r) * 50;
+    this.ballastFill.style.left = `${50 + Math.min(0, pct)}%`;
+    this.ballastFill.style.width = `${Math.abs(pct)}%`;
+    this.ballastText.textContent = (s.ballast > 0 ? '+' : '') + String(s.ballast);
+    this.recoverBtn.disabled = !(s.items.some((it) => it.lost) && s.recovering === 0 && !s.ended);
+    this.root.classList.toggle('recovering', s.recovering > 0);
+  }
+}

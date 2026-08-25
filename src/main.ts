@@ -7,9 +7,7 @@ import { GameLoop } from './game/loop';
 import type { Renderer, RenderPrev } from './render/Renderer';
 import type { InputFrame } from './sim/types';
 
-const status = document.getElementById('status')!;
 const viewportEl = document.getElementById('viewport')!;
-status.textContent = 'panel online';
 
 const route = generateRoute(4417, 700, 0, [], tuning.terrain);
 const state = createRun(route, [], tuning);
@@ -31,5 +29,4 @@ import('./render/three/ThreeRenderer').then(({ ThreeRenderer }) => {
   renderer.mount(viewportEl);
   renderer.setRoute(route);
   window.addEventListener('resize', () => renderer?.resize());
-  status.textContent = 'viewport online';
 });
