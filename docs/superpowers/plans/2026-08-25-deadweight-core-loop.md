@@ -2853,7 +2853,7 @@ export interface HqDef { context: 'dispatch' | 'arrival' | 'spill' | 'stall'; be
   { "type": "rubble", "impulse": 0.35, "strapJolt": 25, "telegraphM": 20, "counter": "Throttle down before rubble.", "weight": 0.4, "minTier": 0 },
   { "type": "grade", "impulse": 0, "strapJolt": 0, "telegraphM": 35, "counter": "Counter-set ballast before the grade.", "weight": 0.3, "minTier": 0 },
   { "type": "gap", "impulse": 1.4, "strapJolt": 20, "telegraphM": 30, "counter": "BRACE over the gap, or use a plank.", "weight": 0.25, "minTier": 1 },
-  { "type": "scree", "impulse": 0.25, "strapJolt": 6, "telegraphM": 20, "counter": "Slow down and brace through scree.", "weight": 0.3, "minTier": 1, "count": 5, "spreadM": 12 }
+  { "type": "scree", "impulse": 0.25, "strapJolt": 6, "telegraphM": 20, "counter": "Slow down through scree.", "weight": 0.3, "minTier": 1, "count": 5, "spreadM": 12 }
 ]
 ```
 
@@ -3213,7 +3213,7 @@ Claude-Session: https://claude.ai/code/session_01WagjbdSgfWVTyxfLcgt9s6"
 - Test: `test/bot.test.ts` (extend)
 
 **Interfaces:**
-- `botPolicy` now: braces when a hazard with `impulse > 0` lies in `(x, x + bot.braceAheadM]`, taps strap when `strap < bot.strapBelow`, requests recover when any item is lost; gait 3 cruise, gait 2 within 40 m of an impulse hazard, gait 1 within 40 m of `rubble`/`scree`. Add `Gait` to the type import in `bot.ts`.
+- `botPolicy` now: braces only for a `gap` within `(x, x + bot.braceAheadM]` (gusts are ridden out on the PD loop — bracing every impulse starves the reserve), taps strap when `strap < bot.strapBelow`, requests recover when any item is lost; gait 3 cruise, gait 2 within `braceAheadM` of a gap, gait 1 within `braceAheadM` of `rubble`/`scree`. Add `Gait` to the type import in `bot.ts`.
 - `scripts/validate.ts` reads `outposts`, `hazards`, `cargo` from content; per outpost runs lags `[0, 15, 30]` with loadout `[crate@mid]` and a stress loadout `[soup@fore, crate@aft]` (informational); fails if any outpost is not `arrived` with ≥1★ at `bot.lagTicks` with the crate loadout.
 
 - [ ] **Step 1: Extend the bot tests**
@@ -3226,7 +3226,7 @@ import { botPolicy } from '../src/sim/bot';
 import { outposts, hazards } from '../src/content';
 
 describe('bot v2', () => {
-  it('braces ahead of an impulse hazard and not for grades', () => {
+  it('braces ahead of a gap, not for gusts or grades', () => {
     const r = routeFromSegments(3, [{ x0: 0, x1: 300, slope: 0, y0: 0 }], [
       { id: 0, type: 'gap', x: 100, impulse: 1.4, strapJolt: 20, dir: 1 },
       { id: 1, type: 'grade', x: 200, impulse: 0, strapJolt: 0, dir: 1 },
@@ -3235,6 +3235,8 @@ describe('bot v2', () => {
     expect(botPolicy(v(100 - tuning.bot.braceAheadM + 1), r, tuning).brace).toBe(true);
     expect(botPolicy(v(50), r, tuning).brace).toBe(false);
     expect(botPolicy(v(195), r, tuning).brace).toBe(false);
+    const gust = routeFromSegments(5, [{ x0: 0, x1: 300, slope: 0, y0: 0 }], [{ id: 0, type: 'gust', x: 100, impulse: 0.9, strapJolt: 12, dir: 1 }], 10);
+    expect(botPolicy(v(100 - tuning.bot.braceAheadM + 1), gust, tuning).brace).toBe(false);   // gusts are ridden out on the PD loop; bracing everything starves reserve
   });
   it('taps strap when loose and recovers when an item is lost', () => {
     const r = flatRoute();
