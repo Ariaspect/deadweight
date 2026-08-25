@@ -11,6 +11,83 @@
 ## What AI built
 - M0: seeded piecewise-linear terrain generator, fixed-step loop with input log, Three.js ribbon + procedural hexapod behind a Renderer interface.
 - M1: headless PD bot with reaction lag; validator rejects unsolvable seeds; determinism/replay test suite; fun-gate metrics harness.
+- M2: validator over 12 outposts × 2 loadouts × 3 lags:
+```
+outpost         tier lag  loadout  ended     stars  reserve
+Gravel Hollow   0      0  crate    arrived   5      44
+Gravel Hollow   0     15  crate    arrived   5      45
+Gravel Hollow   0     30  crate    arrived   5      45
+Gravel Hollow   0      0  stress   arrived   5      44
+Gravel Hollow   0     15  stress   arrived   3      45
+Gravel Hollow   0     30  stress   arrived   3      45
+Wren Station    0      0  crate    arrived   5      41
+Wren Station    0     15  crate    arrived   5      42
+Wren Station    0     30  crate    arrived   5      44
+Wren Station    0      0  stress   arrived   5      41
+Wren Station    0     15  stress   arrived   3      42
+Wren Station    0     30  stress   arrived   3      44
+Sump Nine       0      0  crate    arrived   5      42
+Sump Nine       0     15  crate    arrived   5      43
+Sump Nine       0     30  crate    arrived   5      44
+Sump Nine       0      0  stress   arrived   5      42
+Sump Nine       0     15  stress   arrived   2      43
+Sump Nine       0     30  stress   arrived   2      44
+Tallow Ridge    1      0  crate    arrived   5      11
+Tallow Ridge    1     15  crate    arrived   5      16
+Tallow Ridge    1     30  crate    arrived   4      23
+Tallow Ridge    1      0  stress   arrived   5      11
+Tallow Ridge    1     15  stress   arrived   2      16
+Tallow Ridge    1     30  stress   arrived   2      23
+Kettle Pass     1      0  crate    stalled   2      0
+Kettle Pass     1     15  crate    arrived   5      6
+Kettle Pass     1     30  crate    arrived   5      14
+Kettle Pass     1      0  stress   stalled   2      0
+Kettle Pass     1     15  stress   arrived   3      6
+Kettle Pass     1     30  stress   arrived   2      14
+Marrow Flats    1      0  crate    arrived   5      21
+Marrow Flats    1     15  crate    arrived   5      26
+Marrow Flats    1     30  crate    arrived   5      30
+Marrow Flats    1      0  stress   arrived   5      21
+Marrow Flats    1     15  stress   arrived   3      26
+Marrow Flats    1     30  stress   arrived   2      30
+Halfmast        2      0  crate    stalled   2      0
+Halfmast        2     15  crate    arrived   5      5
+Halfmast        2     30  crate    arrived   5      13
+Halfmast        2      0  stress   stalled   2      0
+Halfmast        2     15  stress   arrived   2      5
+Halfmast        2     30  stress   arrived   2      13
+Brine Terrace   2      0  crate    arrived   5      18
+Brine Terrace   2     15  crate    arrived   5      23
+Brine Terrace   2     30  crate    arrived   3      28
+Brine Terrace   2      0  stress   arrived   5      18
+Brine Terrace   2     15  stress   arrived   2      23
+Brine Terrace   2     30  stress   arrived   2      28
+Old Signal      2      0  crate    arrived   5      28
+Old Signal      2     15  crate    arrived   5      30
+Old Signal      2     30  crate    arrived   5      31
+Old Signal      2      0  stress   arrived   5      28
+Old Signal      2     15  stress   arrived   2      30
+Old Signal      2     30  stress   arrived   2      31
+Cinder Stair    3      0  crate    arrived   5      1
+Cinder Stair    3     15  crate    arrived   5      6
+Cinder Stair    3     30  crate    spilled   1      48
+Cinder Stair    3      0  stress   arrived   5      1
+Cinder Stair    3     15  stress   arrived   2      6
+Cinder Stair    3     30  stress   arrived   2      13
+The Shelf       3      0  crate    arrived   5      8
+The Shelf       3     15  crate    arrived   5      12
+The Shelf       3     30  crate    arrived   5      16
+The Shelf       3      0  stress   arrived   5      8
+The Shelf       3     15  stress   arrived   2      12
+The Shelf       3     30  stress   arrived   2      16
+Lantern Reach   3      0  crate    arrived   5      18
+Lantern Reach   3     15  crate    arrived   5      23
+Lantern Reach   3     30  crate    arrived   4      28
+Lantern Reach   3      0  stress   arrived   5      18
+Lantern Reach   3     15  stress   arrived   2      23
+Lantern Reach   3     30  stress   arrived   2      28
+PASS: all 12 outposts solvable at lag 15
+```
 
 ## Problems solved
 - M1 fun gate (Task 17), headless metrics pass in place of human playtesting — 5/6 categories within target on the first constant change; full table in `.superpowers/sdd/2026-08-25-deadweight-core-loop/task-17-report.md`.

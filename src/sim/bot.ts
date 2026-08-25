@@ -1,7 +1,7 @@
 import { createRun, step, loadOffsetOf } from './step';
 import { evaluate } from './score';
 import { mulberry32, hashSeed } from './rng';
-import type { InputFrame, ItemState, LoadoutItem, RigState, RouteDef, RunResult, Trace, Tuning } from './types';
+import type { Gait, InputFrame, ItemState, LoadoutItem, RigState, RouteDef, RunResult, Trace, Tuning } from './types';
 
 export interface BotView { x: number; tilt: number; tiltVel: number; strap: number; braced: boolean; recovering: number; items: ItemState[] }
 
@@ -23,12 +23,27 @@ function clampInt(v: number, lo: number, hi: number): number { const r = Math.ro
 
 export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFrame {
   const b = tuning.bot;
-  const gait = 2;
+  let brace = false, slow = false, near = false;
+  for (const h of route.hazards) {
+    if (h.x <= v.x) continue;
+    if (h.x > v.x + 40) break;
+    if (h.impulse === 0) continue;
+    if (h.type === 'gap' && h.x <= v.x + b.braceAheadM) { near = true; brace = true; }
+    if ((h.type === 'rubble' || h.type === 'scree') && h.x <= v.x + b.braceAheadM) slow = true;
+  }
+  const gait: Gait = slow ? 1 : near ? 2 : 3;   // cruise at 3 to bank reserve; slow into impulse hazards
   const slopeAhead = route.slopeAt(v.x + tuning.gaitSpeed[gait]! * tuning.gaitSpeedMul * b.leadSec);
   const load = loadOffsetOf(v.items, tuning);
   const feedForward = -(tuning.kSlope * slopeAhead + tuning.kLoad * load) / tuning.kBallast * 100;
   const feedback = -b.kp * v.tilt - b.kd * v.tiltVel;
-  return { gait, ballast: clampInt(feedForward + feedback, -tuning.ballastRange, tuning.ballastRange), strap: false, brace: false, deploy: 0, recover: false };
+  return {
+    gait,
+    ballast: clampInt(feedForward + feedback, -tuning.ballastRange, tuning.ballastRange),
+    strap: v.strap < b.strapBelow,
+    brace,
+    deploy: 0,
+    recover: v.recovering === 0 && v.items.some((it) => it.lost),
+  };
 }
 
 export interface HeadlessOpts {
