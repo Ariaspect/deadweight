@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 const transcendentals = ['sin','cos','tan','asin','acos','atan','atan2','exp','log','log2','log10','pow','sqrt','cbrt','sinh','cosh','tanh','random'];
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**'] },
+  { ignores: ['dist/**', 'node_modules/**', '.superpowers/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
