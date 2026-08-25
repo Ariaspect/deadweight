@@ -23,7 +23,9 @@ export function buildTerrain(route: RouteDef, width = 24, stepX = 2, stepZ = 2):
     const x = pos.getX(i), z = pos.getZ(i);
     const edge = Math.abs(z) / (width / 2);          // 0 at path centre, 1 at edge
     const rough = hashNoise(x, z) * 1.6 * edge * edge;
-    pos.setY(i, route.heightAt(x) + rough - edge * 0.6);
+    let drop = 0;
+    for (const h of route.hazards) if (h.type === 'gap' && Math.abs(x - h.x) < 1.5) drop = 5;
+    pos.setY(i, route.heightAt(x) + rough - edge * 0.6 - drop);
     const steep = Math.min(1, Math.abs(route.slopeAt(x)) / 0.5);
     c.copy(CREAM).lerp(ORANGE, steep).lerp(GUN, edge * 0.35);
     colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;

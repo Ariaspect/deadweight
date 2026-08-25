@@ -41,5 +41,5 @@ button.big:disabled { opacity: .35; }
 .lamp.on { opacity: 1; background: var(--red); color: #fff; animation: blink .5s steps(2) infinite; }
 @keyframes blink { to { opacity: .4; } }
 .tele { grid-area: tele; margin: 0; font: 11px/1.35 ui-monospace, Menlo, monospace; color: #f4ead2; background: #15171a; border: 2px solid #6b6f74; border-radius: 4px; padding: 6px 8px; min-height: 40px; white-space: pre-wrap; }
-.m2 { display: none; }
+.rush { grid-area: tele; align-self: start; justify-self: end; margin: 4px 6px; font-size: 10px; letter-spacing: .1em; color: var(--red); pointer-events: none; }
 #panel.recovering .dial { filter: grayscale(1); }

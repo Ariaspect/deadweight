@@ -5,7 +5,7 @@ export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace
 export class Panel {
   private needle!: HTMLElement; private reserveFill!: HTMLElement; private ballastFill!: HTMLElement; private ballastText!: HTMLElement;
   private strapFill!: HTMLElement; private message!: HTMLElement; private gaitBtns: HTMLElement[] = [];
-  private recoverBtn!: HTMLButtonElement; private hazardLamp!: HTMLElement;
+  private recoverBtn!: HTMLButtonElement; private hazardLamp!: HTMLElement; private rush!: HTMLElement;
 
   constructor(private readonly root: HTMLElement, private readonly h: PanelHandlers) {
     root.innerHTML = `
@@ -23,11 +23,12 @@ export class Panel {
         </div>
         <div class="lamp hazard m2">HAZARD</div>
         <pre class="tele"></pre>
+        <div class="rush"></div>
       </div>`;
     const q = <T extends HTMLElement>(sel: string): T => root.querySelector(sel) as T;
     this.needle = q('.tilt .needle'); this.reserveFill = q('.reserve .fill'); this.strapFill = q('.strap .fill');
     this.ballastFill = q('.ballast .fill'); this.ballastText = q('.ballast .val'); this.message = q('.tele');
-    this.hazardLamp = q('.lamp.hazard'); this.recoverBtn = q('button.recover');
+    this.hazardLamp = q('.lamp.hazard'); this.recoverBtn = q('button.recover'); this.rush = q('.rush');
     this.gaitBtns = Array.from(root.querySelectorAll<HTMLElement>('.rail button'));
     for (const b of this.gaitBtns) b.addEventListener('pointerdown', () => { const g = Number(b.dataset.gait) as Gait; this.setGait(g); h.onGait(g); });
     q<HTMLButtonElement>('button.strap').addEventListener('pointerdown', () => h.onStrap());
@@ -54,7 +55,10 @@ export class Panel {
     this.ballastFill.style.left = `${50 + Math.min(0, pct)}%`;
     this.ballastFill.style.width = `${Math.abs(pct)}%`;
     this.ballastText.textContent = (s.ballast > 0 ? '+' : '') + String(s.ballast);
-    this.recoverBtn.disabled = !(s.items.some((it) => it.lost) && s.recovering === 0 && !s.ended);
+    const lost = s.items.some((it) => it.lost);
+    this.recoverBtn.disabled = !(lost && s.recovering === 0 && (s.ended === null || s.ended === 'spilled'));
+    const rushItems = s.items.filter((it) => it.deadlineTick >= 0 && !it.lost);
+    this.rush.textContent = rushItems.map((it) => `RUSH ${it.id.toUpperCase()} ${Math.max(0, Math.ceil((it.deadlineTick - s.t) * tuning.dt))}s`).join('  ');
     this.root.classList.toggle('recovering', s.recovering > 0);
   }
 }

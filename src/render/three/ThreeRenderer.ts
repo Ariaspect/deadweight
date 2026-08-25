@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Renderer, RenderPrev } from '../Renderer';
 import type { ItemDef, RigState, RouteDef } from '../../sim/types';
 import { buildTerrain } from './terrain';
+import { buildHazards, disposeHazards } from './hazards';
 import { Rig } from './rig';
 import { CargoView } from './cargo';
 import { tuning } from '../../content';
@@ -14,6 +15,7 @@ export class ThreeRenderer implements Renderer {
   private readonly scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(50, 1, 0.1, 400);
   private terrain: THREE.Mesh | null = null;
+  private hazardGroup: THREE.Group | null = null;
   private route: RouteDef | null = null;
   private readonly rig = new Rig();
   private readonly cargo = new CargoView();
@@ -47,6 +49,9 @@ export class ThreeRenderer implements Renderer {
     this.route = route;
     this.terrain = buildTerrain(route);
     this.scene.add(this.terrain);
+    if (this.hazardGroup) { this.scene.remove(this.hazardGroup); disposeHazards(this.hazardGroup); }
+    this.hazardGroup = buildHazards(route);
+    this.scene.add(this.hazardGroup);
     this.firstFrame = true;
   }
 
@@ -76,6 +81,7 @@ export class ThreeRenderer implements Renderer {
 
   dispose(): void {
     if (this.terrain) { this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); }
+    if (this.hazardGroup) disposeHazards(this.hazardGroup);
     this.cargo.dispose();
     this.rig.dispose();
     this.gl.dispose(); this.gl.domElement.remove();
