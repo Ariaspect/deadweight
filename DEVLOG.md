@@ -7,6 +7,7 @@
 - Second-order tilt (rig has angular momentum, overshoots).
 - Fixed outpost map (12 permanent seeds) so traces accumulate per route.
 - Three.js viewport behind a Renderer interface; panel is DOM.
+- One-button RECOVER (8 s freeze) instead of a reverse-and-winch sequence.
 
 ## What AI built
 - M0: seeded piecewise-linear terrain generator, fixed-step loop with input log, Three.js ribbon + procedural hexapod behind a Renderer interface.
@@ -88,8 +89,15 @@ Lantern Reach   3     15  stress   arrived   2      23
 Lantern Reach   3     30  stress   arrived   2      28
 PASS: all 12 outposts solvable at lag 15
 ```
+- M2: content — 20 cargo, 12 outposts, 5 hazards, 6 upgrades, 30 review lines, 20 HQ lines; dispatch/loadout/workshop screens with predicted-trim readout; bot v2 (gap bracing, strap, recover).
 
 ## Problems solved
 - M1 fun gate (Task 17), headless metrics pass in place of human playtesting — 5/6 categories within target on the first constant change; full table in `.superpowers/sdd/2026-08-25-deadweight-core-loop/task-17-report.md`.
   - Fun-gate metric (e) misfired: a fore-slotted crate passively cancels a 0.35 slope, so the spiral never started. Re-measured with a mid-slot crate: onset→loss 3.8–6.1 s at driftThreshold 0.25 — kept the spec value.
   - Metric d (gait-4 risk on tier-0 routes, seeds [4417,1203,7781,1,2,3,4,5], slot 0/2, lag 15) stayed at 0.000 (target 0.2–0.6) and was **not** tuned — investigated and rejected. `terrain.slopeSigma[0]` is a dead lever here: routes are hard-clamped by `terrain.maxSlope` (0.5), which sits below the physical torque ceiling `kBallast/kSlope = 0.75` where ballast can always fully cancel slope, so risk stays 0 for any sigma. Raising `maxSlope` past 0.75 does introduce risk, but it lands on the *slower* gait first — a gait lingering longer on a locally un-holdable segment accumulates more tilt before reaching compensating terrain, so gait 2 blows past its ≤0.1 ceiling before gait 4 is even in the 0.2–0.6 band. That inverts the metric's intent (fast should be riskier, not safer). Root cause: `botPolicy` always previews terrain at the gait-2 lookahead distance regardless of the forced gait, and the bot sets ballast with no per-tick slew limit (`ballastRate` only gates the human keyboard path in `src/ui/input.ts`), so the bot is equally strong at any gait up to that torque ceiling. Fixing this needs a bot/step code change (gait-aware lookahead, or a ballast slew limit for the bot), not a single `tuning.json` constant — left for a follow-up task.
+- Brace at speed 0 could never cross the hazard it braced for (bot deadlock): brace now creeps at braceSpeed.
+- state.t freezes when a run ends, so the flow keeps its own linger counter and a finish-once guard (GameLoop keeps stepping inside one tick after stop()).
+- "panel viewport panel" is not a valid CSS grid area (non-rectangular): landscape is two columns.
+- Tilt dial danger zones were painted on the wrong hemisphere; conic-gradient stops recomputed from the needle sweep.
+- Kettle Pass rolled 7 gaps on 700 m: gap weight 0.25 → 0.15; validator now 12/12 at 250 ms bot lag.
+- Cold load: panel chunk 34.3 KB gzip 13.2 KB, Three chunk 529.7 KB gzip 133.7 KB; panel interactive < 1 s (~420–520 ms), viewport (Three chunk mounted) by ~1.2–1.35 s on a Fast-3G-equivalent profile (CDP `Network.emulateNetworkConditions`: 150 ms RTT, 1.6 Mbps↓ / 750 Kbps↑, cache disabled).

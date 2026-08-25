@@ -4,8 +4,8 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--gun-2); color: var(--cream); font-family: var(--font); -webkit-user-select: none; user-select: none; touch-action: none; }
-#app { display: grid; height: 100dvh; grid-template-rows: 45% 55%; grid-template-areas: "viewport" "panel"; }
-#viewport { grid-area: viewport; position: relative; overflow: hidden; background: #d9c9a3; }
+#app { display: grid; height: 100vh; height: 100dvh; grid-template-rows: 45% 55%; grid-template-areas: "viewport" "panel"; }
+#viewport { grid-area: viewport; position: relative; overflow: hidden; background: #d9c9a3; touch-action: none; }
 #viewport canvas { display: block; width: 100%; height: 100%; }
 #panel { grid-area: panel; padding: 12px; background: linear-gradient(180deg, var(--gun) 0, var(--gun-2) 100%); border-top: 6px solid var(--orange); box-shadow: inset 0 2px 0 rgba(255,255,255,.08); overflow: hidden; }
 @media (orientation: landscape) and (min-width: 900px) {
@@ -23,8 +23,7 @@ html, body { margin: 0; height: 100%; background: var(--gun-2); color: var(--cre
 .dial .zone { position: absolute; inset: 6px; border-radius: 50%; background: conic-gradient(transparent 0 42deg, var(--red) 42deg 72deg, transparent 72deg 288deg, var(--red) 288deg 318deg, transparent 318deg); opacity: .8; } /* needle: 0° = up, ±60° at |tilt| = 1, red class above 0.7 (±42°) */
 .dial .needle { position: absolute; left: 50%; bottom: 50%; width: 4px; height: 52px; margin-left: -2px; background: var(--ink); transform-origin: 50% 100%; border-radius: 2px 2px 0 0; transition: transform 40ms linear; }
 .dial .needle.red { background: var(--red); }
-.gauge.reserve, .gauge.strap, .gauge.ballast { align-self: center; }
-.gauge.reserve { grid-area: gauges; } .gauge.strap { grid-area: gauges; margin-top: 44px; } .gauge.ballast { grid-area: gauges; margin-top: 88px; }
+.gauges { grid-area: gauges; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
 .bar { position: relative; height: 16px; background: #1e2124; border: 2px solid #6b6f74; border-radius: 3px; overflow: hidden; }
 .bar .fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--orange); }
 .reserve .fill.low { background: var(--red); }

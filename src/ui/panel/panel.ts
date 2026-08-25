@@ -12,9 +12,11 @@ export class Panel {
       <div class="panel-grid">
         <div class="brand">DEADWEIGHT <span class="sub">MULE-7 REMOTE OPERATOR</span></div>
         <div class="gauge tilt"><div class="dial"><div class="zone"></div><div class="needle"></div></div><label>TILT</label></div>
-        <div class="gauge reserve"><div class="bar"><div class="fill"></div></div><label>RESERVE</label></div>
-        <div class="gauge strap m2"><div class="bar"><div class="fill"></div></div><label>STRAP</label></div>
-        <div class="gauge ballast"><div class="bar centred"><div class="fill"></div></div><label>BALLAST <span class="val">0</span></label></div>
+        <div class="gauges">
+          <div class="gauge reserve"><div class="bar"><div class="fill"></div></div><label>RESERVE</label></div>
+          <div class="gauge strap m2"><div class="bar"><div class="fill"></div></div><label>STRAP</label></div>
+          <div class="gauge ballast"><div class="bar centred"><div class="fill"></div></div><label>BALLAST <span class="val">0</span></label></div>
+        </div>
         <div class="rail"><label>GAIT</label>${[4, 3, 2, 1, 0].map((g) => `<button data-gait="${g}">${g}</button>`).join('')}</div>
         <div class="buttons">
           <button class="big strap m2">STRAP</button>
