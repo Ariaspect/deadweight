@@ -95,4 +95,29 @@ describe('bays and keys v3', () => {
     expect(c.sample().cargoSelect).toBeUndefined();
     c.selectCargo(2); expect(c.sample().cargoSelect).toBe(2); expect(c.state.bayIndex).toBe(1);
   });
+  it('latches radar on V and on the panel handler, and reports it in the frame', () => {
+    const st = initialInput();
+    expect(sampleFrame(st, tuning).radar).toBe(false);
+    applyKey(st, 'KeyV', true);
+    expect(sampleFrame(st, tuning).radar).toBe(true);
+    applyKey(st, 'KeyV', false);
+    expect(sampleFrame(st, tuning).radar).toBe(true);   // latched, not held
+    applyKey(st, 'KeyV', true);
+    expect(sampleFrame(st, tuning).radar).toBe(false);
+  });
+  it('does not touch ballast fore/aft, which stay bound to Q/E', () => {
+    const st = initialInput();
+    applyKey(st, 'KeyQ', true);
+    expect(st.radar).toBe(false); expect(st.keyFore).toBe(true);
+    applyKey(st, 'KeyQ', false);
+    applyKey(st, 'KeyE', true);
+    expect(st.radar).toBe(false); expect(st.keyAft).toBe(true);
+  });
+  it('the panel handler toggles radar the same as the key', () => {
+    const c = new InputController(tuning);
+    c.toggleRadar();
+    expect(c.sample().radar).toBe(true);
+    c.toggleRadar();
+    expect(c.sample().radar).toBe(false);
+  });
 });

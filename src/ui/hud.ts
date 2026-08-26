@@ -16,7 +16,7 @@ function thinThousands(n: number): string {
   return (neg ? '-' : '') + groups.join(' ');
 }
 
-export interface HudHandlers { onSelectBay(slot: number): void }
+export interface HudHandlers { onSelectBay(slot: number): void; onToggleRadar(): void }
 
 export class Hud {
   private readonly slopeEl: HTMLElement;
@@ -29,6 +29,8 @@ export class Hud {
   private readonly mapLayer: SVGGElement;
   private readonly mapPlayer: SVGCircleElement;
   private readonly cargoRackEl: HTMLElement;
+  private readonly stormEl: HTMLElement;
+  private readonly radarEl: HTMLElement;
   private windowX0 = Number.NaN;
   private rackKey = '';
 
@@ -37,6 +39,8 @@ export class Hud {
     el.className = 'hud';
     el.innerHTML = `<div class="hud-top"><span class="route-mark">MULE•7 / LIVE HAUL</span><span class="distance"></span></div>
       <div class="threat" hidden><span class="threat-label"></span><b></b></div>
+      <div class="storm" hidden></div>
+      <div class="radar-lamp" hidden>RADAR ACTIVE</div>
       <div class="explore"></div>
       <svg class="minimap" viewBox="0 0 ${MAP_W} ${MAP_H}" aria-label="Route map"><g class="layer"></g><circle class="map-player" r="2.5"/></svg>
       <div class="cargo-rack"></div>
@@ -48,10 +52,12 @@ export class Hud {
     this.slopeEl = q('.slope'); this.altEl = q('.alt'); this.spdEl = q('.spd'); this.distanceEl = q('.distance');
     this.threatEl = q('.threat'); this.progressEl = q('.route-progress i'); this.exploreEl = q('.explore');
     this.mapLayer = q('.minimap .layer'); this.mapPlayer = q('.map-player'); this.cargoRackEl = q('.cargo-rack');
+    this.stormEl = q('.storm'); this.radarEl = q('.radar-lamp');
     this.cargoRackEl.addEventListener('pointerdown', (e) => {
       const bay = (e.target as HTMLElement).closest<HTMLElement>('.cargo-bay');
       if (bay) this.h.onSelectBay(Number(bay.dataset.slot));
     });
+    this.radarEl.addEventListener('pointerdown', () => this.h.onToggleRadar());
   }
 
   update(s: RigState, route: RouteDef): void {
@@ -103,5 +109,18 @@ export class Hud {
       (this.threatEl.querySelector('.threat-label') as HTMLElement).textContent = metres < 15 ? 'IMPACT IMMINENT' : 'OBSTACLE AHEAD';
       (this.threatEl.querySelector('b') as HTMLElement).textContent = `${HAZARD_NAMES[next.type]} · ${metres}m${mover}`;
     }
+
+    // storm: count down through the ramp, then hold with the intensity
+    const front = route.storms.find((f) => s.t < f.endTick + 300);
+    const secondsOut = front ? Math.ceil((front.startTick - s.t) / 60) : 0;
+    const showStorm = s.storm > 0 || (front !== undefined && secondsOut > 0 && secondsOut <= 5);
+    this.stormEl.hidden = !showStorm;
+    if (showStorm) {
+      this.stormEl.textContent = s.storm > 0
+        ? `SANDSTORM · ${Math.round(s.storm * 100)}%`
+        : `SANDSTORM IN ${secondsOut}`;
+      this.stormEl.classList.toggle('warning', s.storm === 0);
+    }
+    this.radarEl.hidden = !s.radar;
   }
 }

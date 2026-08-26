@@ -20,6 +20,7 @@ const panel = new Panel(panelEl, {
   onBrace: (on) => input.setBrace(on),
   onRecover: () => input.queueRecover(),
   onJump: () => input.queueJump(),
+  onRadar: () => input.toggleRadar(),
 });
 const renderer: Promise<Renderer> = import('./render/three/ThreeRenderer').then(({ ThreeRenderer }) => {
   const r = new ThreeRenderer(); r.mount(viewportEl);
