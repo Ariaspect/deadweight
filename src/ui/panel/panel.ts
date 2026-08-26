@@ -7,6 +7,7 @@ export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace
 
 function clamp(v: number, lo: number, hi: number): number { return v < lo ? lo : v > hi ? hi : v; }
 function rpmAngle(rpm: number): number { return -120 + 240 * rpm / 3000; }
+const BAY_NAME = ['FORE', 'MID', 'AFT'];
 // octant 0 is dead ahead and the dial runs clockwise, so the pad reads as a compass rose
 const PAD_ARROW = ['\u2191', '\u2197', '\u2192', '\u2198', '\u2193', '\u2199', '\u2190', '\u2196'];
 
@@ -79,6 +80,7 @@ export class Panel {
   setRadar(on: boolean): void { this.root.querySelector('button.radar')!.classList.toggle('on', on); }
 
   update(s: RigState, tuning: Tuning, route?: RouteDef): void {
+    this.setGait(s.gait);   // the rail follows the sim, so digit hotkeys and the D-pad light it too
     const deg = Math.max(-1.2, Math.min(1.2, s.tilt)) * 60;
     this.needle.style.transform = `rotate(${deg}deg)`;
     this.needle.classList.toggle('red', Math.abs(s.tilt) > 0.7);
@@ -97,11 +99,12 @@ export class Panel {
     this.rpmNeedle.style.transform = `rotate(${rpmAngle(rpm)}deg)`;
     this.rpmTarget.style.transform = `rotate(${rpmAngle(targetRpm)}deg)`;
     this.rpmVal.textContent = String(Math.round(rpm));
-    const carried = s.items.filter((it) => !it.lost);
-    const cargoCond = carried.length ? carried.reduce((a, it) => a + clamp(1 - it.stress, 0, 1), 0) / carried.length : 0;
+    // this gauge tracks the SELECTED bay, matching the restraint gauge above it — averaging every item
+    // meant cycling bays with Tab changed the restraint reading while the condition stayed put
+    const cargoCond = sel && !sel.lost ? clamp(1 - sel.stress, 0, 1) : 0;
     this.cargoFill.style.width = `${cargoCond * 100}%`;
     this.cargoFill.classList.toggle('low', cargoCond < 0.5);
-    this.cargoVal.textContent = `${Math.round(cargoCond * 100)}%`;
+    this.cargoVal.textContent = sel ? `${BAY_NAME[sel.slot] ?? sel.slot} ${sel.lost ? 'LOST' : `${Math.round(cargoCond * 100)}%`}` : '';
     const r = tuning.ballastRange;
     const pct = (s.ballast / r) * 50;
     this.ballastFill.style.left = `${50 + Math.min(0, pct)}%`;
