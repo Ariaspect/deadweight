@@ -44,7 +44,7 @@ export class Hud {
       <div class="explore"></div>
       <svg class="minimap" viewBox="0 0 ${MAP_W} ${MAP_H}" aria-label="Route map"><g class="layer"></g><circle class="map-player" r="2.5"/></svg>
       <div class="cargo-rack"></div>
-      <div class="drive-help"><b>W/S</b> WALK · <b>A/D</b> LANE · <b>SPACE</b> JUMP · <b>TAB</b> BAY · <b>F</b> RATCHET · <b>SHIFT</b> BRACE · <b>DRAG</b> BALLAST</div>
+      <div class="drive-help"><b>W/S</b> WALK · <b>A/D</b> LANE · <b>SPACE</b> JUMP · <b>TAB</b> BAY · <b>F</b> RATCHET · <b>SHIFT</b> BRACE · <b>V</b> RADAR · <b>Q/E</b> or <b>DRAG</b> BALLAST</div>
       <div class="hud-bottom"><span class="slope"></span><span class="alt"></span><span class="spd"></span></div>
       <div class="route-progress"><i></i></div>`;
     viewport.appendChild(el);

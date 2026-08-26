@@ -15,7 +15,7 @@ const CONTROLS: Row[] = [
   { key: 'TAB / 5 6 7', name: 'BAY', note: 'Select a bay. The restraint and cargo gauges follow your selection.' },
   { key: 'V', name: 'RADAR', note: 'Wireframe vision through a sandstorm. Burns reserve for as long as it is lit.' },
   { key: 'R', name: 'RECOVER', note: 'Retrieve a load you spilled. Costs reserve and holds you still.' },
-  { key: 'DRAG', name: 'BALLAST', note: 'Drag the viewport to shift trim. Chase the AIM pip, not the centre.' },
+  { key: 'Q / E · DRAG', name: 'BALLAST', note: 'Q shifts trim fore, E aft; dragging the viewport does the same, faster. Chase the AIM pip, not the centre.' },
 ];
 
 const INSTRUMENTS: Row[] = [
