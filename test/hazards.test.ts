@@ -17,7 +17,7 @@ function runUntil(route: ReturnType<typeof flatRoute>, input: ReturnType<typeof 
 
 describe('strap and brace', () => {
   it('strap tap adds strapTap, capped at 100', () => {
-    const r = flatRoute(); const s = createRun(r, [], tuning); const rng = mulberry32(1);
+    const r = flatRoute(); const s = createRun(r, [{ def: crateDef(), slot: 1 }], tuning); const rng = mulberry32(1);
     step(s, frame({ strap: true }), r, [], tuning, rng);
     expect(s.strap).toBe(Math.min(100, tuning.strapStart + tuning.strapTap));
     for (let i = 0; i < 10; i++) step(s, frame({ strap: true }), r, [], tuning, rng);

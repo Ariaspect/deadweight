@@ -39,11 +39,13 @@ export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFra
   const feedback = -b.kp * v.tilt - b.kd * v.tiltVel;
   const centerError = 0 - v.z;
   const steer = centerError > 0.35 ? 1 : centerError < -0.35 ? -1 : 0;
+  const loosest = v.items.filter((it) => !it.lost).sort((a, b2) => a.restraint - b2.restraint)[0];
   return {
     throttle: 1,
     gait,
     ballast: clampInt(feedForward + feedback, -tuning.ballastRange, tuning.ballastRange),
-    strap: v.strap < b.strapBelow,
+    strap: loosest !== undefined && loosest.restraint < b.strapBelow,
+    cargoSelect: loosest?.slot,
     brace,
     deploy: 0,
     recover: v.recovering === 0 && v.items.some((it) => it.lost),

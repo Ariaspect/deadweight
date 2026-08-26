@@ -52,8 +52,12 @@ describe('bot v2', () => {
   it('taps strap when loose and recovers when an item is lost', () => {
     const r = flatRoute();
     const base = { x: 10, z: 0, tilt: 0, tiltVel: 0, braced: false, recovering: 0 };
-    expect(botPolicy({ ...base, strap: 30, items: [] }, r, tuning).strap).toBe(true);
-    expect(botPolicy({ ...base, strap: 90, items: [] }, r, tuning).strap).toBe(false);
+    const loose = { ...createRun(r, [{ def: crateDef(), slot: 1 }], tuning).items[0]!, restraint: 30 };
+    const tight = { ...createRun(r, [{ def: crateDef(), slot: 1 }], tuning).items[0]!, restraint: 90 };
+    const loosePolicy = botPolicy({ ...base, strap: 30, items: [loose] }, r, tuning);
+    expect(loosePolicy.strap).toBe(true);
+    expect(loosePolicy.cargoSelect).toBe(1);
+    expect(botPolicy({ ...base, strap: 90, items: [tight] }, r, tuning).strap).toBe(false);
     const lost = { ...createRun(r, [{ def: crateDef(), slot: 1 }], tuning).items[0]!, lost: true };
     expect(botPolicy({ ...base, strap: 90, items: [lost] }, r, tuning).recover).toBe(true);
   });

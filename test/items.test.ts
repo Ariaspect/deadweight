@@ -6,7 +6,7 @@ import { flatRoute, slopeRoute, crateDef, frame } from './helpers';
 
 function held(tilt: number, strap: number, def = crateDef(), ticks = 120) {
   const s = createRun(flatRoute(), [{ def, slot: 1 }], tuning);
-  s.tilt = tilt; s.strap = strap;
+  s.tilt = tilt; s.items[0]!.restraint = strap;
   const rng = mulberry32(5);
   for (let i = 0; i < ticks; i++) stepItems(s, tuning, rng);
   return s.items[0]!;

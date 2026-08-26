@@ -14,7 +14,7 @@ export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tunin
   return {
     t: 0, x: 0, z: 0, lateralVel: 0, lift: 0, liftVel: 0, grounded: true,
     tilt: 0, tiltVel: 0, gait: 0, speed: 0, targetSpeed: 0, ballast: 0,
-    strap: tuning.strapStart, selectedSlot: items[0]?.slot ?? 0, reserve: tuning.reserveStart, braced: false,
+    strap: tuning.strapStart, selectedSlot: items.reduce((m, it) => Math.min(m, it.slot), items.length ? 99 : 0), reserve: tuning.reserveStart, braced: false,
     items, foundDiscoveries: [], zoneCooldown: [], recovering: 0, hazardCursor: 0, overTiltTicks: 0, ended: null,
   };
 }
@@ -46,8 +46,26 @@ export function inZone(s: RigState, h: HazardInstance): boolean {
   return h.x1 !== undefined && s.x >= h.x && s.x <= h.x1 && Math.abs(s.z - h.z) < h.halfW;
 }
 
+export function itemAtSlot(s: RigState, slot: number): ItemState | undefined {
+  return s.items.find((it) => it.slot === slot);
+}
+
+function syncStrap(s: RigState): void {
+  const sel = itemAtSlot(s, s.selectedSlot);
+  s.strap = sel && !sel.lost ? sel.restraint : 0;
+}
+
 export function loosenAll(s: RigState, amount: number): void {
-  s.strap = Math.max(0, s.strap - amount);
+  for (const it of s.items) if (!it.lost) it.restraint = Math.max(0, it.restraint - amount);
+  syncStrap(s);
+}
+
+function applyRestraintInput(s: RigState, input: InputFrame, tuning: Tuning): void {
+  if (input.cargoSelect !== undefined && itemAtSlot(s, input.cargoSelect)) s.selectedSlot = input.cargoSelect;
+  const sel = itemAtSlot(s, s.selectedSlot);
+  if (input.strap && sel && !sel.lost) sel.restraint = Math.min(100, sel.restraint + tuning.strapTap);
+  for (const it of s.items) if (!it.lost) it.restraint = Math.max(0, it.restraint - tuning.restraintDecay[it.behavior] * tuning.dt);
+  syncStrap(s);
 }
 
 export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning: Tuning): void {
@@ -55,7 +73,7 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   s.gait = input.gait;
   s.ballast = clamp(Math.round(input.ballast), -tuning.ballastRange, tuning.ballastRange);
   s.braced = input.brace;
-  if (input.strap) s.strap = Math.min(100, s.strap + tuning.strapTap);
+  applyRestraintInput(s, input, tuning);
 
   const slope = route.slopeAt(s.x);
   const load = loadOffsetOf(s.items, tuning);
@@ -123,7 +141,7 @@ function crossHazards(s: RigState, route: RouteDef, traces: Trace[], tuning: Tun
     if (h.x1 !== undefined) continue;   // zones are handled every tick, not by crossing
     if (h.impulse === 0 || s.braced || traceCancels(h, traces, route) || !inLane(s, h) || airborneClears(s, h)) continue;
     s.tiltVel += h.dir * h.impulse * hazardScale(s, tuning);
-    s.strap = Math.max(0, s.strap - h.strapJolt * tuning.strapJoltMul);
+    loosenAll(s, h.strapJolt * tuning.strapJoltMul);
   }
 }
 
@@ -143,9 +161,9 @@ export function stepItems(s: RigState, tuning: Tuning, rng: Rng): void {
   const over = Math.abs(s.tilt) > tuning.driftThreshold;
   s.overTiltTicks = over ? s.overTiltTicks + 1 : 0;
   const drifting = s.overTiltTicks > tuning.graceTicks;
-  const loose = 1 - s.strap / 100;
   for (const it of s.items) {
     if (it.lost) continue;
+    const loose = 1 - it.restraint / 100;
     switch (it.behavior) {
       case 'static':
         if (drifting) it.offset += tuning.kDrift * s.tilt * loose * dt;
@@ -167,7 +185,7 @@ export function stepItems(s: RigState, tuning: Tuning, rng: Rng): void {
     }
     it.offset = clamp(it.offset, -1.5, 1.5);
     it.stress += Math.max(0, Math.abs(s.tilt) - it.tolerance) * tuning.kStress * dt;
-    it.stress += Math.max(0, s.strap - it.crushLimit) * tuning.kCrush * dt;
+    it.stress += Math.max(0, it.restraint - it.crushLimit) * tuning.kCrush * dt;
   }
 }
 
