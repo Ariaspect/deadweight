@@ -1771,7 +1771,7 @@ describe('bot v3 — lanes', () => {
       { id: 1, type: 'rockfall', x: 140, x1: 148, z: -11, halfW: 7, impulse: 1.2, strapJolt: 22, dir: 1, cycleTicks: 360, windowTicks: 72, phase: 0 },
     ], 10, [], { forks: [fork], walls: [{ x0: 130, x1: 132, z0: -1.5, z1: 9, kind: 'baffle' }, { x0: 160, x1: 162, z0: 7, z1: 18, kind: 'baffle' }], pockets: [] }, 18);
     expect(laneScore(r, fork, 0)).toBeCloseTo(0.35 + 1.2 * 1.5);
-    expect(laneScore(r, fork, 1)).toBeCloseTo(0.8);
+    expect(laneScore(r, fork, 1)).toBeCloseTo(1.6);
   });
   it('steers into the safe lane before a fork and holds it inside', () => {
     const r = generateRoute(9026, 800, 2, hazards, tuning.terrain);
@@ -1827,7 +1827,7 @@ const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > 
 
 const inLaneZ = (h: { z: number }, lane: Lane): boolean => h.z >= lane.z0 && h.z <= lane.z1;
 
-/** Lower is safer: hazard impulses (movers ×1.5), mud 0.6, each chicane baffle 0.4. */
+/** Lower is safer: hazard impulses (movers ×1.5), mud 0.6, each chicane baffle 0.8 — a centre-holding bot cannot weave a chicane, so they must rank last. */
 export function laneScore(route: RouteDef, fork: Fork, i: number): number {
   const lane = fork.lanes[i]!;
   let score = 0;
@@ -1835,7 +1835,7 @@ export function laneScore(route: RouteDef, fork: Fork, i: number): number {
     if (h.x < fork.x0 || h.x > fork.x1 || !inLaneZ(h, lane)) continue;
     score += h.type === 'mud' ? 0.6 : h.impulse * (h.cycleTicks !== undefined ? 1.5 : 1);
   }
-  for (const w of route.walls) if (w.kind === 'baffle' && w.x0 < fork.x1 && w.x1 > fork.x0 && w.z0 < lane.z1 && w.z1 > lane.z0) score += 0.4;
+  for (const w of route.walls) if (w.kind === 'baffle' && w.x0 < fork.x1 && w.x1 > fork.x0 && w.z0 < lane.z1 && w.z1 > lane.z0) score += 0.8;
   return score;
 }
 
