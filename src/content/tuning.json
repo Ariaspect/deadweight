@@ -74,10 +74,10 @@
   },
   "turret": {
     "countByTier": [0, 0, 1, 2],
-    "rangeM": 200, "cooldownTicks": 1500, "offCorridorZ": 70,
+    "rangeM": 120, "cooldownTicks": 1800, "offCorridorZ": 70,
     "flightTicks": 300, "levels": 6,
     "impulse": 1.6, "strapJolt": 30,
-    "shieldCost": 1, "shieldTicks": 72, "shieldCooldown": 90, "shieldStopEpsilon": 0.05
+    "shieldCost": 3, "shieldTicks": 72, "shieldCooldown": 90, "shieldStopEpsilon": 0.05
   },
   "difficulty": { "fragileWeight": 2, "precariousWeight": 0.6, "rushWeight": 0.5, "massWeight": 0.15, "easyBelow": 1.6, "hardAtOrAbove": 2.3 },
   "terrain": {

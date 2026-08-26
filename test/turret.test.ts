@@ -80,7 +80,7 @@ describe('placeTurrets', () => {
 
 function turretRoute() {
   return routeFromSegments(1, [{ x0: 0, x1: 2000, slope: 0, y0: 0 }], [], 10, [], undefined, 18, [],
-    [{ id: 0, x: 200, z: 70, phase: 0 }]);
+    [{ id: 0, x: 100, z: 70, phase: 0 }]);
 }
 
 describe('turret firing and missiles', () => {
@@ -133,12 +133,16 @@ describe('the shield', () => {
     expect(s.shield, 'still cooling down').toBe(-1);
   });
   it('blocks only the sector the missile actually flew in on', () => {
+    const octants: number[] = [];
     // a turret at +z fires from the port side, so the missile must be blocked by that bearing and no other
+    // two placements with genuinely different bearings: if the zero-vector bug ever returns, both would
+    // block on octant 1 and the second case fails. A single placement cannot tell those apart.
+    for (const emplacement of [{ id: 0, x: 110, z: 34, phase: 0 }, { id: 0, x: 16, z: 70, phase: 0 }]) {
     const results: Record<number, boolean> = {};
     let trueOctant = -1;
     for (let sector = 0; sector < 8; sector++) {
       const route = routeFromSegments(1, [{ x0: 0, x1: 2000, slope: 0, y0: 0 }], [], 10, [], undefined, 18, [],
-        [{ id: 0, x: 200, z: 70, phase: 0 }]);
+        [emplacement]);
       const s = createRun(route, [{ def: crateDef(), slot: 1 }], tuning);
       const rng = mulberry32(11);
       for (let i = 0; i < 60; i++) step(s, frame({ gait: 2, throttle: 1 }), route, [], tuning, rng);
@@ -153,9 +157,11 @@ describe('the shield', () => {
       results[sector] = s.items[0]!.restraint >= strapBefore - 0.5;   // no strap jolt means it was blocked
     }
     const blocking = Object.entries(results).filter(([, ok]) => ok).map(([k]) => Number(k));
-    expect(blocking, 'exactly one sector blocks').toHaveLength(1);
+    expect(blocking, `exactly one sector blocks for ${JSON.stringify(emplacement)}`).toHaveLength(1);
     expect(blocking[0], 'and it is the bearing the missile actually flew in on').toBe(trueOctant);
-    expect(trueOctant, 'the bearing is a real one, not the zero-vector fallthrough this test exists to catch').toBe(0);
+    octants.push(trueOctant);
+    }
+    expect(new Set(octants).size, 'the two placements really do arrive on different bearings').toBe(2);
   });
 
 });
