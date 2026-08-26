@@ -22,17 +22,23 @@ export class Rig {
   private legs: Leg[] = [];
   private phase = 0;
   private lastTick = 0;
-  private legMat = new THREE.MeshLambertMaterial({ color: '#2f3338', flatShading: true });
-  private footMat = new THREE.MeshLambertMaterial({ color: '#c8622a', flatShading: true });
+  private legMat = new THREE.MeshLambertMaterial({ color: '#3a3632', flatShading: true });
+  private footMat = new THREE.MeshLambertMaterial({ color: '#6e4a34', flatShading: true });
 
   constructor() {
-    this.body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.1, 1.8), new THREE.MeshLambertMaterial({ color: '#4a4f55', flatShading: true }));
+    this.body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.1, 1.8), new THREE.MeshLambertMaterial({ color: '#5a5148', flatShading: true }));
     this.body.position.y = BODY_Y; this.body.castShadow = true;
     this.group.add(this.body);
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.16, 2.2), new THREE.MeshStandardMaterial({ color: '#24282b', metalness: 0.55, roughness: 0.62 }));
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.16, 2.2), new THREE.MeshStandardMaterial({ color: '#3a352f', metalness: 0.55, roughness: 0.62 }));
     deck.position.y = BODY_Y + 0.65; deck.castShadow = true; this.group.add(deck);
-    const lampMat = new THREE.MeshBasicMaterial({ color: '#ffd078' });
-    for (const z of [-0.58, 0.58]) { const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), lampMat); lamp.position.set(1.74, BODY_Y + 0.12, z); this.group.add(lamp); }
+    for (const [px, pz, w] of [[-1.1, 0.7, 0.9], [0.6, -0.8, 1.2], [1.3, 0.5, 0.7]] as const) {
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, 0.6), new THREE.MeshStandardMaterial({ color: '#6e4a34', roughness: 0.9, metalness: 0.3 }));
+      plate.position.set(px, BODY_Y + 0.6, pz); this.group.add(plate);
+    }
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffd078' }));
+    lamp.position.set(1.74, BODY_Y + 0.12, 0.58); this.group.add(lamp);
+    const deadLamp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), new THREE.MeshBasicMaterial({ color: '#3a3632' }));
+    deadLamp.position.set(1.74, BODY_Y + 0.12, -0.58); this.group.add(deadLamp);
     const cyl = new THREE.CylinderGeometry(0.11, 0.09, 1, 6);
     const ball = new THREE.SphereGeometry(0.16, 6, 6);
     for (let i = 0; i < 6; i++) {

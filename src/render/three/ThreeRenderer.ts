@@ -9,7 +9,7 @@ import { Rig } from './rig';
 import { CargoView } from './cargo';
 import { tuning } from '../../content';
 
-const SKY = '#c8aa7d';
+const SKY = '#b9b0a3';
 
 export class ThreeRenderer implements Renderer {
   private gl!: THREE.WebGLRenderer;
@@ -23,7 +23,7 @@ export class ThreeRenderer implements Renderer {
   private route: RouteDef | null = null;
   private readonly rig = new Rig();
   private readonly cargo = new CargoView();
-  private readonly sun = new THREE.DirectionalLight('#ffd99b', 3.4);
+  private readonly sun = new THREE.DirectionalLight('#e8c39a', 3.0);
   private readonly sunTarget = new THREE.Object3D();
   private lastDrawMs = 0;
   private readonly camPos = new THREE.Vector3();
@@ -38,11 +38,11 @@ export class ThreeRenderer implements Renderer {
     this.gl.shadowMap.type = THREE.PCFSoftShadowMap;
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
     this.gl.toneMapping = THREE.ACESFilmicToneMapping;
-    this.gl.toneMappingExposure = 1.08;
+    this.gl.toneMappingExposure = 1.0;
     el.appendChild(this.gl.domElement);
     this.scene.background = new THREE.Color(SKY);
-    this.scene.fog = new THREE.Fog(SKY, 70, 200);
-    const hemi = new THREE.HemisphereLight('#ffe8bd', '#42372e', 1.65);
+    this.scene.fog = new THREE.Fog(SKY, 60, 180);
+    const hemi = new THREE.HemisphereLight('#c9bfae', '#3e3a35', 1.4);
     const shadowSize = window.innerWidth < 900 ? 1024 : 2048;
     this.sun.position.set(-25, 42, 28); this.sun.castShadow = true; this.sun.target = this.sunTarget;
     this.sun.shadow.mapSize.set(shadowSize, shadowSize); this.sun.shadow.camera.left = -38; this.sun.shadow.camera.right = 38; this.sun.shadow.camera.top = 38; this.sun.shadow.camera.bottom = -28;
@@ -83,7 +83,7 @@ export class ThreeRenderer implements Renderer {
     this.cargo.sync(curr.items, tuning, this.rig.group.position);
     const now = performance.now(); const dtSec = this.lastDrawMs ? Math.min(0.05, (now - this.lastDrawMs) / 1000) : 0; this.lastDrawMs = now;
     this.cargo.tickDebris(dtSec, (px) => this.route!.heightAt(px));
-    if (this.hazardGroup) animateHazards(this.hazardGroup, curr.t / 60, x);
+    if (this.hazardGroup) animateHazards(this.hazardGroup, curr.t + alpha);
     if (this.scenery) syncScenery(this.scenery, curr.foundDiscoveries, curr.t / 60);
     this.sun.position.set(x - 25, y + 42, z + 28); this.sunTarget.position.set(x, y, z); this.sunTarget.updateMatrixWorld();
     const danger = Math.min(1, Math.abs(curr.tilt));
