@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { placeTurrets, octantOf, dangerLevel } from '../src/sim/turret';
 import { mulberry32 } from '../src/sim/rng';
 import { tuning } from '../src/content';
+import { createRun, step, highestDanger } from '../src/sim/step';
+import { routeFromSegments } from '../src/sim/terrain';
+import { crateDef, frame } from './helpers';
 
 describe('octantOf', () => {
   // octant 0 is +x (dead ahead), numbering anticlockwise through +z, 45 degrees each
@@ -72,5 +75,61 @@ describe('placeTurrets', () => {
         expect(t.x).toBeLessThan(900);
       }
     }
+  });
+});
+
+function turretRoute() {
+  return routeFromSegments(1, [{ x0: 0, x1: 2000, slope: 0, y0: 0 }], [], 10, [], undefined, 18, [],
+    [{ id: 0, x: 200, z: 70, phase: 0 }]);
+}
+
+describe('turret firing and missiles', () => {
+  it('fires when the rig is in range and the missile closes over flightTicks', () => {
+    const route = turretRoute();
+    const s = createRun(route, [{ def: crateDef(), slot: 1 }], tuning);
+    const rng = mulberry32(2);
+    for (let i = 0; i < 60; i++) step(s, frame({ gait: 2, throttle: 1 }), route, [], tuning, rng);
+    expect(s.missiles.length).toBeGreaterThan(0);
+    const m = s.missiles[0]!;
+    expect(m.impactTick - m.launchTick).toBe(tuning.turret.flightTicks);
+    expect(highestDanger(s, tuning)).toBeGreaterThanOrEqual(1);
+  });
+  it('a missile that lands unshielded costs tilt and strap', () => {
+    const route = turretRoute();
+    const s = createRun(route, [{ def: crateDef(), slot: 1 }], tuning);
+    const rng = mulberry32(3);
+    const strapBefore = s.items[0]!.restraint;
+    for (let i = 0; i < 700; i++) step(s, frame({ gait: 2, throttle: 1 }), route, [], tuning, rng);
+    expect(s.items[0]!.restraint).toBeLessThan(strapBefore);
+    expect(s.tiltVel === 0 && s.tilt === 0).toBe(false);
+  });
+});
+
+describe('the shield', () => {
+  it('refuses to deploy while moving and deploys once stopped', () => {
+    const route = turretRoute();
+    const s = createRun(route, [{ def: crateDef(), slot: 1 }], tuning);
+    const rng = mulberry32(4);
+    for (let i = 0; i < 30; i++) step(s, frame({ gait: 2, throttle: 1 }), route, [], tuning, rng);
+    step(s, frame({ gait: 2, throttle: 1, shieldSector: 0 }), route, [], tuning, rng);
+    expect(s.shield, 'moving: refused').toBe(-1);
+    for (let i = 0; i < 200; i++) step(s, frame({ gait: 0, throttle: 0 }), route, [], tuning, rng);
+    expect(Math.abs(s.speed)).toBeLessThan(tuning.turret.shieldStopEpsilon);
+    const reserveBefore = s.reserve;
+    step(s, frame({ gait: 0, throttle: 0, shieldSector: 3 }), route, [], tuning, rng);
+    expect(s.shield, 'stopped: deployed').toBe(3);
+    expect(reserveBefore - s.reserve).toBeGreaterThan(tuning.turret.shieldCost - 0.1);
+  });
+  it('drops after shieldTicks and will not redeploy until the cooldown expires', () => {
+    const route = turretRoute();
+    const s = createRun(route, [{ def: crateDef(), slot: 1 }], tuning);
+    const rng = mulberry32(5);
+    for (let i = 0; i < 200; i++) step(s, frame({ gait: 0, throttle: 0 }), route, [], tuning, rng);
+    step(s, frame({ gait: 0, throttle: 0, shieldSector: 1 }), route, [], tuning, rng);
+    expect(s.shield).toBe(1);
+    for (let i = 0; i < tuning.turret.shieldTicks + 1; i++) step(s, frame({ gait: 0, throttle: 0 }), route, [], tuning, rng);
+    expect(s.shield, 'dropped').toBe(-1);
+    step(s, frame({ gait: 0, throttle: 0, shieldSector: 1 }), route, [], tuning, rng);
+    expect(s.shield, 'still cooling down').toBe(-1);
   });
 });
