@@ -32,6 +32,12 @@ describe('input reducers', () => {
     expect(sampleFrame(st, tuning).jump).toBe(true);
     expect(sampleFrame(st, tuning).jump).toBe(false);
   });
+  it('shield sector is delivered exactly once with queueShield', () => {
+    const c = new InputController(tuning);
+    c.queueShield(3);
+    expect(c.sample().shieldSector).toBe(3);
+    expect(c.sample().shieldSector).toBeUndefined();
+  });
   it('touch D-pad drives through setDrive and clears on reset', () => {
     const c = new InputController(tuning);
     c.setDrive('forward', true); c.setDrive('left', true);

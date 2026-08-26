@@ -4,7 +4,7 @@ export interface InputState {
   gait: Gait; ballast: number; keyFore: boolean; keyAft: boolean; brace: boolean;
   strapQueued: boolean; recoverQueued: boolean; deployQueued: KitId | 0;
   forward: boolean; backward: boolean; left: boolean; right: boolean; jumpQueued: boolean;
-  cargoSelectQueued: number | null;
+  cargoSelectQueued: number | null; shieldQueued: number | null;
   baySlots: number[]; bayIndex: number;
   dragging: boolean; dragStartPx: number; dragStartBallast: number;
   radar: boolean;
@@ -12,7 +12,7 @@ export interface InputState {
 
 export function initialInput(): InputState {
   return { gait: 0, ballast: 0, keyFore: false, keyAft: false, brace: false, strapQueued: false, recoverQueued: false, deployQueued: 0,
-    forward: false, backward: false, left: false, right: false, jumpQueued: false, cargoSelectQueued: null, baySlots: [], bayIndex: 0,
+    forward: false, backward: false, left: false, right: false, jumpQueued: false, cargoSelectQueued: null, shieldQueued: null, baySlots: [], bayIndex: 0,
     dragging: false, dragStartPx: 0, dragStartBallast: 0, radar: false };
 }
 
@@ -55,7 +55,7 @@ export function applyDragEnd(st: InputState): void { st.dragging = false; }
 export function resetInput(st: InputState): void {
   st.ballast = 0; st.brace = false; st.keyFore = false; st.keyAft = false;
   st.forward = false; st.backward = false; st.left = false; st.right = false; st.jumpQueued = false;
-  st.strapQueued = false; st.recoverQueued = false; st.deployQueued = 0; st.cargoSelectQueued = null; st.dragging = false;
+  st.strapQueued = false; st.recoverQueued = false; st.deployQueued = 0; st.cargoSelectQueued = null; st.shieldQueued = null; st.dragging = false;
 }
 
 export function sampleFrame(st: InputState, tuning: Tuning): InputFrame {
@@ -67,8 +67,8 @@ export function sampleFrame(st: InputState, tuning: Tuning): InputFrame {
   }
   const throttle = (st.forward === st.backward ? 0 : st.forward ? 1 : -1) as -1 | 0 | 1;
   const steer = (st.left === st.right ? 0 : st.left ? -1 : 1) as -1 | 0 | 1;
-  const f: InputFrame = { gait: st.gait, ballast: Math.round(st.ballast), strap: st.strapQueued, brace: st.brace, deploy: st.deployQueued, recover: st.recoverQueued, throttle, steer, jump: st.jumpQueued, radar: st.radar, cargoSelect: st.cargoSelectQueued ?? undefined };
-  st.strapQueued = false; st.recoverQueued = false; st.deployQueued = 0; st.jumpQueued = false; st.cargoSelectQueued = null;
+  const f: InputFrame = { gait: st.gait, ballast: Math.round(st.ballast), strap: st.strapQueued, brace: st.brace, deploy: st.deployQueued, recover: st.recoverQueued, throttle, steer, jump: st.jumpQueued, radar: st.radar, cargoSelect: st.cargoSelectQueued ?? undefined, shieldSector: st.shieldQueued ?? undefined };
+  st.strapQueued = false; st.recoverQueued = false; st.deployQueued = 0; st.jumpQueued = false; st.cargoSelectQueued = null; st.shieldQueued = null;
   return f;
 }
 
@@ -120,6 +120,7 @@ export class InputController {
   }
   setBrace(on: boolean): void { this.state.brace = on; }
   queueDeploy(k: KitId): void { this.state.deployQueued = k; }
+  queueShield(sector: number): void { this.state.shieldQueued = sector; }
   toggleRadar(): void { this.state.radar = !this.state.radar; }
   /** Radar is a latch, so it survives resetInput like the gait does — a new haul has to clear it explicitly. */
   setRadar(on: boolean): void { this.state.radar = on; }
@@ -128,9 +129,9 @@ export class InputController {
   private onKeyUp = (e: KeyboardEvent): void => { applyKey(this.state, e.code, false); };
   private onBlur = (): void => { resetInput(this.state); };
 
-  /** Ballast drag: any pointer on the viewport that did not start on a `.dpad` button. */
+  /** Ballast drag: any pointer on the viewport that did not start on a `.dpad` button or the threat scope. */
   private onPointerDown = (e: PointerEvent): void => {
-    if ((e.target as HTMLElement | null)?.closest('.dpad')) return;
+    if ((e.target as HTMLElement | null)?.closest('.dpad, .scope')) return;
     this.viewport?.setPointerCapture(e.pointerId); applyDragStart(this.state, e.clientX);
   };
   private onPointerMove = (e: PointerEvent): void => {
