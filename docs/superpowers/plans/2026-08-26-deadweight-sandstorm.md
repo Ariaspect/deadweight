@@ -230,7 +230,19 @@ In `src/sim/terrain.ts`:
 
 **Watch out:** `test/terrain.test.ts` lines 55, 65 and 68 pass a locally modified `t`, not `tuning.terrain`. Those become `{ ...tuning, terrain: t }`.
 
-- [ ] **Step 8: Run the gates and commit**
+- [ ] **Step 8: Initialise the new state**
+
+`createRun` in `src/sim/step.ts` is the only full `RigState` object literal in the codebase, so the
+required fields added in Step 1 must be initialised here or nothing typechecks. Beside `braced: false,`
+add:
+
+```ts
+    storm: 0, radar: false,
+```
+
+**This is the only line this task may change in `step.ts`.** Everything else in that file is Task 2's.
+
+- [ ] **Step 9: Run the gates and commit**
 
 Run: `pnpm typecheck && pnpm lint && pnpm test`
 Expected: green, `test/storm.test.ts` passing.
@@ -316,13 +328,10 @@ describe('radar', () => {
 Run: `pnpm vitest run test/storm.test.ts`
 Expected: FAIL — `s.storm` is `undefined`, reserves are equal.
 
-- [ ] **Step 3: Initialise the new state**
+- [ ] **Step 3: Confirm the state is already initialised**
 
-In `createRun`'s returned object in `src/sim/step.ts`, beside `braced: false,` add:
-
-```ts
-    storm: 0, radar: false,
-```
+`createRun` already carries `storm: 0, radar: false,` — Task 1 added it, because it introduced the
+required fields. Confirm it is there and move on. Nothing to change.
 
 - [ ] **Step 4: Apply the storm in `stepRig`**
 
@@ -462,7 +471,7 @@ git commit -m "feat(bot): radar through every front; reserve budget re-measured 
 ### Task 4: Input, panel button and HUD
 
 **Files:**
-- Modify: `src/ui/input.ts`, `src/ui/panel/panel.ts`, `src/ui/panel/panel.css`, `src/ui/hud.ts`, `src/game/flow.ts`
+- Modify: `src/ui/input.ts`, `src/ui/panel/panel.ts`, `src/ui/panel/panel.css`, `src/ui/hud.ts`, `src/game/flow.ts`, `src/main.ts`
 - Test: `test/input.test.ts`
 
 **Interfaces:**
@@ -841,6 +850,14 @@ git push -u origin feat/storm-and-turret
 Report to the human: the chosen `reserveBudget` and worst-case reserve, whether radar or crawling proved cheaper, and the previews. **Do not open a PR or merge — the human reviews first.**
 
 ---
+
+## Rule learned in execution
+
+**A task that adds a REQUIRED field to a shared type owns that field's initialisation, wherever it
+lives.** Task 1 hit this against `createRun`; Task 4 would have hit it against `src/main.ts`, which is
+why `main.ts` is in its file list. Checked and clear for the rest: `BotView` (Task 3) is constructed
+only inside `bot.ts` and its own test, and `RouteOption` (Task 6) is the one deliberate exception,
+closed by Task 7 Step 1.
 
 ## Self-review
 
