@@ -18,7 +18,7 @@ describe('input reducers', () => {
     applyKey(st, 'Digit4', true); expect(st.gait).toBe(4);
   });
   it('selects cargo bays with 5/6/7 as a one-shot command', () => {
-    const st = initialInput(); applyKey(st, 'Digit6', true);
+    const st = initialInput(); st.baySlots = [0, 1, 2]; applyKey(st, 'Digit6', true);
     expect(sampleFrame(st, tuning).cargoSelect).toBe(1);
     expect(sampleFrame(st, tuning).cargoSelect).toBeUndefined();
   });
@@ -76,7 +76,7 @@ describe('input reducers', () => {
 
 describe('bays and keys v3', () => {
   it('digits 0–4 set gait only; 5/6/7 select slots 0/1/2', () => {
-    const st = initialInput(); applyKey(st, 'Digit3', true);
+    const st = initialInput(); st.baySlots = [0, 1, 2]; applyKey(st, 'Digit3', true);
     expect(st.gait).toBe(3); expect(sampleFrame(st, tuning).cargoSelect).toBeUndefined();
     applyKey(st, 'Digit6', true); expect(sampleFrame(st, tuning).cargoSelect).toBe(1);
   });
@@ -86,5 +86,13 @@ describe('bays and keys v3', () => {
     applyKey(c.state, 'Tab', true); expect(c.sample().cargoSelect).toBe(0);
     c.selectCargo(2); expect(c.sample().cargoSelect).toBe(2);
     applyKey(c.state, 'Tab', true); expect(c.sample().cargoSelect).toBe(0);
+  });
+  it('ignores 5/6/7 and rack taps for bays that are not loaded', () => {
+    const c = new InputController(tuning); c.setBays([0, 2]);
+    applyKey(c.state, 'Digit6', true);
+    expect(c.sample().cargoSelect).toBeUndefined(); expect(c.state.bayIndex).toBe(0);
+    c.selectCargo(1);
+    expect(c.sample().cargoSelect).toBeUndefined();
+    c.selectCargo(2); expect(c.sample().cargoSelect).toBe(2); expect(c.state.bayIndex).toBe(1);
   });
 });

@@ -35,7 +35,10 @@ export function applyKey(st: InputState, code: string, down: boolean): void {
       break;
     default:
       if (down && /^Digit[0-4]$/.test(code)) st.gait = clampGait(Number(code.slice(5)));
-      else if (down && /^Digit[5-7]$/.test(code)) { const slot = Number(code.slice(5)) - 5; st.cargoSelectQueued = slot; st.bayIndex = Math.max(0, st.baySlots.indexOf(slot)); }
+      else if (down && /^Digit[5-7]$/.test(code)) {
+        const slot = Number(code.slice(5)) - 5, idx = st.baySlots.indexOf(slot);
+        if (idx >= 0) { st.cargoSelectQueued = slot; st.bayIndex = idx; }
+      }
   }
 }
 
@@ -103,7 +106,11 @@ export class InputController {
   queueJump(): void { this.state.jumpQueued = true; }
   setDrive(axis: 'forward' | 'backward' | 'left' | 'right', on: boolean): void { this.state[axis] = on; }
   setBays(slots: number[]): void { this.state.baySlots = [...slots].sort((a, b) => a - b); this.state.bayIndex = 0; }
-  selectCargo(slot: number): void { this.state.cargoSelectQueued = slot; this.state.bayIndex = Math.max(0, this.state.baySlots.indexOf(slot)); }
+  selectCargo(slot: number): void {
+    const idx = this.state.baySlots.indexOf(slot);
+    if (idx < 0) return;
+    this.state.cargoSelectQueued = slot; this.state.bayIndex = idx;
+  }
   setBrace(on: boolean): void { this.state.brace = on; }
   queueDeploy(k: KitId): void { this.state.deployQueued = k; }
 
