@@ -25,10 +25,13 @@ const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > 
 
 const inLaneZ = (h: { z: number }, lane: Lane): boolean => h.z >= lane.z0 && h.z <= lane.z1;
 
-/** Lower is safer: hazard impulses (movers ×1.5), mud 0.6, each chicane baffle 0.8 — a centre-holding bot cannot weave a chicane, so they must rank last. */
+/** A centre-holding planner cannot weave a chicane, so chicanes rank behind every other lane outright. */
+const CHICANE_PENALTY = 10;
+
+/** Lower is safer: hazard impulses (movers ×1.5), mud 0.6, chicanes +10 plus 0.8 per baffle. */
 export function laneScore(route: RouteDef, fork: Fork, i: number): number {
   const lane = fork.lanes[i]!;
-  let score = 0;
+  let score = lane.archetype === 'chicane' ? CHICANE_PENALTY : 0;
   for (const h of route.hazards) {
     if (h.x < fork.x0 || h.x > fork.x1 || !inLaneZ(h, lane)) continue;
     score += h.type === 'mud' ? 0.6 : h.impulse * (h.cycleTicks !== undefined ? 1.5 : 1);
@@ -41,8 +44,10 @@ function targetZ(v: BotView, route: RouteDef, tuning: Tuning): number {
   const inside = route.forkAt(v.x);
   if (inside) {
     const i = route.laneAt(v.x, v.z);
-    const lane = inside.lanes[i >= 0 ? i : 0]!;
-    return laneCentre(lane);
+    if (i >= 0) return laneCentre(inside.lanes[i]!);
+    let best = inside.lanes[0]!;
+    for (const lane of inside.lanes) if (Math.abs(laneCentre(lane) - v.z) < Math.abs(laneCentre(best) - v.z)) best = lane;
+    return laneCentre(best);
   }
   const ahead = route.forks.find((f) => f.x0 > v.x && f.x0 - v.x < tuning.bot.laneLookaheadM);
   if (ahead) {
@@ -62,7 +67,7 @@ export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFra
   const zTarget = targetZ(v, route, tuning);
   let brace = false, slow = false, near = false;
   for (const h of route.hazards) {
-    const start = h.x1 !== undefined ? h.x : h.x, end = h.x1 ?? h.x;
+    const start = h.x, end = h.x1 ?? h.x;
     if (end < v.x) continue;
     if (start > v.x + 40) break;
     if (h.impulse === 0) continue;

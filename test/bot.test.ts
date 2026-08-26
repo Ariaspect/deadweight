@@ -84,7 +84,7 @@ describe('bot v3 — lanes', () => {
       { id: 1, type: 'rockfall', x: 140, x1: 148, z: -11, halfW: 7, impulse: 1.2, strapJolt: 22, dir: 1, cycleTicks: 360, windowTicks: 72, phase: 0 },
     ], 10, [], { forks: [fork], walls: [{ x0: 130, x1: 132, z0: -1.5, z1: 9, kind: 'baffle' }, { x0: 160, x1: 162, z0: 7, z1: 18, kind: 'baffle' }], pockets: [] }, 18);
     expect(laneScore(r, fork, 0)).toBeCloseTo(0.35 + 1.2 * 1.5);
-    expect(laneScore(r, fork, 1)).toBeCloseTo(1.6);
+    expect(laneScore(r, fork, 1)).toBeCloseTo(11.6);
   });
   it('steers into the safe lane before a fork and holds it inside', () => {
     const r = generateRoute(9026, 800, 2, hazards, tuning.terrain);
