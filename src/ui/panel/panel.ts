@@ -7,6 +7,8 @@ export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace
 
 function clamp(v: number, lo: number, hi: number): number { return v < lo ? lo : v > hi ? hi : v; }
 function rpmAngle(rpm: number): number { return -120 + 240 * rpm / 3000; }
+// octant 0 is dead ahead and the dial runs clockwise, so the pad reads as a compass rose
+const PAD_ARROW = ['\u2191', '\u2197', '\u2192', '\u2198', '\u2193', '\u2199', '\u2190', '\u2196'];
 
 export class Panel {
   private needle!: HTMLElement; private reserveFill!: HTMLElement; private ballastFill!: HTMLElement; private ballastText!: HTMLElement;
@@ -38,11 +40,11 @@ export class Panel {
           <button class="big radar m2">RADAR <kbd>V</kbd></button>
           <button class="big recover m2" disabled>RECOVER <kbd>R</kbd></button>
         </div>
-        <div class="threat">
+        <div class="scope-col">
           <div class="scope"></div>
           <div class="shield-pad">${[7, 0, 1, 6, -1, 2, 5, 4, 3].map((sec) => (sec < 0
             ? '<span class="pad-mid">SHIELD</span>'
-            : `<button class="pad" data-sector="${sec}" title="shield the ${sec * 45} degree bearing"></button>`)).join('')}</div>
+            : `<button class="pad" data-sector="${sec}" title="shield the ${sec * 45}&deg; bearing">${PAD_ARROW[sec]}</button>`)).join('')}</div>
         </div>
         <div class="lamp hazard m2">HAZARD</div>
         <pre class="tele"></pre>
@@ -56,7 +58,7 @@ export class Panel {
     this.hazardLamp = q('.lamp.hazard'); this.recoverBtn = q('button.recover'); this.rush = q('.rush');
     this.rpmNeedle = q('.rpm .needle'); this.rpmTarget = q('.rpm .target'); this.rpmVal = q('.rpm .val');
     this.cargoFill = q('.cargo .fill'); this.cargoVal = q('.cargo .val');
-    this.scopeEl = q('.threat .scope');
+    this.scopeEl = q('.scope-col .scope');
     this.padBtns = Array.from(root.querySelectorAll<HTMLElement>('.shield-pad .pad'));
     for (const b of this.padBtns) b.addEventListener('pointerdown', () => h.onShieldSector(Number(b.dataset.sector)));
     this.gaitBtns = Array.from(root.querySelectorAll<HTMLElement>('.rail button'));
