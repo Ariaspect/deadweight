@@ -44,7 +44,16 @@ describe('layoutCourse', () => {
           const zs = [lane.z0 + tuning.rigRadius + 0.2, laneCentre(lane), lane.z1 - tuning.rigRadius - 0.2];
           expect(zs.some((z) => isPassable(l.walls, bound, x, z)), `fork ${f.x0} lane ${lane.z0} x ${x}`).toBe(true);
         }
-        for (let i = 1; i < f.lanes.length; i++) expect(isPassable(l.walls, bound, x, f.lanes[i]!.z0 - t.spineThick / 2)).toBe(false);
+      }
+      // a spine still commits you to a lane, but carries weave gaps the rig can cross through
+      for (let i = 1; i < f.lanes.length; i++) {
+        const line = f.lanes[i]!.z0 - t.spineThick / 2;
+        let open = 0, longest = 0, run = 0;
+        for (let x = f.x0; x <= f.x1; x += 0.25) {
+          if (isPassable(l.walls, bound, x, line)) { open += 0.25; run += 0.25; if (run > longest) longest = run; } else run = 0;
+        }
+        expect(longest, `fork ${f.x0} spine ${i}`).toBeGreaterThanOrEqual(2 * tuning.rigRadius);
+        expect(open, `fork ${f.x0} spine ${i}`).toBeLessThan((f.x1 - f.x0) * 0.3);
       }
     }
   });

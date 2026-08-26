@@ -68,7 +68,7 @@
     "hazardJitter": 8, "profileStepM": 10,
     "safeStartM": 40, "safeEndM": 20,
     "pathWander": 7,
-    "corridorHalfWidth": 18, "pocketDepth": 8, "spineThick": 2.5,
+    "corridorHalfWidth": 18, "pocketDepth": 8, "spineThick": 2.5, "spineGapM": 9,
     "forkLenMin": 80, "forkLenMax": 120, "stretchLenMin": 40, "stretchLenMax": 70
   },
   "bot": { "kp": 220, "kd": 90, "lagTicks": 15, "strapBelow": 60, "braceAheadM": 8, "leadSec": 0.4, "laneLookaheadM": 60 }

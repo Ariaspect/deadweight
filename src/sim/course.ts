@@ -13,6 +13,24 @@ function pickArchetypes(rng: Rng, n: number): LaneArchetype[] {
   return pool;
 }
 
+/**
+ * A spine runs the whole fork but carries two weave gaps, so a lane is a commitment you can still buy your way out
+ * of — crossing costs forward distance, and at a high gait the gap closes before the rig is clear. Gap positions are
+ * derived from the spine index (no rng draws) and staggered so neighbouring spines never line up into one crossing.
+ */
+function pushSpine(walls: Wall[], x0: number, x1: number, z0: number, z1: number, kind: WallKind, index: number, t: TerrainTuning): void {
+  const gap = t.spineGapM, span = x1 - x0;
+  if (span < gap * 4) { walls.push({ x0, x1, z0, z1, kind }); return; }
+  const stagger = (index % 2 ? 0.06 : -0.06) * span;
+  let cursor = x0;
+  for (const frac of [1 / 3, 2 / 3]) {
+    const start = Math.min(Math.max(x0 + span * frac + stagger - gap / 2, cursor), x1 - gap);
+    if (start - cursor > 0.5) walls.push({ x0: cursor, x1: start, z0, z1, kind });
+    cursor = start + gap;
+  }
+  if (x1 - cursor > 0.5) walls.push({ x0: cursor, x1, z0, z1, kind });
+}
+
 function pushEdge(walls: Wall[], x0: number, x1: number, side: 1 | -1, W: number): void {
   if (x1 - x0 < 0.5) return;
   walls.push(side > 0 ? { x0, x1, z0: W, z1: W + EDGE_THICK, kind: 'rock' } : { x0, x1, z0: -W - EDGE_THICK, z1: -W, kind: 'rock' });
@@ -38,7 +56,7 @@ export function layoutCourse(rng: Rng, lengthM: number, tier: number, t: Terrain
     for (let i = 0; i < n; i++) {
       const z0 = -W + i * (laneW + t.spineThick), z1 = z0 + laneW;
       lanes.push({ z0, z1, archetype: archetypes[i]! });
-      if (i < n - 1) walls.push({ x0, x1, z0: z1, z1: z1 + t.spineThick, kind: SPINE_KINDS[rng.int(SPINE_KINDS.length)]! });
+      if (i < n - 1) pushSpine(walls, x0, x1, z1, z1 + t.spineThick, SPINE_KINDS[rng.int(SPINE_KINDS.length)]!, i, t);
     }
     for (const lane of lanes) {
       if (lane.archetype !== 'chicane') continue;

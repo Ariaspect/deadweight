@@ -79,7 +79,7 @@ export interface Trace { id: string; seed: number; x: number; z: number; type: T
 
 export interface TerrainTuning {
   segMin: number; segMax: number; slopeSigma: number[]; maxSlope: number; gradeSlope: number; hazardJitter: number; profileStepM: number; safeStartM: number; safeEndM: number; pathWander: number;
-  corridorHalfWidth: number; pocketDepth: number; spineThick: number; forkLenMin: number; forkLenMax: number; stretchLenMin: number; stretchLenMax: number;
+  corridorHalfWidth: number; pocketDepth: number; spineThick: number; spineGapM: number; forkLenMin: number; forkLenMax: number; stretchLenMin: number; stretchLenMax: number;
 }
 export interface BotTuning { kp: number; kd: number; lagTicks: number; strapBelow: number; braceAheadM: number; leadSec: number; laneLookaheadM: number }
 
