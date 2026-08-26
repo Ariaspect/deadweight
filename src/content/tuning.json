@@ -4,7 +4,7 @@
   "gaitSpeedMul": 1,
   "gaitAccel": 3, "gaitDecel": 6,
   "kSlope": 4.0,
-  "kBallast": 3.0,
+  "kBallast": 2.2,
   "kLoad": 1.2,
   "damping": 1.3,
   "stiffness": 2.0,

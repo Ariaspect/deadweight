@@ -88,8 +88,8 @@ export class ThreeRenderer implements Renderer {
     this.sun.position.set(x - 25, y + 42, z + 28); this.sunTarget.position.set(x, y, z); this.sunTarget.updateMatrixWorld();
     const danger = Math.min(1, Math.abs(curr.tilt));
     const shake = danger > 0.65 ? Math.sin(curr.t * 1.7) * (danger - 0.65) * 0.25 : 0;
-    this.camPos.set(x - 10.5, y + lift + 7.2 + shake, z + 10.5 + shake);
-    this.camTarget.set(x + 5.5 + speed * 0.3, y + lift + 1.35, z);
+    this.camPos.set(x - 14, y + lift + 6.4 + shake, z + shake);   // chase camera: behind the rig, looking down the corridor
+    this.camTarget.set(x + 7 + speed * 0.3, y + lift + 1.2, z);
     if (this.firstFrame) { this.camera.position.copy(this.camPos); this.firstFrame = false; }
     else this.camera.position.lerp(this.camPos, 0.12);
     this.camera.lookAt(this.camTarget);
