@@ -8,7 +8,7 @@ export function renderResult(el: HTMLElement, result: RunResult, items: ItemDef[
     <div class="screen result">
       <h2>${ENDED[result.ended]}</h2>
       <div class="stars">${'★'.repeat(result.stars)}${'☆'.repeat(5 - result.stars)}</div>
-      ${result.elapsed === undefined ? '' : `<div class="run-stats"><span>TIME <b>${Math.floor(result.elapsed / 60).toString().padStart(2, '0')}:${Math.floor(result.elapsed % 60).toString().padStart(2, '0')}</b></span><span>RESETS <b>${result.resets ?? 0}</b></span></div>`}
+      <div class="run-stats"><span>TIME <b>${Math.floor(result.elapsed / 60).toString().padStart(2, '0')}:${Math.floor(result.elapsed % 60).toString().padStart(2, '0')}</b></span><span>SALVAGE <b>${Math.round(result.discoveryBonus)}</b></span></div>
       <ul class="items">${result.items.map((i) => `<li><span>${name(i.id)}</span><span class="cond ${i.lost ? 'lost' : ''}">${i.lost ? 'LOST' : i.late ? 'LATE' : `${Math.round(i.condition * 100)}%`}</span></li>`).join('')}</ul>
       ${review ? `<p class="review">“${review}”</p>` : ''}
       <div class="cash">PAYOUT ${Math.round(result.payout)} + HAUL ${Math.round(result.bonus)} + SALVAGE ${Math.round(result.discoveryBonus)} = <b>${result.total}</b></div>

@@ -24,5 +24,5 @@ export function evaluate(s: RigState, tuning: Tuning): RunResult {
   if (ended === 'spilled') payout = 0;
   const bonus = ended === 'arrived' ? Math.max(0, s.reserve) * tuning.kBonus : 0;
   const discoveryBonus = s.foundDiscoveries.length * tuning.cacheBonus;
-  return { items, stars, payout, bonus, discoveryBonus, total: Math.round(payout + bonus + discoveryBonus), ended, elapsed: s.courseTime, resets: s.courseResets };
+  return { items, stars, payout, bonus, discoveryBonus, total: Math.round(payout + bonus + discoveryBonus), ended, elapsed: s.t * tuning.dt };
 }

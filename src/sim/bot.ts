@@ -3,7 +3,7 @@ import { evaluate } from './score';
 import { mulberry32, hashSeed } from './rng';
 import type { Gait, InputFrame, ItemState, LoadoutItem, RigState, RouteDef, RunResult, Trace, Tuning } from './types';
 
-export interface BotView { x: number; z?: number; tilt: number; tiltVel: number; strap: number; braced: boolean; recovering: number; items: ItemState[] }
+export interface BotView { x: number; z: number; tilt: number; tiltVel: number; strap: number; braced: boolean; recovering: number; items: ItemState[] }
 
 function view(s: RigState): BotView {
   return { x: s.x, z: s.z, tilt: s.tilt, tiltVel: s.tiltVel, strap: s.strap, braced: s.braced, recovering: s.recovering, items: s.items.map((it) => ({ ...it })) };
@@ -28,7 +28,7 @@ export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFra
     if (h.x <= v.x) continue;
     if (h.x > v.x + 40) break;
     if (h.impulse === 0) continue;
-    const mustBrace = h.type === 'gap' || h.type === 'hammer' || h.type === 'crusher' || h.type === 'launchpad' || h.type === 'fan';
+    const mustBrace = h.type === 'gap' || h.type === 'rockfall' || h.type === 'crane';
     if (mustBrace && h.x <= v.x + b.braceAheadM) { near = true; brace = true; }
     if (h.type !== 'gust' && h.x <= v.x + b.braceAheadM) slow = true;
   }
@@ -37,7 +37,7 @@ export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFra
   const load = loadOffsetOf(v.items, tuning);
   const feedForward = -(tuning.kSlope * slopeAhead + tuning.kLoad * load) / tuning.kBallast * 100;
   const feedback = -b.kp * v.tilt - b.kd * v.tiltVel;
-  const centerError = route.centerAt(v.x + 8) - (v.z ?? 0);
+  const centerError = 0 - v.z;
   const steer = centerError > 0.35 ? 1 : centerError < -0.35 ? -1 : 0;
   return {
     gait,

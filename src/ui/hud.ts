@@ -1,8 +1,8 @@
 import type { HazardType, RigState, RouteDef } from '../sim/types';
 
 const HAZARD_NAMES: Record<HazardType, string> = {
-  gust: 'CROSSWIND', rubble: 'RUBBLE FIELD', gap: 'BROKEN BRIDGE', grade: 'EXTREME GRADE', scree: 'SCREE RUN',
-  hammer: 'GIANT HAMMER', crusher: 'HYDRAULIC CRUSHER', fan: 'TURBO FAN', launchpad: 'LAUNCH RAMP',
+  gust: 'CROSSWIND', rubble: 'RUBBLE FIELD', gap: 'COLLAPSED SPAN', grade: 'STEEP GRADE', scree: 'SCREE RUN',
+  mud: 'MUD', rockfall: 'ROCKFALL', crane: 'SWINGING LOAD',
 };
 
 function thinThousands(n: number): string {

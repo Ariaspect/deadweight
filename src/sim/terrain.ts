@@ -1,5 +1,5 @@
 import { mulberry32 } from './rng';
-import type { HazardDef, HazardInstance, RouteDef, Segment, TerrainTuning } from './types';
+import type { Discovery, Fork, HazardDef, HazardInstance, Layout, RouteDef, Segment, TerrainTuning } from './types';
 
 function clamp(v: number, lo: number, hi: number): number { return v < lo ? lo : v > hi ? hi : v; }
 
@@ -17,7 +17,9 @@ function findSegment(segments: Segment[], x: number): Segment {
   return segments[lo]!;
 }
 
-export function routeFromSegments(seed: number, segments: Segment[], hazards: HazardInstance[], profileStepM: number, discoveries: RouteDef['discoveries'] = []): RouteDef {
+const EMPTY_LAYOUT: Layout = { forks: [], walls: [], pockets: [] };
+
+export function routeFromSegments(seed: number, segments: Segment[], hazards: HazardInstance[], profileStepM: number, discoveries: Discovery[] = [], layout: Layout = EMPTY_LAYOUT, halfWidth = 18): RouteDef {
   const length = segments[segments.length - 1]!.x1;
   const slopeAt = (x: number): number => findSegment(segments, x).slope;
   const heightAt = (x: number): number => {
@@ -31,9 +33,21 @@ export function routeFromSegments(seed: number, segments: Segment[], hazards: Ha
     const z0 = s.z0 ?? 0, z1 = s.z1 ?? z0;
     return z0 + (z1 - z0) * f;
   };
+  const forkAt = (x: number): Fork | null => {
+    for (const f of layout.forks) { if (x < f.x0) return null; if (x <= f.x1) return f; }
+    return null;
+  };
+  const laneAt = (x: number, z: number): number => {
+    const f = forkAt(x);
+    return f ? f.lanes.findIndex((l) => z >= l.z0 && z <= l.z1) : -1;
+  };
   const slopeProfile: number[] = [];
   for (let x = 0; x <= length; x += profileStepM) slopeProfile.push(slopeAt(x));
-  return { seed, length, segments, hazards: [...hazards].sort((a, b) => a.x - b.x), discoveries, slopeProfile, slopeAt, heightAt, centerAt };
+  const sorted = [...hazards].sort((a, b) => a.x - b.x);
+  return {
+    seed, length, halfWidth, segments, hazards: sorted, zones: sorted.filter((h) => h.x1 !== undefined), discoveries,
+    walls: layout.walls, forks: layout.forks, pockets: layout.pockets, slopeProfile, slopeAt, heightAt, centerAt, forkAt, laneAt,
+  };
 }
 
 export function generateRoute(seed: number, lengthM: number, tier: number, hazardDefs: HazardDef[], t: TerrainTuning): RouteDef {
@@ -60,7 +74,7 @@ export function generateRoute(seed: number, lengthM: number, tier: number, hazar
         const dir: 1 | -1 = rng.next() < 0.5 ? 1 : -1;
         if (def.type === 'grade') {
           slope = dir * t.gradeSlope;
-          hazards.push({ id: id++, type: 'grade', x: x + 1, impulse: 0, strapJolt: 0, dir });
+          hazards.push({ id: id++, type: 'grade', x: x + 1, z: 0, halfW: t.corridorHalfWidth * 2, impulse: 0, strapJolt: 0, dir });
           continue;
         }
         const count = def.count ?? 1;
@@ -68,7 +82,7 @@ export function generateRoute(seed: number, lengthM: number, tier: number, hazar
         const mid = (x + x1) / 2 + (rng.next() * 2 - 1) * t.hazardJitter;
         for (let c = 0; c < count; c++) {
           const hx = clamp(mid + (count > 1 ? (c / (count - 1) - 0.5) * spread : 0), t.safeStartM, lengthM - t.safeEndM);
-          hazards.push({ id: id++, type: def.type, x: hx, impulse: def.impulse, strapJolt: def.strapJolt, dir });
+          hazards.push({ id: id++, type: def.type, x: hx, z: 0, halfW: t.corridorHalfWidth * 2, impulse: def.impulse, strapJolt: def.strapJolt, dir });
         }
       }
     }
@@ -77,14 +91,13 @@ export function generateRoute(seed: number, lengthM: number, tier: number, hazar
     z = z1;
     x = x1;
   }
-  const base = routeFromSegments(seed, segments, hazards, t.profileStepM);
-  const discoveries: RouteDef['discoveries'] = [];
+  const discoveries: Discovery[] = [];
   const names = ['ABANDONED RELAY', 'SMUGGLER CACHE', 'LOST WEATHER POD', 'FORGOTTEN SHRINE', 'CRASHED DRONE', 'SURVEY CAMP'];
   const count = 3 + Math.min(3, tier);
   for (let i = 0; i < count; i++) {
     const dx = t.safeStartM + (i + 1) * (lengthM - t.safeStartM - t.safeEndM) / (count + 1) + (mapRng.next() - 0.5) * 24;
     const side = mapRng.next() < 0.5 ? -1 : 1;
-    discoveries.push({ id: i, x: dx, z: base.centerAt(dx) + side * (t.discoveryOffset + mapRng.next() * 3), name: names[(i + tier) % names.length]! });
+    discoveries.push({ id: i, x: dx, z: side * (t.corridorHalfWidth - 3), name: names[(i + tier) % names.length]! });
   }
-  return routeFromSegments(seed, segments, hazards, t.profileStepM, discoveries);
+  return routeFromSegments(seed, segments, hazards, t.profileStepM, discoveries, EMPTY_LAYOUT, t.corridorHalfWidth);
 }

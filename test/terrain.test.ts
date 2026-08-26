@@ -42,7 +42,7 @@ describe('generateRoute', () => {
     expect(r.centerAt(0)).toBe(0); expect(r.centerAt(r.length)).toBe(0);
     expect(r.segments.some((s) => Math.abs(s.z1 ?? 0) > 0.5)).toBe(true);
     expect(r.discoveries).toHaveLength(5);
-    for (const d of r.discoveries) expect(Math.abs(d.z - r.centerAt(d.x))).toBeGreaterThanOrEqual(tuning.terrain.discoveryOffset);
+    for (const d of r.discoveries) expect(Math.abs(d.z)).toBeGreaterThanOrEqual(tuning.terrain.corridorHalfWidth - 3 - 1e-9);
   });
   it('covers exactly [0, length] with contiguous segments', () => {
     const r = generateRoute(5, 600, 1, hz, tuning.terrain);

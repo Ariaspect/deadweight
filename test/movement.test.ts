@@ -18,8 +18,8 @@ describe('player movement physics', () => {
 
   it('A/D steering has momentum and bounces off course rails', () => {
     const route = flatRoute(500); const state = createRun(route, [], tuning); const rng = mulberry32(2);
-    for (let i = 0; i < 180; i++) step(state, frame({ steer: 1 }), route, [], tuning, rng);
-    expect(state.z).toBe(tuning.courseHalfWidth);
+    for (let i = 0; i < 220; i++) step(state, frame({ steer: 1 }), route, [], tuning, rng);
+    expect(state.z).toBe(route.halfWidth + tuning.terrain.pocketDepth);
     expect(state.lateralVel).toBeLessThanOrEqual(0);
     expect(state.tiltVel).not.toBe(0);
   });
@@ -34,7 +34,7 @@ describe('player movement physics', () => {
   });
 
   it('jumping clears a gap that would otherwise jolt the cargo', () => {
-    const gap = { id: 0, type: 'gap' as const, x: 6, impulse: 1.4, strapJolt: 20, dir: 1 as const };
+    const gap = { id: 0, type: 'gap' as const, x: 6, z: 0, halfW: 40, impulse: 1.4, strapJolt: 20, dir: 1 as const };
     const route = routeFromSegments(8, [{ x0: 0, x1: 100, slope: 0, y0: 0 }], [gap], 10);
     const cross = (jump: boolean) => {
       const state = createRun(route, [], tuning); state.speed = 10; const rng = mulberry32(4);
@@ -47,7 +47,7 @@ describe('player movement physics', () => {
   });
 
   it('a lane obstacle can be dodged laterally', () => {
-    const rock = { id: 0, type: 'rubble' as const, x: 5, impulse: 0.5, strapJolt: 15, dir: 1 as const };
+    const rock = { id: 0, type: 'rubble' as const, x: 5, z: 6, halfW: 5, impulse: 0.5, strapJolt: 15, dir: 1 as const };
     const route = routeFromSegments(9, [{ x0: 0, x1: 100, slope: 0, y0: 0 }], [rock], 10);
     const state = createRun(route, [], tuning); state.speed = 8; state.z = -2.1; const rng = mulberry32(5);
     while (state.x < 6) step(state, frame({ gait: 2 }), route, [], tuning, rng);

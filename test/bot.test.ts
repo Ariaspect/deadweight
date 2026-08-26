@@ -38,26 +38,26 @@ describe('bot', () => {
 describe('bot v2', () => {
   it('braces ahead of a gap, not for gusts or grades', () => {
     const r = routeFromSegments(3, [{ x0: 0, x1: 300, slope: 0, y0: 0 }], [
-      { id: 0, type: 'gap', x: 100, impulse: 1.4, strapJolt: 20, dir: 1 },
-      { id: 1, type: 'grade', x: 200, impulse: 0, strapJolt: 0, dir: 1 },
+      { id: 0, type: 'gap', x: 100, z: 0, halfW: 40, impulse: 1.4, strapJolt: 20, dir: 1 },
+      { id: 1, type: 'grade', x: 200, z: 0, halfW: 40, impulse: 0, strapJolt: 0, dir: 1 },
     ], 10);
-    const v = (x: number) => ({ x, tilt: 0, tiltVel: 0, strap: 80, braced: false, recovering: 0, items: [] });
+    const v = (x: number) => ({ x, z: 0, tilt: 0, tiltVel: 0, strap: 80, braced: false, recovering: 0, items: [] });
     expect(botPolicy(v(100 - tuning.bot.braceAheadM + 1), r, tuning).brace).toBe(true);
     expect(botPolicy(v(50), r, tuning).brace).toBe(false);
     expect(botPolicy(v(195), r, tuning).brace).toBe(false);
-    const gust = routeFromSegments(5, [{ x0: 0, x1: 300, slope: 0, y0: 0 }], [{ id: 0, type: 'gust', x: 100, impulse: 0.9, strapJolt: 12, dir: 1 }], 10);
+    const gust = routeFromSegments(5, [{ x0: 0, x1: 300, slope: 0, y0: 0 }], [{ id: 0, type: 'gust', x: 100, z: 0, halfW: 40, impulse: 0.9, strapJolt: 12, dir: 1 }], 10);
     expect(botPolicy(v(100 - tuning.bot.braceAheadM + 1), gust, tuning).brace).toBe(false);   // gusts are ridden out on the PD loop; bracing everything starves reserve
   });
   it('taps strap when loose and recovers when an item is lost', () => {
     const r = flatRoute();
-    const base = { x: 10, tilt: 0, tiltVel: 0, braced: false, recovering: 0 };
+    const base = { x: 10, z: 0, tilt: 0, tiltVel: 0, braced: false, recovering: 0 };
     expect(botPolicy({ ...base, strap: 30, items: [] }, r, tuning).strap).toBe(true);
     expect(botPolicy({ ...base, strap: 90, items: [] }, r, tuning).strap).toBe(false);
     const lost = { ...createRun(r, [{ def: crateDef(), slot: 1 }], tuning).items[0]!, lost: true };
     expect(botPolicy({ ...base, strap: 90, items: [lost] }, r, tuning).recover).toBe(true);
   });
   it('survives a gap by bracing', () => {
-    const r = routeFromSegments(4, [{ x0: 0, x1: 300, slope: 0, y0: 0 }], [{ id: 0, type: 'gap', x: 150, impulse: 1.4, strapJolt: 20, dir: 1 }], 10);
+    const r = routeFromSegments(4, [{ x0: 0, x1: 300, slope: 0, y0: 0 }], [{ id: 0, type: 'gap', x: 150, z: 0, halfW: 40, impulse: 1.4, strapJolt: 20, dir: 1 }], 10);
     const { result } = runHeadless(r, [{ def: crateDef(), slot: 1 }], tuning, { lagTicks: 15 });
     expect(result.ended).toBe('arrived'); expect(result.items[0]!.lost).toBe(false);
   });
