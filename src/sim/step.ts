@@ -9,7 +9,7 @@ export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tunin
     behavior: li.def.behavior, payout: li.def.payout,
     offset: 0, offsetVel: 0, stress: 0, lost: false,
     deadlineTick: li.def.rush !== undefined ? Math.round(li.def.rush / tuning.dt) : -1,
-    restraint: tuning.strapStart,
+    restraint: Math.min(tuning.strapStart, li.def.crushLimit),   // strapping past the crush limit would rot the load from tick 0
   }));
   return {
     t: 0, x: 0, z: 0, lateralVel: 0, lift: 0, liftVel: 0, grounded: true,

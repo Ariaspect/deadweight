@@ -12,6 +12,22 @@ function held(tilt: number, strap: number, def = crateDef(), ticks = 120) {
   return s.items[0]!;
 }
 
+describe('load-time restraint', () => {
+  it('never straps a load tighter than its crush limit, so a low-crush item does not rot from tick 0', () => {
+    const route = flatRoute();
+    const def = crateDef({ id: 'pizzas', crushLimit: tuning.strapStart - 10 });
+    const s = createRun(route, [{ def, slot: 1 }], tuning);
+    expect(s.items[0]!.restraint).toBe(def.crushLimit);
+    const rng = mulberry32(7);
+    for (let i = 0; i < 600; i++) step(s, frame({ gait: 0, throttle: 0 }), route, [], tuning, rng);
+    expect(s.items[0]!.stress).toBe(0);
+  });
+  it('still straps a tough load to the full strapStart', () => {
+    const s = createRun(flatRoute(), [{ def: crateDef({ crushLimit: 100 }), slot: 1 }], tuning);
+    expect(s.items[0]!.restraint).toBe(tuning.strapStart);
+  });
+});
+
 describe('stepItems', () => {
   it('does not drift below driftThreshold', () => {
     expect(held(tuning.driftThreshold * 0.9, 0).offset).toBe(0);

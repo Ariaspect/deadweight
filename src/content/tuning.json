@@ -37,6 +37,7 @@
   "recoverStress": 0.5,
   "kBonus": 2,
   "stallMultiplier": 0.3,
+  "rushBonusMul": 0.35,
   "starBuckets": [0.25, 0.5, 0.7, 0.88, 1.0],
   "slotPos": [-1, 0, 1],
   "capacity": 2,

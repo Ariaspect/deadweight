@@ -30,10 +30,16 @@ describe('evaluate', () => {
     const r = evaluate(s, tuning);
     expect(r.stars).toBe(4); expect(r.payout).toBe(100); expect(r.items[1]!.lost).toBe(true);
   });
-  it('late rush item pays 0', () => {
-    const s = state([0]); s.items[0]!.deadlineTick = 100; s.t = 101;
-    const r = evaluate(s, tuning);
-    expect(r.items[0]!.late).toBe(true); expect(r.payout).toBe(0);
+  it('a late rush item still pays in full; delivering it on time earns a bonus', () => {
+    const overdue = state([0]); overdue.items[0]!.deadlineTick = 100; overdue.t = 101;
+    const rl = evaluate(overdue, tuning);
+    expect(rl.items[0]!.late).toBe(true); expect(rl.items[0]!.rushed).toBe(true);
+    expect(rl.payout).toBe(100); expect(rl.rushBonus).toBe(0);
+    const punctual = state([0]); punctual.items[0]!.deadlineTick = 100; punctual.t = 99;
+    const ro = evaluate(punctual, tuning);
+    expect(ro.items[0]!.late).toBe(false);
+    expect(ro.rushBonus).toBeCloseTo(100 * tuning.rushBonusMul);
+    expect(ro.total).toBe(Math.round(ro.payout + ro.bonus + ro.discoveryBonus + ro.rushBonus));
   });
   it('stall multiplies payout, caps stars at 2, no bonus', () => {
     const r = evaluate(state([0], { ended: 'stalled' }), tuning);

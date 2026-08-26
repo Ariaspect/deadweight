@@ -89,7 +89,7 @@ export interface BotTuning { kp: number; kd: number; lagTicks: number; strapBelo
 export interface Tuning {
   dt: number; gaitSpeed: number[]; gaitSpeedMul: number; gaitAccel: number; gaitDecel: number;
   kSlope: number; kBallast: number; kLoad: number; damping: number; stiffness: number; braceDamp: number; braceSpeed: number;
-  reserveBudget: number; braceDrain: number; reserveStart: number;
+  reserveBudget: number; braceDrain: number; reserveStart: number; rushBonusMul: number;
   ballastRange: number; ballastRate: number; autoTrim: number;
   strapStart: number; strapTap: number; strapJoltMul: number; restraintDecay: Record<Behavior, number>;
   driftThreshold: number; graceTicks: number; kDrift: number; sloshGain: number; sloshStiff: number; sloshDamp: number; kLive: number; precariousMul: number;
@@ -104,8 +104,8 @@ export interface Tuning {
   difficulty: DifficultyTuning; terrain: TerrainTuning; bot: BotTuning;
 }
 
-export interface ItemResult { id: string; condition: number; payout: number; lost: boolean; late: boolean }
-export interface RunResult { items: ItemResult[]; stars: number; payout: number; bonus: number; discoveryBonus: number; total: number; ended: EndReason; elapsed: number }
+export interface ItemResult { id: string; condition: number; payout: number; lost: boolean; rushed: boolean; late: boolean }
+export interface RunResult { items: ItemResult[]; stars: number; payout: number; bonus: number; discoveryBonus: number; rushBonus: number; total: number; ended: EndReason; elapsed: number }
 
 export interface ReviewDef { stars: 1 | 2 | 3 | 4 | 5; behavior: Behavior | 'any'; lines: string[] }
 export interface HqDef { context: 'dispatch' | 'arrival' | 'spill' | 'stall'; behavior: Behavior | 'any'; lines: string[] }

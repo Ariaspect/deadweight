@@ -23,6 +23,7 @@
 .bays .slots { grid-column: 1 / span 2; display: flex; gap: 6px; margin-top: 6px; }
 .bays .slots button { flex: 1; font: inherit; font-size: 12px; padding: 8px 0; background: #e8dcc0; border: 2px solid var(--gun); border-radius: 4px; }
 .bays .slots button.on { background: var(--gun); color: var(--cream); }
+.bays .slots .fixed { flex: 1; font-size: 12px; padding: 8px 0; text-align: center; letter-spacing: .12em; color: var(--cream); background: var(--gun); border: 2px solid var(--gun); border-radius: 4px; }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; } .row .cap { font-size: 12px; letter-spacing: .1em; } .row button { flex: 1; }
 .trim { font-size: 13px; margin: 8px 0 12px; } .trim b { font-size: 18px; margin-left: 8px; } .trim .hint { display: block; font-size: 11px; opacity: .7; margin-top: 2px; }
 .ledger { font-size: 13px; margin-bottom: 10px; }
@@ -36,3 +37,5 @@
 .offers .diff { font-size: 9px; font-style: normal; letter-spacing: .12em; padding: 2px 5px; border-radius: 2px; vertical-align: 2px; margin-left: 6px; color: #f6efdd; }
 .offers .diff.easy { background: #3f6b46; } .offers .diff.medium { background: #8a6a24; } .offers .diff.hard { background: #8f2f22; }
 .offers li.on .diff { color: var(--ink); background: rgba(30,33,36,.16); box-shadow: inset 0 0 0 1px rgba(30,33,36,.55); }
+.result .cond em { font-style: normal; font-size: 9px; letter-spacing: .1em; margin-left: 6px; padding: 2px 5px; border-radius: 2px; }
+.result .cond em.ontime { background: #3f6b46; color: #f6efdd; } .result .cond em.late { background: #8a6a24; color: #f6efdd; }
