@@ -10,7 +10,7 @@ export function renderRouteSelect(el: HTMLElement, p: RouteSelectProps, onPick: 
   el.innerHTML = `
     <div class="screen routes">
       <pre class="tele-block">ROUTE BOARD ── PICK YOUR RUN
-LEDGER ${p.cash}  ·  RANK ${p.tier}
+SCRAP ${p.cash}  ·  RANK ${p.tier}
 ${p.hqLine}</pre>
       <ul class="route-list">${p.options.map((o) => `
         <li data-id="${o.outpost.id}">

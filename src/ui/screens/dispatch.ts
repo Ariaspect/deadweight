@@ -14,7 +14,7 @@ export function renderDispatch(el: HTMLElement, p: DispatchProps, onLoad: (selec
       <pre class="tele-block">MANIFEST ── ${o.name.toUpperCase()}  ·  ${o.lengthM} m  ·  ${p.rating.label.toUpperCase()}  ·  FEES ×${p.rating.payoutMul.toFixed(2)}
 ${o.flavor}
 ${p.hqLine}
-LEDGER ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
+SCRAP ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
       ${p.sketch}<div class="profile-strip">${slopeProfileSvg(p.profile, p.profileStepM, 480, 28)}</div>
       <ul class="offers">${p.offers.cargo.map((c) => `
         <li data-id="${c.id}">
