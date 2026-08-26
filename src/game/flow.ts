@@ -1,4 +1,4 @@
-import { createRun, predictTrim, step } from '../sim/step';
+import { createRun, highestDanger, predictTrim, step } from '../sim/step';
 import { evaluate } from '../sim/score';
 import { generateRoute } from '../sim/terrain';
 import { applyUpgrades } from '../sim/upgrades';
@@ -16,6 +16,8 @@ import { Hud } from '../ui/hud';
 import { routeSketchSvg } from '../ui/sketch';
 import { describeEvents, snapshot, type EventSnapshot } from './events';
 import type { Renderer, RenderPrev } from '../render/Renderer';
+import type { GameAudio } from '../audio/gameAudio';
+import { ThreatAudio } from '../audio/cues';
 import type { Panel } from '../ui/panel/panel';
 import type { InputController } from '../ui/input';
 import type { HazardDef, HazardType, HqDef, ItemDef, LoadoutItem, OutpostDef, ReviewDef, RigState, RouteDef, RunResult, Tuning, UpgradeDef } from '../sim/types';
@@ -23,7 +25,7 @@ import type { HazardDef, HazardType, HqDef, ItemDef, LoadoutItem, OutpostDef, Re
 export interface Content { cargo: ItemDef[]; outposts: OutpostDef[]; hazards: HazardDef[]; upgrades: UpgradeDef[]; reviews: ReviewDef[]; hq: HqDef[] }
 export interface FlowDeps {
   viewportEl: HTMLElement; panel: Panel; screenEl: HTMLElement; input: InputController;
-  renderer: Promise<Renderer>; baseTuning: Tuning; content: Content; storage: StorageLike;
+  renderer: Promise<Renderer>; baseTuning: Tuning; content: Content; storage: StorageLike; audio?: GameAudio;
 }
 
 const LINGER: Record<NonNullable<RigState['ended']>, number> = { arrived: 60, stalled: 90, spilled: 180 };
@@ -41,6 +43,7 @@ export class Flow {
   private readonly metaRng = mulberry32((Date.now() & 0x7fffffff) >>> 0);
   private readonly telegraph: Record<HazardType, number>;
   private readonly hud: Hud;
+  private readonly threatAudio = new ThreatAudio();
 
   constructor(private readonly d: FlowDeps) {
     const { data, reset } = loadSave(d.storage);
@@ -109,6 +112,8 @@ export class Flow {
     input.setBallast(predictTrim(loadout, tuning));   // start trimmed for the load, not already drifting
     input.setBays(loadout.map((l) => l.slot));
     let snap: EventSnapshot = snapshot(state);
+    d.audio?.beginRun(state);
+    this.threatAudio.beginRun(state);
     panel.setMessage(`HQ: ${this.outpost!.name}. ${loadout.length} aboard. W walks at the gait you set. Pick your lanes.`);
     const defs = loadout.map((l) => l.def);
     const attach = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); };
@@ -123,6 +128,8 @@ export class Flow {
         if (finished) return;
         prev.x = state.x; prev.z = state.z; prev.lift = state.lift; prev.lateralVel = state.lateralVel; prev.tilt = state.tilt; prev.speed = state.speed;
         step(state, inp, route, this.save.traces, tuning, rng);
+        d.audio?.step(inp, state, tuning.dt);
+        this.threatAudio.step(state, highestDanger(state, tuning));
         const ev = describeEvents(snap, state, route, tuning.cacheReserve); snap = ev.next;
         if (ev.lines.length) panel.setMessage(ev.lines.join('\n'));
         if (state.ended) { if (++linger > LINGER[state.ended]) { finished = true; this.finish(state, loop); } } else linger = 0;
@@ -131,7 +138,9 @@ export class Flow {
         this.renderer?.draw(state, prev, alpha);
         panel.update(state, tuning, route);
         this.hud.update(state, route);
-        panel.setHazard(route.hazards.some((h) => h.impulse > 0 && (h.x1 ?? h.x) >= state.x && h.x <= state.x + this.telegraph[h.type] && Math.abs(state.z - h.z) < h.halfW));
+        const hazard = route.hazards.some((h) => h.impulse > 0 && (h.x1 ?? h.x) >= state.x && h.x <= state.x + this.telegraph[h.type] && Math.abs(state.z - h.z) < h.halfW);
+        panel.setHazard(hazard);
+        d.audio?.setHazard(hazard);
       },
     });
     this.loop = loop;
@@ -140,6 +149,7 @@ export class Flow {
 
   private finish(state: RigState, loop: GameLoop): void {
     loop.stop();
+    this.threatAudio.stop();
     this.review(evaluate(state, this.tuning, this.rating.payoutMul), state);
   }
 

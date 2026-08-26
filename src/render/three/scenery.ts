@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { RouteDef } from '../../sim/types';
+import { placeAsset, type PropLibrary } from './props';
 
 const mountainMat = new THREE.MeshStandardMaterial({ color: '#4a453f', roughness: 1, flatShading: true });
 const mountainFarMat = new THREE.MeshStandardMaterial({ color: '#7b746a', roughness: 1, flatShading: true });
@@ -27,6 +28,23 @@ function discoverySite(route: RouteDef, id: number, x: number, z: number): THREE
     }
   }
   return site;
+}
+
+/**
+ * Decimated ruins along the skyline. Placed outside the corridor like the turret emplacements, so they read as
+ * a horizon rather than as obstacles — which is why 512px textures and a simplified mesh are enough.
+ */
+export function addRuins(group: THREE.Group, route: RouteDef, props: PropLibrary): void {
+  const count = Math.max(2, Math.floor(route.length / 260));
+  for (let i = 0; i < count; i++) {
+    const x = (i + 0.5) * route.length / count + (noise(i * 31 + route.seed) - 0.5) * 90;
+    const side = noise(i * 13 + route.seed) < 0.5 ? 1 : -1;
+    const distance = 78 + noise(i * 7 + route.seed) * 46;
+    const height = 16 + noise(i * 17 + route.seed) * 12;
+    const name = noise(i * 23 + route.seed) < 0.5 ? 'ruinA' : 'ruinB';
+    placeAsset(group, props, name, height, x, route.heightAt(x) - 1, route.centerAt(x) + side * distance,
+      noise(i * 29 + route.seed) * Math.PI * 2);
+  }
 }
 
 export function buildScenery(route: RouteDef): THREE.Group {
@@ -81,10 +99,17 @@ export function syncScenery(group: THREE.Group, found: number[], timeSec: number
   }
 }
 
+/** Ruin props are CLONES sharing PropLibrary's geometry and materials — disposing them would break every
+ *  later route. The library owns that memory and frees it in its own dispose(). */
+function isAuthoredProp(node: THREE.Object3D): boolean {
+  for (let n: THREE.Object3D | null = node; n; n = n.parent) if (n.userData.asset !== undefined) return true;
+  return false;
+}
+
 export function disposeScenery(group: THREE.Group): void {
   for (const geometry of group.userData.geometries as THREE.BufferGeometry[] ?? []) geometry.dispose();
   group.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) return;
+    if (!(child instanceof THREE.Mesh) || isAuthoredProp(child)) return;
     if (!(group.userData.geometries as THREE.BufferGeometry[]).includes(child.geometry)) child.geometry.dispose();
   });
 }
