@@ -1,4 +1,4 @@
-import { createRun, step } from '../sim/step';
+import { createRun, predictTrim, step } from '../sim/step';
 import { evaluate } from '../sim/score';
 import { generateRoute } from '../sim/terrain';
 import { applyUpgrades } from '../sim/upgrades';
@@ -77,6 +77,7 @@ export class Flow {
     const rng = mulberry32(hashSeed(route.seed, this.runNonce++));
     const prev: RenderPrev = { x: 0, z: 0, lift: 0, lateralVel: 0, tilt: 0, speed: 0 };
     input.reset(); input.setTuning(tuning); input.setGait(2); panel.setGait(2);
+    input.setBallast(predictTrim(loadout, tuning));   // start trimmed for the load, not already drifting
     input.setBays(loadout.map((l) => l.slot));
     let snap: EventSnapshot = snapshot(state);
     panel.setMessage(`HQ: ${this.offers!.outpost.name}. ${loadout.length} aboard. W walks at the gait you set. Pick your lanes.`);

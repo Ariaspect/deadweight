@@ -49,7 +49,7 @@ describe('drive', () => {
     expect(s.tiltVel === 0 && s.tilt === 0).toBe(false);
   });
   it('steering has momentum and the corridor bound clamps at halfWidth + pocketDepth', () => {
-    const s = run(flat(), hold({ gait: 2, steer: 1 }, 300));
+    const s = run(flat(), hold({ gait: 2, steer: 1 }, 720));   // 12 s: steerAccel 8 tops out near 5 m/s lateral
     expect(s.z).toBe(18 + tuning.terrain.pocketDepth); expect(s.lateralVel).toBe(0);
     const t = run(flat(), [...hold({ gait: 2, steer: 1 }, 30), ...hold({ gait: 2, steer: 0 }, 5)]);
     expect(t.lateralVel).toBeGreaterThan(0);

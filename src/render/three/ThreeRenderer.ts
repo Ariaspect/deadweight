@@ -88,8 +88,12 @@ export class ThreeRenderer implements Renderer {
     this.sun.position.set(x - 25, y + 42, z + 28); this.sunTarget.position.set(x, y, z); this.sunTarget.updateMatrixWorld();
     const danger = Math.min(1, Math.abs(curr.tilt));
     const shake = danger > 0.65 ? Math.sin(curr.t * 1.7) * (danger - 0.65) * 0.25 : 0;
-    this.camPos.set(x - 14, y + lift + 6.4 + shake, z + shake);   // chase camera: behind the rig, looking down the corridor
-    this.camTarget.set(x + 7 + speed * 0.3, y + lift + 1.2, z);
+    // chase camera: behind the rig, looking down the corridor. Both ends ride the ground so a grade does not
+    // bury the eye in the hill behind (downhill) or point it at the sky (uphill).
+    const eyeX = x - 14, aimX = x + 7 + speed * 0.3;
+    const eyeGround = Math.max(y, this.route.heightAt(eyeX));
+    this.camPos.set(eyeX, eyeGround + lift + 6.4 + shake, z + shake);
+    this.camTarget.set(aimX, this.route.heightAt(aimX) + lift + 1.2, z);
     if (this.firstFrame) { this.camera.position.copy(this.camPos); this.firstFrame = false; }
     else this.camera.position.lerp(this.camPos, 0.12);
     this.camera.lookAt(this.camTarget);

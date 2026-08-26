@@ -41,7 +41,7 @@
   "slotPos": [-1, 0, 1],
   "capacity": 2,
   "kitCostMul": 1,
-  "steerAccel": 17,
+  "steerAccel": 8,
   "lateralDamping": 4.5,
   "lateralTip": 0.045,
   "jumpSpeed": 7.8,

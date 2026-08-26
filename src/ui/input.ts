@@ -101,6 +101,11 @@ export class InputController {
   setTuning(t: Tuning): void { this.tuning = t; }
   reset(): void { resetInput(this.state); }
   setGait(g: Gait): void { this.state.gait = g; }
+  /** Pre-trim the ballast for the loaded cargo so the rig does not start already tipping. */
+  setBallast(v: number): void {
+    const r = this.tuning.ballastRange;
+    this.state.ballast = v < -r ? -r : v > r ? r : v;
+  }
   queueStrap(): void { this.state.strapQueued = true; }
   queueRecover(): void { this.state.recoverQueued = true; }
   queueJump(): void { this.state.jumpQueued = true; }
