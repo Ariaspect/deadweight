@@ -41,15 +41,19 @@
 .result .cond em.ontime { background: #3f6b46; color: #f6efdd; } .result .cond em.late { background: #8a6a24; color: #f6efdd; }
 
 .route-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
-.route-list li { padding: 10px; border: 1px solid #827969; border-left: 4px solid var(--gun); border-radius: 2px; background: rgba(255,250,230,.58); cursor: pointer; transition: transform .12s, background .12s; }
+.route-list li { display: block; padding: 11px 12px; border: 1px solid #827969; border-left: 4px solid var(--gun); border-radius: 2px; background: rgba(255,250,230,.58); cursor: pointer; transition: transform .12s, background .12s; }
 .route-list li:hover { transform: translateX(3px); }
 .route-list li.on { background: #ed6b2e; border-left-color: #1e2124; color: var(--ink); }
-.route-head { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
-.route-head b { font-size: 15px; }
-.route-head .pay { margin-left: auto; font-size: 17px; }
-.route-list .sketch { height: 64px; margin-bottom: 7px; }
-.route-list .meta { display: block; font-size: 11px; opacity: .75; letter-spacing: .06em; }
-.route-list .flavor { display: block; font-size: 11px; opacity: .6; margin-top: 3px; }
+.route-head { display: flex; align-items: baseline; gap: 9px; margin-bottom: 9px; }
+.route-head b { font-size: 16px; letter-spacing: .04em; }
+.route-head .pay { margin-left: auto; font-size: 19px; line-height: 1; white-space: nowrap; }
+.route-head .pay small { display: block; font-size: 8px; letter-spacing: .14em; opacity: .6; text-align: right; margin-top: 2px; }
+.route-list .sketch { height: 58px; margin: 0 0 9px; }
+.route-stats { display: flex; gap: 6px; margin-bottom: 7px; }
+.route-stats span { flex: 1; padding: 6px 7px; background: rgba(42,46,51,.12); font: 9px ui-monospace, monospace; letter-spacing: .08em; white-space: nowrap; }
+.route-stats b { display: block; font: inherit; font-size: 12px; margin-top: 2px; }
+.route-list li.on .route-stats span { background: rgba(30,33,36,.18); }
+.route-list .flavor { margin: 0; font: italic 12px/1.35 Georgia, serif; opacity: .72; }
 .route-list .diff { font-size: 9px; font-style: normal; letter-spacing: .12em; padding: 2px 5px; border-radius: 2px; color: #f6efdd; }
 .route-list .diff.easy { background: #3f6b46; } .route-list .diff.medium { background: #8a6a24; } .route-list .diff.hard { background: #8f2f22; }
 .route-list li.on .diff { color: var(--ink); background: rgba(30,33,36,.16); box-shadow: inset 0 0 0 1px rgba(30,33,36,.55); }
