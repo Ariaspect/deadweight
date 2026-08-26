@@ -35,6 +35,28 @@ describe('scheduleStorms', () => {
   });
 });
 
+describe('storm time cap', () => {
+  it('never schedules more weather, ramps included, than maxStormFrac of the run', () => {
+    const cruise = tuning.gaitSpeed[2]! * tuning.gaitSpeedMul;
+    for (const lengthM of [560, 720, 960]) {
+      const total = Math.round(lengthM / cruise / tuning.dt);
+      const budget = total * tuning.storm.maxStormFrac;
+      for (let seed = 1; seed < 120; seed++) {
+        const fronts = scheduleStorms(mulberry32(seed), lengthM, 3, tuning);
+        const spent = fronts.reduce((a, f) => a + (f.endTick - f.startTick) + 2 * ramp, 0);
+        expect(spent, `seed ${seed} at ${lengthM} m`).toBeLessThanOrEqual(budget);
+      }
+    }
+  });
+  it('still allows two fronts when they fit inside the budget', () => {
+    let sawTwo = false;
+    for (let seed = 1; seed < 400 && !sawTwo; seed++) {
+      if (scheduleStorms(mulberry32(seed), 960, 3, tuning).length >= 2) sawTwo = true;
+    }
+    expect(sawTwo, 'the cap must bound two-front routes, not abolish them').toBe(true);
+  });
+});
+
 describe('stormLevel', () => {
   const route = withStorms([{ id: 0, startTick: 1000, endTick: 2000 }]);
   it('is zero outside the front and its ramps', () => {

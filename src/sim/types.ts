@@ -88,7 +88,7 @@ export interface RouteTuning {
 }
 export interface StormTuning {
   maxFronts: number[]; frontChance: number[];
-  minDurationS: number; maxDurationS: number; rampS: number;
+  minDurationS: number; maxDurationS: number; rampS: number; maxStormFrac: number;
   windowLo: number; windowHi: number;
   speedMul: number; strapDrain: number;
 }

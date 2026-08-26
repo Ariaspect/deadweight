@@ -67,7 +67,7 @@
   "storm": {
     "maxFronts": [0, 1, 1, 2],
     "frontChance": [0, 0.6, 0.75, 0.8],
-    "minDurationS": 14, "maxDurationS": 28,
+    "minDurationS": 14, "maxDurationS": 28, "maxStormFrac": 0.4,
     "rampS": 5,
     "windowLo": 0.15, "windowHi": 0.85,
     "speedMul": 0.7, "strapDrain": 0.6

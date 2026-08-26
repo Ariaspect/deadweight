@@ -15,12 +15,18 @@ export function scheduleStorms(rng: Rng, lengthM: number, tier: number, tuning: 
   const ramp = Math.round(st.rampS / tuning.dt);
   const latest = Math.round(total * st.windowHi);
   const fronts: StormFront[] = [];
+  // A route may not carry more weather than the reserve can absorb. Storm time is counted WITH both ramps, since
+  // the bot radars for the whole ramped window, and the speed penalty stretches the run for that whole window too.
+  const budget = total * st.maxStormFrac;
+  let spent = 0;
   let earliest = Math.round(total * st.windowLo);
   for (let i = 0; i < max; i++) {
     if (rng.next() >= chance) continue;
     const duration = Math.round((st.minDurationS + rng.next() * (st.maxDurationS - st.minDurationS)) / tuning.dt);
+    if (spent + duration + 2 * ramp > budget) continue;   // skip this front rather than truncate it: the ramps stay whole
     const span = latest - earliest - duration;
     if (span <= 0) break;
+    spent += duration + 2 * ramp;
     const start = earliest + Math.floor(rng.next() * span);
     fronts.push({ id: fronts.length, startTick: start, endTick: start + duration });
     earliest = start + duration + 2 * ramp;   // never let two fronts merge into one unbroken wall

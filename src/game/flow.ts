@@ -5,7 +5,7 @@ import { applyUpgrades } from '../sim/upgrades';
 import { mulberry32, hashSeed } from '../sim/rng';
 import { GameLoop } from './loop';
 import { loadSave, writeSave, type SaveData, type StorageLike } from './save';
-import { generateCargo, pickRoutes, playerTier, routeDifficulty, type RouteRating } from './orders';
+import { generateCargo, pickRoutes, playerTier, routeDifficulty, stormRisk, type RouteRating } from './orders';
 import { pickHq, pickReview } from './reviews';
 import { renderDispatch } from '../ui/screens/dispatch';
 import { renderRouteSelect, type RouteOption } from '../ui/screens/route';
@@ -64,6 +64,7 @@ export class Flow {
       return {
         outpost, rating: routeDifficulty(route, outpost, this.tuning), sketch: routeSketchSvg(route),
         hazardCount: route.hazards.filter((h) => h.impulse > 0).length, zoneCount: route.zones.length,
+        stormRisk: stormRisk(outpost, this.tuning),
       };
     });
     const hqLine = pickHq(content.hq, 'dispatch', 'any', this.metaRng);
