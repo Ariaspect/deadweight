@@ -2,7 +2,7 @@ import type { ItemDef } from '../../sim/types';
 import type { Offers } from '../../game/orders';
 import { slopeProfileSvg } from '../profile';
 
-export interface DispatchProps { offers: Offers; profile: number[]; profileStepM: number; hqLine: string; capacity: number; cash: number; tier: number; traceCount: number }
+export interface DispatchProps { offers: Offers; profile: number[]; profileStepM: number; sketch: string; hqLine: string; capacity: number; cash: number; tier: number; traceCount: number }
 
 const fragility = (c: ItemDef): string => (c.tolerance < 0.4 ? 'FRAGILE' : c.tolerance < 0.6 ? 'DELICATE' : 'STURDY');
 
@@ -15,7 +15,7 @@ export function renderDispatch(el: HTMLElement, p: DispatchProps, onLoad: (selec
 ${o.flavor}
 ${p.hqLine}
 LEDGER ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
-      ${slopeProfileSvg(p.profile, p.profileStepM)}
+      ${p.sketch}<div class="profile-strip">${slopeProfileSvg(p.profile, p.profileStepM, 480, 28)}</div>
       <ul class="offers">${p.offers.cargo.map((c) => `
         <li data-id="${c.id}">
           <b>${c.name}</b>

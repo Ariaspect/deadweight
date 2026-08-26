@@ -64,9 +64,8 @@ export class Panel {
     this.reserveFill.classList.toggle('low', s.reserve < 20);
     this.strapFill.style.width = `${s.strap}%`;
     const vmax = tuning.gaitSpeed[4]! * tuning.gaitSpeedMul;
-    const rpm = 600 + 2400 * clamp(s.speed / vmax, 0, 1);
-    const targetSpeed = s.braced ? tuning.braceSpeed : tuning.gaitSpeed[s.gait]! * tuning.gaitSpeedMul;
-    const targetRpm = 600 + 2400 * clamp(targetSpeed / vmax, 0, 1);
+    const rpm = 600 + 2400 * clamp(Math.abs(s.speed) / vmax, 0, 1);
+    const targetRpm = 600 + 2400 * clamp(Math.abs(s.targetSpeed) / vmax, 0, 1);
     this.rpmNeedle.style.transform = `rotate(${rpmAngle(rpm)}deg)`;
     this.rpmTarget.style.transform = `rotate(${rpmAngle(targetRpm)}deg)`;
     this.rpmVal.textContent = String(Math.round(rpm));

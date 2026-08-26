@@ -12,6 +12,8 @@ import { renderLoadout } from '../ui/screens/loadout';
 import { renderResult } from '../ui/screens/result';
 import { renderUpgrade } from '../ui/screens/upgrade';
 import { Hud } from '../ui/hud';
+import { routeSketchSvg } from '../ui/sketch';
+import { describeEvents, snapshot, type EventSnapshot } from './events';
 import type { Renderer, RenderPrev } from '../render/Renderer';
 import type { Panel } from '../ui/panel/panel';
 import type { InputController } from '../ui/input';
@@ -43,7 +45,7 @@ export class Flow {
     this.save = data;
     this.tuning = applyUpgrades(d.baseTuning, data.upgrades, d.content.upgrades);
     this.telegraph = Object.fromEntries(d.content.hazards.map((h) => [h.type, h.telegraphM])) as Record<HazardType, number>;
-    this.hud = new Hud(d.viewportEl);
+    this.hud = new Hud(d.viewportEl, { onSelectBay: (slot) => d.input.selectCargo(slot) });
     if (reset) d.panel.setMessage('HQ: Save data unreadable. Fresh ledger opened.');
     d.renderer.then((r) => { this.renderer = r; });
   }
@@ -58,7 +60,7 @@ export class Flow {
     const hqLine = pickHq(content.hq, 'dispatch', offers.cargo[0]?.behavior ?? 'any', this.metaRng);
     panel.setMessage(hqLine);
     renderDispatch(screenEl, {
-      offers, profile: this.route.slopeProfile, profileStepM: this.tuning.terrain.profileStepM, hqLine,
+      offers, profile: this.route.slopeProfile, profileStepM: this.tuning.terrain.profileStepM, sketch: routeSketchSvg(this.route), hqLine,
       capacity: this.tuning.capacity, cash: this.save.cash, tier: playerTier(this.save.runs), traceCount: 0,
     }, (selected) => this.load(selected));
   }
@@ -75,7 +77,9 @@ export class Flow {
     const rng = mulberry32(hashSeed(route.seed, this.runNonce++));
     const prev: RenderPrev = { x: 0, z: 0, lift: 0, lateralVel: 0, tilt: 0, speed: 0 };
     input.reset(); input.setTuning(tuning); input.setGait(2); panel.setGait(2);
-    panel.setMessage(`HQ: ${this.offers!.outpost.name}. ${loadout.length} aboard. W walks, A/D picks the lane, drag the view for ballast. Go.`);
+    input.setBays(loadout.map((l) => l.slot));
+    let snap: EventSnapshot = snapshot(state);
+    panel.setMessage(`HQ: ${this.offers!.outpost.name}. ${loadout.length} aboard. W walks at the gait you set. Pick your lanes.`);
     const defs = loadout.map((l) => l.def);
     const attach = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); };
     if (this.renderer) attach(this.renderer); else d.renderer.then(attach);
@@ -89,13 +93,15 @@ export class Flow {
         if (finished) return;
         prev.x = state.x; prev.z = state.z; prev.lift = state.lift; prev.lateralVel = state.lateralVel; prev.tilt = state.tilt; prev.speed = state.speed;
         step(state, inp, route, this.save.traces, tuning, rng);
+        const ev = describeEvents(snap, state, route, tuning.cacheReserve); snap = ev.next;
+        if (ev.lines.length) panel.setMessage(ev.lines.join('\n'));
         if (state.ended) { if (++linger > LINGER[state.ended]) { finished = true; this.finish(state, loop); } } else linger = 0;
       },
       render: (alpha) => {
         this.renderer?.draw(state, prev, alpha);
         panel.update(state, tuning);
         this.hud.update(state, route);
-        panel.setHazard(route.hazards.some((h) => h.impulse > 0 && h.x > state.x && h.x <= state.x + this.telegraph[h.type]));
+        panel.setHazard(route.hazards.some((h) => h.impulse > 0 && (h.x1 ?? h.x) >= state.x && h.x <= state.x + this.telegraph[h.type] && Math.abs(state.z - h.z) < h.halfW));
       },
     });
     this.loop = loop;
