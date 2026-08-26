@@ -451,11 +451,30 @@ Run: `pnpm validate`
 
 Record the *minimum* reserve across all 12 outposts at lag 15 for both loadouts. Compare against the pre-storm baseline, which finished with roughly 36–54 reserve.
 
-- [ ] **Step 6: Raise `reserveBudget` only as far as the measurement demands**
+- [ ] **Step 6: LOWER `reserveBudget` only as far as the measurement demands**
 
-If validate fails, or the worst-case reserve falls below 15, raise `reserveBudget` in `src/content/tuning.json` from `0.62` in steps of `0.02` and re-run `pnpm validate` after each step. Stop at the first value that both passes 12/12 and leaves the worst case at 15 or better.
+**Read the direction carefully — it is the opposite of what you might assume.** `drainRate` is
+`reserveBudget * 100 * gaitSpeed[2] / route.length`, so `reserveBudget` is the fraction of the
+100-point reserve that distance alone consumes over a full run at gait 2. It works out to exactly
+`reserveBudget * 100` regardless of route length. **Raising it drains you faster and leaves less
+headroom. To afford radar you LOWER it.**
 
-**Do not exceed `0.72`.** If 12/12 with a 15 reserve floor is not reachable at or below `0.72`, stop and report the numbers — the drain constants are wrong and that is a decision for the human, not a budget to widen until the failure disappears.
+Known arithmetic before you start: baseline consumption is 62 of 100, so a clean run finishes near
+38. Radar costs a flat `radarDrain * frontSeconds` — about 10.5 per 21 s front, and up to 28 for the
+worst case of two 28 s fronts, because storm duration does not scale with route length. That points
+at roughly `0.55`, but measure rather than assume.
+
+If validate fails, or the worst-case reserve falls below 15, lower `reserveBudget` in
+`src/content/tuning.json` from `0.62` in steps of `0.02` and re-run `pnpm validate` after each step.
+Stop at the first value that both passes 12/12 and leaves the worst case at 15 or better.
+
+**Do not go below `0.50`.** Below that, distance stops being a meaningful cost at all and the whole
+reserve economy goes slack. If 12/12 with a 15 reserve floor is not reachable at or above `0.50`,
+stop and report the numbers rather than pushing further — that would mean `radarDrain` is the wrong
+lever and it is the human's decision, not a budget to loosen until the failure disappears.
+
+Also report whether `radarDrain` (currently `0.5`) looks like the better lever: if holding
+`reserveBudget` near `0.62` needs `radarDrain` under about `0.3`, say so instead of moving both.
 
 Record in the report: the chosen `reserveBudget`, the worst-case outpost and its reserve.
 
@@ -865,4 +884,4 @@ closed by Task 7 Step 1.
 - **Spec deviation, recorded above:** `Renderer.setRadar` dropped in favour of the renderer reading `curr.radar`/`curr.storm` from the `RigState` it already gets. Removes a cross-task dependency; the `Renderer` interface is unchanged.
 - **Known cross-task seam:** Task 6 adds `RouteOption.stormRisk` but must not edit `flow.ts` (Task 4 owns it). Task 7 Step 1 closes that seam. Task 6's typecheck failing on exactly that property is expected and called out in its own steps.
 - **Type consistency.** `stormLevel(route, t, tuning)`, `scheduleStorms(rng, lengthM, tier, tuning)`, `setWallsRadar`, `setHazardsRadar`, `setTerrainRadar`, `stormRisk(outpost, tuning)`, `InputController.toggleRadar`, `PanelHandlers.onRadar`, `HudHandlers.onToggleRadar` — each defined once and referenced by the same name everywhere.
-- **Reserve budget guard rail.** Task 3 may not exceed `reserveBudget` `0.72`, and must stop and report rather than widen further.
+- **Reserve budget guard rail.** `reserveBudget` is consumption, so Task 3 LOWERS it to buy headroom; the floor is `0.50` and the task must stop and report rather than go under it.
