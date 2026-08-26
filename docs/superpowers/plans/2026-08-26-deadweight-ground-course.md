@@ -1125,7 +1125,7 @@ describe('generateRoute — lanes', () => {
       const r = generateRoute(seed, 800, 2, full, tuning.terrain);
       expect(r.forks.length).toBeGreaterThanOrEqual(3); expect(r.walls.length).toBeGreaterThan(r.forks.length);
       for (const h of r.hazards) {
-        const f = r.forkAt(h.x); if (!f) continue;
+        const f = r.forkAt(h.x); if (!f || h.halfW >= r.halfWidth) continue;   // corridor-wide hazards (grade, gust) are not lane hazards
         const lane = f.lanes.find((l) => h.z >= l.z0 && h.z <= l.z1);
         expect(lane, `${h.type}@${h.x}`).toBeDefined();
         expect(h.halfW).toBeLessThanOrEqual((lane!.z1 - lane!.z0) / 2 + 1e-9);
