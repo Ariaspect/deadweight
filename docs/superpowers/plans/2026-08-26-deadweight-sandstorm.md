@@ -504,14 +504,14 @@ git commit -m "feat(bot): radar through every front; reserve budget re-measured 
 Append to `test/input.test.ts`:
 
 ```ts
-  it('latches radar on Q and on the panel handler, and reports it in the frame', () => {
+  it('latches radar on V and on the panel handler, and reports it in the frame', () => {
     const st = resetInput(makeInput());
     expect(sampleFrame(st, tuning).radar).toBe(false);
-    applyKey(st, 'KeyQ', true);
+    applyKey(st, 'KeyV', true);
     expect(sampleFrame(st, tuning).radar).toBe(true);
-    applyKey(st, 'KeyQ', false);
+    applyKey(st, 'KeyV', false);
     expect(sampleFrame(st, tuning).radar).toBe(true);   // latched, not held
-    applyKey(st, 'KeyQ', true);
+    applyKey(st, 'KeyV', true);
     expect(sampleFrame(st, tuning).radar).toBe(false);
   });
 ```
@@ -528,7 +528,8 @@ Expected: FAIL — `radar` is `undefined` on the frame.
 In `src/ui/input.ts`:
 
 1. Add `radar: boolean;` to the `InputState` interface and `radar: false` to the object `makeInput`/`resetInput` builds. **Keep `radar` out of `resetInput`'s clearing** only if the existing reset is used mid-run; if `resetInput` runs once per haul, clearing it there is correct — follow whichever the file already does for `gait`.
-2. In `applyKey`, add a case for `'KeyQ'` that toggles on key *down* only: `if (down) st.radar = !st.radar;`
+2. In `applyKey`, add a case for `'KeyV'` that toggles on key *down* only: `if (down) st.radar = !st.radar;`
+   **`KeyQ` and `KeyE` are already bound to ballast fore/aft — do not touch them.** `V` is free; the taken keys are W A S D Q E, Shift, Space, F, R, P, Tab and the digits.
 3. In `sampleFrame`, add `radar: st.radar,` to the returned frame.
 4. Add a method to `InputController`: `toggleRadar(): void { this.state.radar = !this.state.radar; }`
 
@@ -540,7 +541,7 @@ In `src/ui/panel/panel.ts`:
 2. In the button row markup, after the BRACE button add:
 
 ```html
-          <button class="big radar m2">RADAR <kbd>Q</kbd></button>
+          <button class="big radar m2">RADAR <kbd>V</kbd></button>
 ```
 
 3. Wire it beside the other button handlers in the constructor:
@@ -620,7 +621,7 @@ Expected: green.
 
 ```bash
 git add -A
-git commit -m "feat(ui): radar latch on Q and the panel, storm countdown and RADAR ACTIVE lamp"
+git commit -m "feat(ui): radar latch on V and the panel, storm countdown and RADAR ACTIVE lamp"
 ```
 
 ---

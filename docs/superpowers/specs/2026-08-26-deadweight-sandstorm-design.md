@@ -98,8 +98,9 @@ worth ratcheting back, not fatal on its own.
 
 ## 3. Radar
 
-A latching toggle: a `RADAR` button in the panel's button row beside BRACE, with a `Q` key
-hint matching every other big button. `InputFrame` gains `radar: boolean`; `RigState` carries
+A latching toggle: a `RADAR` button in the panel's button row beside BRACE, with a `V` key
+hint matching every other big button. (`V` for vision — `Q` and `E` are already ballast fore/aft,
+`F` ratchet, `R` recover, `P` plank, Shift brace, Space jump, digits gait and bays.) `InputFrame` gains `radar: boolean`; `RigState` carries
 it as `s.radar` the way it already carries `s.braced`.
 
 Radar is **not storm-gated**. It engages any time, shows the wireframe view whenever it is
@@ -137,7 +138,9 @@ Fog returns to full draw distance — that is the entire mitigation — and the 
 - the ground drops to flat near-black with the lane ruts faintly kept.
 - the rig stays solid and lit, so the player keeps a sense of their own body.
 
-`Renderer` gains `setRadar(on: boolean)`. Everything else stays inside `ThreeRenderer`.
+~~`Renderer` gains `setRadar(on: boolean)`.~~ **Superseded at planning time:** `draw(curr, prev, alpha)`
+already receives the full `RigState`, so the renderer reads `curr.radar` and `curr.storm` directly.
+The `Renderer` interface is unchanged and no flow wiring is needed. Everything stays inside `ThreeRenderer`.
 
 ## 5. HUD
 
@@ -155,8 +158,12 @@ in a front means **every validator run pays full radar cost**, and 12/12 proves 
 branch is affordable. A human who chooses to crawl then has slack rather than a surprise.
 
 This will eat margin the current `reserveBudget: 0.62` does not have. Implementation measures
-the shortfall across all 12 outposts and raises the budget until validate passes with real
+the shortfall across all 12 outposts and **lowers** the budget until validate passes with real
 headroom — a measured step, not a guessed constant.
+
+Note the direction: `drainRate = reserveBudget * 100 * gaitSpeed[2] / length`, so `reserveBudget`
+is the fraction of the reserve that distance *consumes*, working out to `reserveBudget * 100`
+over a full run regardless of length. Raising it drains faster. Lowering it buys headroom.
 
 **If a seed turns out to be unclearable at lag 15, that is a signal the drain numbers are
 wrong.** The response is to bring the numbers back for a decision, not to widen the budget
