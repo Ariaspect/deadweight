@@ -1,5 +1,4 @@
 import type { HazardType, RigState, RouteDef } from '../sim/types';
-import type { CourseDef, CourseFrame } from '../course/types';
 
 const HAZARD_NAMES: Record<HazardType, string> = {
   gust: 'CROSSWIND', rubble: 'RUBBLE FIELD', gap: 'BROKEN BRIDGE', grade: 'EXTREME GRADE', scree: 'SCREE RUN',
@@ -88,54 +87,4 @@ export class Hud {
       (this.threatEl.querySelector('b') as HTMLElement).textContent = `${HAZARD_NAMES[next.type]} · ${metres}m`;
     }
   }
-
-  updateCourse(frame: CourseFrame, course: CourseDef): void {
-    const { state } = frame;
-    this.cargoRackEl.hidden = false;
-    const rackKey = frame.cargo.map((c) => `${c.lost ? 1 : 0}${c.selected ? 1 : 0}${c.tension > 0.95 ? 1 : 0}${Math.round(c.restraint * 100)}:${Math.round(c.condition * 100)}`).join('|');
-    if (rackKey !== this.rackKey) this.cargoRackEl.innerHTML = frame.cargo.map((cargo, index) => {
-      const restraint = Math.round(cargo.restraint * 100), condition = Math.round(cargo.condition * 100);
-      const warning = cargo.lost ? 'LOST' : cargo.tension > 0.95 ? 'OVERLOAD' : cargo.restraint < 0.3 ? 'LOOSE' : `${condition}% OK`;
-      return `<div class="cargo-bay${cargo.selected ? ' selected' : ''}${cargo.lost || warning !== `${condition}% OK` ? ' warning' : ''}"><b>${index + 1} · ${cargo.id.toUpperCase()}</b><span>${warning}</span><i><em style="width:${restraint}%"></em></i></div>`;
-    }).join('');
-    this.rackKey = rackKey;
-    const mapKey = course.id.length * 1000 + course.obstacles.length;
-    if (this.mapSeed !== mapKey) {
-      this.mapSeed = mapKey;
-      const platforms = course.platforms.map((platform) => {
-        const cx = (platform.position.x + 100) * 0.85, cy = 50 + platform.position.z * 1.1;
-        const yaw = Math.atan2(2 * (platform.rotation.w * platform.rotation.y + platform.rotation.x * platform.rotation.z), 1 - 2 * (platform.rotation.y ** 2 + platform.rotation.z ** 2)) * 180 / Math.PI;
-        return `<rect class="map-platform ${platform.kind}" x="${cx - platform.size.x * 0.425}" y="${cy - platform.size.z * 0.55}" width="${platform.size.x * 0.85}" height="${platform.size.z * 1.1}" transform="rotate(${-yaw} ${cx} ${cy})"/>`;
-      }).join('');
-      const caches = course.salvage.map((salvage) => `<circle class="map-cache" data-cache="${salvage.id}" cx="${(salvage.position.x + 100) * 0.85}" cy="${50 + salvage.position.z * 1.1}" r="2.3"/>`).join('');
-      this.mapEl.setAttribute('viewBox', '0 0 180 100');
-      this.mapEl.innerHTML = `${platforms}${caches}<circle class="map-finish" cx="${(course.finish.x + 100) * 0.85}" cy="${50 + course.finish.z * 1.1}" r="4"/><circle class="map-player" r="2.8"/>`;
-    }
-    const player = this.mapEl.querySelector('.map-player') as SVGCircleElement;
-    player.setAttribute('cx', String((frame.vehicle.position.x + 100) * 0.85)); player.setAttribute('cy', String(50 + frame.vehicle.position.z * 1.1));
-    for (const cache of this.mapEl.querySelectorAll<SVGCircleElement>('.map-cache')) cache.classList.toggle('found', frame.salvage.includes(Number(cache.dataset.cache)));
-
-    this.slopeEl.textContent = `CHECKPOINT ${frame.checkpoint + 1}/${course.checkpoints.length}`;
-    this.altEl.textContent = `${Math.floor(frame.elapsed / 60).toString().padStart(2, '0')}:${Math.floor(frame.elapsed % 60).toString().padStart(2, '0')} · RESET ${frame.resets}`;
-    this.spdEl.textContent = `${Math.round(frame.speed * 3.6)} km/h${state.grounded ? '' : ' · AIR'}`;
-    this.spdEl.classList.toggle('airborne', !state.grounded);
-    this.distanceEl.textContent = `${Math.ceil(frame.finishDistance)} m TO SUMMIT`;
-    this.progressEl.style.width = `${Math.max(0, Math.min(100, (frame.vehicle.position.x + 90) / 181 * 100))}%`;
-    const remaining = course.salvage.filter((salvage) => !frame.salvage.includes(salvage.id));
-    const nearest = remaining.sort((a, b) => distance2(frame.vehicle.position, a.position) - distance2(frame.vehicle.position, b.position))[0];
-    if (nearest) {
-      const metres = Math.round(Math.sqrt(distance2(frame.vehicle.position, nearest.position)));
-      this.exploreEl.textContent = `SALVAGE ${nearest.name} · ${metres}m · ${frame.salvage.length}/${course.salvage.length}`;
-    } else this.exploreEl.textContent = `ALL SALVAGE RECOVERED · ${frame.salvage.length}/${course.salvage.length}`;
-    const danger = course.obstacles.map((obstacle) => ({ obstacle, d: distance2(frame.vehicle.position, obstacle.position) })).sort((a, b) => a.d - b.d)[0];
-    const dangerous = Boolean(danger && danger.d < 18 ** 2);
-    this.threatEl.hidden = !dangerous;
-    this.threatEl.classList.toggle('critical', Boolean(danger && danger.d < 8 ** 2));
-    if (danger && dangerous) {
-      (this.threatEl.querySelector('.threat-label') as HTMLElement).textContent = danger.d < 8 ** 2 ? 'IMPACT IMMINENT' : 'MACHINERY NEARBY';
-      (this.threatEl.querySelector('b') as HTMLElement).textContent = danger.obstacle.kind.toUpperCase();
-    }
-  }
 }
-
-function distance2(a: { x: number; z: number }, b: { x: number; z: number }): number { return (a.x - b.x) ** 2 + (a.z - b.z) ** 2; }

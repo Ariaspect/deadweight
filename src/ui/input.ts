@@ -76,11 +76,19 @@ export class InputController {
     doc.addEventListener('keydown', this.onKeyDown);
     doc.addEventListener('keyup', this.onKeyUp);
     doc.defaultView?.addEventListener('blur', this.onBlur);
+    viewport.addEventListener('pointerdown', this.onPointerDown);
+    viewport.addEventListener('pointermove', this.onPointerMove);
+    viewport.addEventListener('pointerup', this.onPointerUp);
+    viewport.addEventListener('pointercancel', this.onPointerUp);
   }
   detach(): void {
     this.doc?.removeEventListener('keydown', this.onKeyDown);
     this.doc?.removeEventListener('keyup', this.onKeyUp);
     this.doc?.defaultView?.removeEventListener('blur', this.onBlur);
+    this.viewport?.removeEventListener('pointerdown', this.onPointerDown);
+    this.viewport?.removeEventListener('pointermove', this.onPointerMove);
+    this.viewport?.removeEventListener('pointerup', this.onPointerUp);
+    this.viewport?.removeEventListener('pointercancel', this.onPointerUp);
     this.viewport = null; this.doc = null;
   }
   sample(): InputFrame { return sampleFrame(this.state, this.tuning); }
@@ -98,4 +106,15 @@ export class InputController {
   private onKeyDown = (e: KeyboardEvent): void => { if (e.repeat) return; applyKey(this.state, e.code, true); if (e.code === 'Space') e.preventDefault(); };
   private onKeyUp = (e: KeyboardEvent): void => { applyKey(this.state, e.code, false); };
   private onBlur = (): void => { resetInput(this.state); };
+
+  /** Ballast drag: any pointer on the viewport that did not start on a `.dpad` button. */
+  private onPointerDown = (e: PointerEvent): void => {
+    if ((e.target as HTMLElement | null)?.closest('.dpad')) return;
+    this.viewport?.setPointerCapture(e.pointerId); applyDragStart(this.state, e.clientX);
+  };
+  private onPointerMove = (e: PointerEvent): void => {
+    const w = this.viewport?.clientWidth ?? 300;
+    applyDragMove(this.state, e.clientX, w * 0.6, this.tuning.ballastRange);
+  };
+  private onPointerUp = (): void => { applyDragEnd(this.state); };
 }

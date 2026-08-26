@@ -1,18 +1,21 @@
+import { createRun, step } from '../sim/step';
 import { evaluate } from '../sim/score';
+import { generateRoute } from '../sim/terrain';
 import { applyUpgrades } from '../sim/upgrades';
-import { mulberry32 } from '../sim/rng';
+import { mulberry32, hashSeed } from '../sim/rng';
 import { GameLoop } from './loop';
 import { loadSave, writeSave, type SaveData, type StorageLike } from './save';
+import { generateOffers, playerTier, type Offers } from './orders';
 import { pickHq, pickReview } from './reviews';
+import { renderDispatch } from '../ui/screens/dispatch';
+import { renderLoadout } from '../ui/screens/loadout';
 import { renderResult } from '../ui/screens/result';
+import { renderUpgrade } from '../ui/screens/upgrade';
 import { Hud } from '../ui/hud';
-import { buildShowcaseCourse } from '../course/map';
-import type { CourseFrame } from '../course/types';
-import type { PhysicsCourse } from '../course/PhysicsCourse';
-import type { Renderer } from '../render/Renderer';
+import type { Renderer, RenderPrev } from '../render/Renderer';
 import type { Panel } from '../ui/panel/panel';
 import type { InputController } from '../ui/input';
-import type { HazardDef, HqDef, ItemDef, LoadoutItem, OutpostDef, ReviewDef, RigState, RunResult, Tuning, UpgradeDef } from '../sim/types';
+import type { HazardDef, HazardType, HqDef, ItemDef, LoadoutItem, OutpostDef, ReviewDef, RigState, RouteDef, RunResult, Tuning, UpgradeDef } from '../sim/types';
 
 export interface Content { cargo: ItemDef[]; outposts: OutpostDef[]; hazards: HazardDef[]; upgrades: UpgradeDef[]; reviews: ReviewDef[]; hq: HqDef[] }
 export interface FlowDeps {
@@ -25,85 +28,109 @@ const LINGER: Record<NonNullable<RigState['ended']>, number> = { arrived: 60, st
 export class Flow {
   save: SaveData;
   tuning: Tuning;
+  private renderer: Renderer | null = null;
   private loop: GameLoop | null = null;
-  private session: PhysicsCourse | null = null;
+  private runNonce = 1;
+  private offers: Offers | null = null;
+  private route: RouteDef | null = null;
   private loadout: LoadoutItem[] = [];
   private readonly metaRng = mulberry32((Date.now() & 0x7fffffff) >>> 0);
+  private readonly telegraph: Record<HazardType, number>;
   private readonly hud: Hud;
 
   constructor(private readonly d: FlowDeps) {
     const { data, reset } = loadSave(d.storage);
     this.save = data;
     this.tuning = applyUpgrades(d.baseTuning, data.upgrades, d.content.upgrades);
+    this.telegraph = Object.fromEntries(d.content.hazards.map((h) => [h.type, h.telegraphM])) as Record<HazardType, number>;
     this.hud = new Hud(d.viewportEl);
     if (reset) d.panel.setMessage('HQ: Save data unreadable. Fresh ledger opened.');
+    d.renderer.then((r) => { this.renderer = r; });
   }
 
-  start(): void {
-    const manifestIds = ['soup', 'cake', 'chicken'];
-    const manifest = manifestIds.map((id) => this.d.content.cargo.find((item) => item.id === id)).filter((item): item is ItemDef => Boolean(item));
-    const fallback = this.d.content.cargo.slice(0, 3);
-    this.loadout = (manifest.length === 3 ? manifest : fallback).map((def, slot) => ({ def, slot }));
-    void this.haul();
+  start(): void { this.dispatch(); }
+
+  private dispatch(): void {
+    const { content, panel, screenEl } = this.d;
+    const offers = generateOffers(content.outposts, content.cargo, this.save.runs, this.metaRng);
+    this.offers = offers;
+    this.route = generateRoute(offers.outpost.seed, offers.outpost.lengthM, offers.outpost.tier, content.hazards, this.tuning.terrain);
+    const hqLine = pickHq(content.hq, 'dispatch', offers.cargo[0]?.behavior ?? 'any', this.metaRng);
+    panel.setMessage(hqLine);
+    renderDispatch(screenEl, {
+      offers, profile: this.route.slopeProfile, profileStepM: this.tuning.terrain.profileStepM, hqLine,
+      capacity: this.tuning.capacity, cash: this.save.cash, tier: playerTier(this.save.runs), traceCount: 0,
+    }, (selected) => this.load(selected));
   }
 
-  private async haul(): Promise<void> {
-    const loadout = this.loadout, { tuning, d } = this, { panel, input, screenEl } = d;
+  private load(selected: ItemDef[]): void {
+    renderLoadout(this.d.screenEl, { items: selected, tuning: this.tuning }, (loadout) => { this.loadout = loadout; this.haul(); });
+  }
+
+  private haul(): void {
+    const route = this.route!; const loadout = this.loadout;
+    const { tuning, d } = this; const { panel, input } = d;
     this.loop?.stop();
-    this.session?.dispose(); this.session = null;   // free the previous Rapier world before building the next
-    const course = buildShowcaseCourse(2);
-    screenEl.innerHTML = `<div class="screen loading"><h2>DEPLOYING MULE</h2><pre class="tele-block">INITIALIZING RIGID-BODY SYSTEM\nASSEMBLING ${course.name}\nSECURING ${loadout.length} CARGO BAYS…</pre></div>`;
-    screenEl.hidden = false;
-    const sessionPromise = import('../course/PhysicsCourse').then(({ PhysicsCourse }) => PhysicsCourse.create(course, loadout, tuning));
-    const [session, renderer] = await Promise.all([sessionPromise, d.renderer]);
-    this.session = session;
-    screenEl.hidden = true;
-    renderer.setCourse(course, loadout.map((item) => item.def));
-    input.reset(); input.setTuning(tuning); input.setGait(0); input.selectCargo(0); panel.setCargoBay(0);
-    panel.setMessage('HQ: THREE ROUTES TO THE SUMMIT. Mouse controls camera. Find a line and commit.');
+    const state = createRun(route, loadout, tuning);
+    const rng = mulberry32(hashSeed(route.seed, this.runNonce++));
+    const prev: RenderPrev = { x: 0, z: 0, lift: 0, lateralVel: 0, tilt: 0, speed: 0 };
+    input.reset(); input.setTuning(tuning); input.setGait(2); panel.setGait(2);
+    panel.setMessage(`HQ: ${this.offers!.outpost.name}. ${loadout.length} aboard. W walks, A/D picks the lane, drag the view for ballast. Go.`);
+    const defs = loadout.map((l) => l.def);
+    const attach = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); };
+    if (this.renderer) attach(this.renderer); else d.renderer.then(attach);
 
-    let linger = 0, finished = false;
-    let frame: CourseFrame = session.frame(), prev: CourseFrame = frame;
+    let linger = 0;
+    let finished = false;   // GameLoop.tick() may run several steps after stop(); finish exactly once
     const loop = new GameLoop({
       dt: tuning.dt,
-      sampleInput: () => {
-        const sample = input.sample(), axes = renderer.courseControlAxes();
-        const forward = sample.throttle ?? 0, right = sample.steer ?? 0;
-        const length = Math.max(1, Math.hypot(forward, right));
-        sample.moveX = (axes.forwardX * forward + axes.rightX * right) / length;
-        sample.moveZ = (axes.forwardZ * forward + axes.rightZ * right) / length;
-        return sample;
-      },
-      step: (sample) => {
+      sampleInput: () => input.sample(),
+      step: (inp) => {
         if (finished) return;
-        prev = frame; frame = session.step(sample);
-        if (frame.message) panel.setMessage(frame.message);
-        if (frame.state.ended) {
-          if (++linger > LINGER[frame.state.ended]) { finished = true; this.finish(frame.state, loop); }
-        } else linger = 0;
+        prev.x = state.x; prev.z = state.z; prev.lift = state.lift; prev.lateralVel = state.lateralVel; prev.tilt = state.tilt; prev.speed = state.speed;
+        step(state, inp, route, this.save.traces, tuning, rng);
+        if (state.ended) { if (++linger > LINGER[state.ended]) { finished = true; this.finish(state, loop); } } else linger = 0;
       },
       render: (alpha) => {
-        renderer.drawCourse(frame, prev, alpha);
-        panel.update(frame.state, tuning);
-        this.hud.updateCourse(frame, course);
-        panel.setHazard(frame.finishDistance < 25 || Math.abs(frame.state.tilt) > 0.65);
+        this.renderer?.draw(state, prev, alpha);
+        panel.update(state, tuning);
+        this.hud.update(state, route);
+        panel.setHazard(route.hazards.some((h) => h.impulse > 0 && h.x > state.x && h.x <= state.x + this.telegraph[h.type]));
       },
     });
-    this.loop = loop; loop.start();
+    this.loop = loop;
+    loop.start();
   }
 
   private finish(state: RigState, loop: GameLoop): void {
-    loop.stop(); this.review(evaluate(state, this.tuning), state);
+    loop.stop();
+    this.review(evaluate(state, this.tuning), state);
   }
 
   private review(result: RunResult, state: RigState): void {
     const { content, panel, screenEl, storage } = this.d;
-    this.save.cash += result.total; this.save.runs += 1;
-    if (result.stars > (this.save.bestByOutpost['deadweight-yard'] ?? 0)) this.save.bestByOutpost['deadweight-yard'] = result.stars;
+    const outpost = this.offers!.outpost;
+    this.save.cash += result.total;
+    this.save.runs += 1;
+    if (result.stars > (this.save.bestByOutpost[outpost.id] ?? 0)) this.save.bestByOutpost[outpost.id] = result.stars;
     writeSave(storage, this.save);
     const worst = [...state.items].sort((a, b) => (a.lost ? 2 : a.stress) - (b.lost ? 2 : b.stress)).at(-1);
     const line = pickReview(content.reviews, result.stars, worst?.behavior ?? 'any', this.metaRng);
     panel.setMessage(pickHq(content.hq, result.ended === 'arrived' ? 'arrival' : result.ended === 'spilled' ? 'spill' : 'stall', 'any', this.metaRng));
-    renderResult(screenEl, result, this.loadout.map((item) => item.def), () => { void this.haul(); }, line, 'RUN AGAIN');
+    renderResult(screenEl, result, this.loadout.map((l) => l.def), () => this.upgrade(), line, 'CONTINUE');
+  }
+
+  private upgrade(): void {
+    const { content, screenEl, storage } = this.d;
+    renderUpgrade(screenEl, { defs: content.upgrades, save: this.save }, {
+      onBuy: (id) => {
+        const def = content.upgrades.find((u) => u.id === id);
+        if (!def || this.save.upgrades.includes(id) || this.save.cash < def.cost) return;
+        this.save.cash -= def.cost; this.save.upgrades.push(id);
+        this.tuning = applyUpgrades(this.d.baseTuning, this.save.upgrades, content.upgrades);
+        writeSave(storage, this.save);
+      },
+      onDone: () => this.dispatch(),
+    });
   }
 }
