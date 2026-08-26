@@ -15,6 +15,12 @@ const GEOMETRY: Record<WallKind, THREE.BufferGeometry> = {
   ruin: new THREE.BoxGeometry(1, 1, 1),
   baffle: new THREE.BoxGeometry(1, 1, 1),
 };
+const RADAR_MATERIAL: Record<WallKind, THREE.MeshBasicMaterial> = {
+  wall: new THREE.MeshBasicMaterial({ color: '#65efd6', wireframe: true }),
+  rock: new THREE.MeshBasicMaterial({ color: '#3fbfa8', wireframe: true }),
+  ruin: new THREE.MeshBasicMaterial({ color: '#8affe4', wireframe: true }),
+  baffle: new THREE.MeshBasicMaterial({ color: '#d6fff6', wireframe: true }),
+};   // shared singletons alongside MATERIAL; disposeWalls never touches material, so nothing to exclude
 
 function noise(n: number): number { const x = Math.sin(n * 91.73) * 43758.5453; return x - Math.floor(x); }
 
@@ -60,6 +66,15 @@ export function buildWalls(route: RouteDef): THREE.Group {
   }
   for (const m of Object.values(meshes)) m.instanceMatrix.needsUpdate = true;
   return group;
+}
+
+/** Swaps the shared singleton materials on every instanced wall mesh. Cheap: no geometry work, no new draw calls. */
+export function setWallsRadar(group: THREE.Group, on: boolean): void {
+  for (const child of group.children) {
+    if (!(child instanceof THREE.InstancedMesh)) continue;
+    const kind = child.name.replace('walls-', '') as WallKind;
+    child.material = on ? RADAR_MATERIAL[kind] : MATERIAL[kind];
+  }
 }
 
 export function disposeWalls(group: THREE.Group): void {

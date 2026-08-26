@@ -1,15 +1,18 @@
 import * as THREE from 'three';
 import type { Renderer, RenderPrev } from '../Renderer';
 import type { ItemDef, RigState, RouteDef } from '../../sim/types';
-import { buildTerrain } from './terrain';
-import { animateHazards, buildHazards, disposeHazards } from './hazards';
+import { buildTerrain, setTerrainRadar } from './terrain';
+import { animateHazards, buildHazards, disposeHazards, setHazardsRadar } from './hazards';
 import { buildScenery, disposeScenery, syncScenery } from './scenery';
-import { buildWalls, disposeWalls } from './walls';
+import { buildWalls, disposeWalls, setWallsRadar } from './walls';
 import { Rig } from './rig';
 import { CargoView } from './cargo';
 import { tuning } from '../../content';
 
 const SKY = '#b9b0a3';
+const SAND = '#c2a06a';
+const FOG_CLEAR_NEAR = 60, FOG_CLEAR_FAR = 180;
+const FOG_STORM_NEAR = 10, FOG_STORM_FAR = 26;
 
 export class ThreeRenderer implements Renderer {
   private gl!: THREE.WebGLRenderer;
@@ -29,6 +32,8 @@ export class ThreeRenderer implements Renderer {
   private readonly camPos = new THREE.Vector3();
   private readonly camTarget = new THREE.Vector3();
   private firstFrame = true;
+  private radarOn = false;
+  private readonly stormFog = new THREE.Color();
 
   mount(el: HTMLElement): void {
     this.el = el;
@@ -55,7 +60,8 @@ export class ThreeRenderer implements Renderer {
   setLoadout(items: ItemDef[]): void { this.cargo.setLoadout(items); }
 
   setRoute(route: RouteDef): void {
-    if (this.terrain) { this.scene.remove(this.terrain); this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); }
+    // dispose the mesh's own material, never the shared radarGround singleton it may currently be wearing
+    if (this.terrain) { this.scene.remove(this.terrain); this.terrain.geometry.dispose(); ((this.terrain.userData.baseMaterial as THREE.Material | undefined) ?? this.terrain.material as THREE.Material).dispose(); }
     this.route = route;
     this.terrain = buildTerrain(route);
     this.scene.add(this.terrain);
@@ -97,6 +103,21 @@ export class ThreeRenderer implements Renderer {
     if (this.firstFrame) { this.camera.position.copy(this.camPos); this.firstFrame = false; }
     else this.camera.position.lerp(this.camPos, 0.12);
     this.camera.lookAt(this.camTarget);
+    // storm closes the fog in with the ramp; radar buys the distance back and re-materials the world
+    const fog = this.scene.fog as THREE.Fog;
+    const L = curr.radar ? 0 : curr.storm;
+    fog.near = FOG_CLEAR_NEAR + (FOG_STORM_NEAR - FOG_CLEAR_NEAR) * L;
+    fog.far = FOG_CLEAR_FAR + (FOG_STORM_FAR - FOG_CLEAR_FAR) * L;
+    this.stormFog.set(SKY).lerp(new THREE.Color(SAND), curr.storm);
+    if (curr.radar) this.stormFog.set('#050807');
+    fog.color.copy(this.stormFog);
+    (this.scene.background as THREE.Color).copy(this.stormFog);
+    if (curr.radar !== this.radarOn) {
+      this.radarOn = curr.radar;
+      if (this.walls) setWallsRadar(this.walls, this.radarOn);
+      if (this.hazardGroup) setHazardsRadar(this.hazardGroup, this.radarOn);
+      if (this.terrain) setTerrainRadar(this.terrain, this.radarOn);
+    }
     this.gl.render(this.scene, this.camera);
   }
 
@@ -108,7 +129,7 @@ export class ThreeRenderer implements Renderer {
   }
 
   dispose(): void {
-    if (this.terrain) { this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); }
+    if (this.terrain) { this.terrain.geometry.dispose(); ((this.terrain.userData.baseMaterial as THREE.Material | undefined) ?? this.terrain.material as THREE.Material).dispose(); }
     if (this.hazardGroup) disposeHazards(this.hazardGroup);
     if (this.scenery) disposeScenery(this.scenery);
     if (this.walls) disposeWalls(this.walls);

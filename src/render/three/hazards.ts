@@ -10,8 +10,9 @@ const rustMat = new THREE.MeshStandardMaterial({ color: '#6e4a34', roughness: 0.
 const warnMat = new THREE.MeshStandardMaterial({ color: '#8f2f22', roughness: 0.7 });
 const dustMat = new THREE.MeshBasicMaterial({ color: '#c9bfae', transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
 const woodMat = new THREE.MeshStandardMaterial({ color: '#3d332a', roughness: 1, flatShading: true });
+const radarMat = new THREE.MeshBasicMaterial({ color: '#ffb066', wireframe: true });
 const SHARED_GEOMETRIES: THREE.BufferGeometry[] = [rock];
-const SHARED_MATERIALS: THREE.Material[] = [rockMat, darkMat, steelMat, rustMat, warnMat, dustMat, woodMat];
+const SHARED_MATERIALS: THREE.Material[] = [rockMat, darkMat, steelMat, rustMat, warnMat, dustMat, woodMat, radarMat];
 
 function rand(id: number, salt: number): number {
   const n = Math.sin((id + 11) * 91.73 + salt * 37.19) * 43758.5453;
@@ -130,6 +131,15 @@ export function animateHazards(group: THREE.Group, tick: number): void {
       mover.rotation.x = -h.dir * (0.9 - 0.9 * Math.max(0, swing));
     }
   }
+}
+
+/** Remembers each mesh's own material the first time it is switched, so switching back is exact. */
+export function setHazardsRadar(group: THREE.Group, on: boolean): void {
+  group.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    if (child.userData.baseMaterial === undefined) child.userData.baseMaterial = child.material;
+    child.material = on ? radarMat : (child.userData.baseMaterial as THREE.Material);
+  });
 }
 
 export function disposeHazards(g: THREE.Group): void {

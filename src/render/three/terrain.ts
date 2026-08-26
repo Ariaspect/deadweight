@@ -50,3 +50,11 @@ export function buildTerrain(route: RouteDef, stepX = 2, stepZ = 2): THREE.Mesh 
   mesh.name = 'terrain';
   return mesh;
 }
+
+const radarGround = new THREE.MeshBasicMaterial({ color: '#0a0f0e' });
+
+/** The ground drops to near-black under radar so the wireframe reads; the mesh and its vertex colours are kept. */
+export function setTerrainRadar(mesh: THREE.Mesh, on: boolean): void {
+  if (mesh.userData.baseMaterial === undefined) mesh.userData.baseMaterial = mesh.material;
+  mesh.material = on ? radarGround : (mesh.userData.baseMaterial as THREE.Material);
+}
