@@ -12,6 +12,13 @@ function state(stresses: number[], over: Partial<ReturnType<typeof createRun>> =
 }
 
 describe('evaluate', () => {
+  it('scales every fee by the route payout multiplier, leaving the bonuses alone', () => {
+    const plain = evaluate(state([0, 0]), tuning);
+    const rich = evaluate(state([0, 0]), tuning, 2);
+    expect(rich.payout).toBeCloseTo(plain.payout * 2);
+    expect(rich.bonus).toBeCloseTo(plain.bonus);
+    expect(rich.discoveryBonus).toBe(plain.discoveryBonus);
+  });
   it('5 stars and full payout for pristine arrival', () => {
     const r = evaluate(state([0, 0]), tuning);
     expect(r.stars).toBe(5); expect(r.payout).toBe(200);

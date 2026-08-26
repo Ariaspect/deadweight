@@ -1,8 +1,8 @@
 import type { ItemDef, Tuning } from '../../sim/types';
-import { cargoDifficulty, type Offers } from '../../game/orders';
+import { cargoDifficulty, type Offers, type RouteRating } from '../../game/orders';
 import { slopeProfileSvg } from '../profile';
 
-export interface DispatchProps { offers: Offers; profile: number[]; profileStepM: number; sketch: string; hqLine: string; capacity: number; cash: number; tier: number; traceCount: number; tuning: Tuning }
+export interface DispatchProps { offers: Offers; profile: number[]; profileStepM: number; sketch: string; hqLine: string; capacity: number; cash: number; tier: number; traceCount: number; tuning: Tuning; rating: RouteRating }
 
 const fragility = (c: ItemDef): string => (c.tolerance < 0.4 ? 'FRAGILE' : c.tolerance < 0.6 ? 'DELICATE' : 'STURDY');
 
@@ -11,7 +11,7 @@ export function renderDispatch(el: HTMLElement, p: DispatchProps, onLoad: (selec
   const selected = new Set<string>();
   el.innerHTML = `
     <div class="screen dispatch">
-      <pre class="tele-block">DISPATCH ── ${o.name.toUpperCase()}  ·  ${o.lengthM} m  ·  TIER ${o.tier}
+      <pre class="tele-block">MANIFEST ── ${o.name.toUpperCase()}  ·  ${o.lengthM} m  ·  ${p.rating.label.toUpperCase()}  ·  FEES ×${p.rating.payoutMul.toFixed(2)}
 ${o.flavor}
 ${p.hqLine}
 LEDGER ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
@@ -20,7 +20,7 @@ LEDGER ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
         <li data-id="${c.id}">
           <b>${c.name} <em class="diff ${cargoDifficulty(c, p.tuning)}">${cargoDifficulty(c, p.tuning).toUpperCase()}</em></b>
           <span class="meta">${c.mass.toFixed(1)} t · ${fragility(c)} · ${c.behavior.toUpperCase()}${c.rush ? ` · RUSH ${c.rush}s` : ''}</span>
-          <span class="pay">${c.payout}</span>
+          <span class="pay">${Math.round(c.payout * p.rating.payoutMul)}</span>
         </li>`).join('')}
       </ul>
       <div class="row"><span class="cap">0 / ${p.capacity} BAYS</span><button class="big primary" disabled>LOAD</button></div>

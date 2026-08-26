@@ -2,13 +2,13 @@ import type { ItemResult, RigState, RunResult, Tuning } from './types';
 
 function clamp01(v: number): number { return v < 0 ? 0 : v > 1 ? 1 : v; }
 
-export function evaluate(s: RigState, tuning: Tuning): RunResult {
+export function evaluate(s: RigState, tuning: Tuning, payoutMul = 1): RunResult {
   const ended = s.ended ?? 'stalled';
   const items: ItemResult[] = s.items.map((it) => {
     const condition = clamp01(1 - it.stress);
     const rushed = it.deadlineTick >= 0;
     const late = rushed && s.t > it.deadlineTick;
-    const payout = it.lost ? 0 : it.payout * condition;   // a deadline is upside only: missing it costs the bonus, not the fee
+    const payout = it.lost ? 0 : it.payout * condition * payoutMul;   // a deadline is upside only: missing it costs the bonus, not the fee
     return { id: it.id, condition, payout, lost: it.lost, rushed, late };
   });
   const carried = items.filter((i) => !i.lost);

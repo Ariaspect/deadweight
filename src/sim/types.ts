@@ -81,6 +81,10 @@ export interface TerrainTuning {
   segMin: number; segMax: number; slopeSigma: number[]; maxSlope: number; gradeSlope: number; hazardJitter: number; profileStepM: number; safeStartM: number; safeEndM: number; pathWander: number;
   corridorHalfWidth: number; pocketDepth: number; spineThick: number; spineGapM: number; forkLenMin: number; forkLenMax: number; stretchLenMin: number; stretchLenMax: number;
 }
+export interface RouteTuning {
+  tierWeight: number; lengthWeight: number; hazardWeight: number; zoneWeight: number; slopeWeight: number;
+  payWeight: number; baseScore: number; easyBelow: number; hardAtOrAbove: number; offerCount: number;
+}
 export interface DifficultyTuning {
   fragileWeight: number; precariousWeight: number; rushWeight: number; massWeight: number; easyBelow: number; hardAtOrAbove: number;
 }
@@ -101,7 +105,7 @@ export interface Tuning {
   rigRadius: number; wallStrikeSpeed: number; wallStrikeTilt: number; wallStrikeJolt: number; airTraction: number; mudTraction: number; mudSpeedMul: number;
   craneShove: number; hazardCooldownTicks: number;
   cacheReserve: number; cacheRepair: number; cacheBonus: number;
-  difficulty: DifficultyTuning; terrain: TerrainTuning; bot: BotTuning;
+  route: RouteTuning; difficulty: DifficultyTuning; terrain: TerrainTuning; bot: BotTuning;
 }
 
 export interface ItemResult { id: string; condition: number; payout: number; lost: boolean; rushed: boolean; late: boolean }

@@ -5,9 +5,10 @@ import { applyUpgrades } from '../sim/upgrades';
 import { mulberry32, hashSeed } from '../sim/rng';
 import { GameLoop } from './loop';
 import { loadSave, writeSave, type SaveData, type StorageLike } from './save';
-import { generateOffers, playerTier, type Offers } from './orders';
+import { generateCargo, pickRoutes, playerTier, routeDifficulty, type RouteRating } from './orders';
 import { pickHq, pickReview } from './reviews';
 import { renderDispatch } from '../ui/screens/dispatch';
+import { renderRouteSelect, type RouteOption } from '../ui/screens/route';
 import { renderLoadout } from '../ui/screens/loadout';
 import { renderResult } from '../ui/screens/result';
 import { renderUpgrade } from '../ui/screens/upgrade';
@@ -33,7 +34,8 @@ export class Flow {
   private renderer: Renderer | null = null;
   private loop: GameLoop | null = null;
   private runNonce = 1;
-  private offers: Offers | null = null;
+  private outpost: OutpostDef | null = null;
+  private rating: RouteRating = { score: 0, payoutMul: 1, label: 'easy' };
   private route: RouteDef | null = null;
   private loadout: LoadoutItem[] = [];
   private readonly metaRng = mulberry32((Date.now() & 0x7fffffff) >>> 0);
@@ -52,15 +54,38 @@ export class Flow {
 
   start(): void { this.dispatch(); }
 
+  /** Step 1: the route board. Fees scale with what the route asks of you, so this is the first real bet. */
   private dispatch(): void {
     const { content, panel, screenEl } = this.d;
-    const offers = generateOffers(content.outposts, content.cargo, this.save.runs, this.metaRng, this.tuning);
-    this.offers = offers;
-    this.route = generateRoute(offers.outpost.seed, offers.outpost.lengthM, offers.outpost.tier, content.hazards, this.tuning.terrain);
-    const hqLine = pickHq(content.hq, 'dispatch', offers.cargo[0]?.behavior ?? 'any', this.metaRng);
+    const routes = new Map<string, RouteDef>();
+    const options: RouteOption[] = pickRoutes(content.outposts, this.save.runs, this.tuning).map((outpost) => {
+      const route = generateRoute(outpost.seed, outpost.lengthM, outpost.tier, content.hazards, this.tuning.terrain);
+      routes.set(outpost.id, route);
+      return {
+        outpost, rating: routeDifficulty(route, outpost, this.tuning), sketch: routeSketchSvg(route),
+        hazardCount: route.hazards.filter((h) => h.impulse > 0).length, zoneCount: route.zones.length,
+      };
+    });
+    const hqLine = pickHq(content.hq, 'dispatch', 'any', this.metaRng);
+    panel.setMessage(hqLine);
+    renderRouteSelect(screenEl, { options, hqLine, cash: this.save.cash, tier: playerTier(this.save.runs) }, (picked) => {
+      this.outpost = picked;
+      this.route = routes.get(picked.id)!;
+      this.rating = options.find((o) => o.outpost.id === picked.id)!.rating;
+      this.manifest();
+    });
+  }
+
+  /** Step 2: the manifest for the accepted route. */
+  private manifest(): void {
+    const { content, panel, screenEl } = this.d;
+    const outpost = this.outpost!, route = this.route!;
+    const cargo = generateCargo(content.cargo, this.save.runs, this.metaRng, this.tuning);
+    const hqLine = pickHq(content.hq, 'dispatch', cargo[0]?.behavior ?? 'any', this.metaRng);
     panel.setMessage(hqLine);
     renderDispatch(screenEl, {
-      offers, profile: this.route.slopeProfile, profileStepM: this.tuning.terrain.profileStepM, sketch: routeSketchSvg(this.route), hqLine,
+      offers: { outpost, cargo }, profile: route.slopeProfile, profileStepM: this.tuning.terrain.profileStepM,
+      sketch: routeSketchSvg(route), hqLine, rating: this.rating,
       capacity: this.tuning.capacity, cash: this.save.cash, tier: playerTier(this.save.runs), traceCount: 0, tuning: this.tuning,
     }, (selected) => this.load(selected));
   }
@@ -80,7 +105,7 @@ export class Flow {
     input.setBallast(predictTrim(loadout, tuning));   // start trimmed for the load, not already drifting
     input.setBays(loadout.map((l) => l.slot));
     let snap: EventSnapshot = snapshot(state);
-    panel.setMessage(`HQ: ${this.offers!.outpost.name}. ${loadout.length} aboard. W walks at the gait you set. Pick your lanes.`);
+    panel.setMessage(`HQ: ${this.outpost!.name}. ${loadout.length} aboard. W walks at the gait you set. Pick your lanes.`);
     const defs = loadout.map((l) => l.def);
     const attach = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); };
     if (this.renderer) attach(this.renderer); else d.renderer.then(attach);
@@ -111,12 +136,12 @@ export class Flow {
 
   private finish(state: RigState, loop: GameLoop): void {
     loop.stop();
-    this.review(evaluate(state, this.tuning), state);
+    this.review(evaluate(state, this.tuning, this.rating.payoutMul), state);
   }
 
   private review(result: RunResult, state: RigState): void {
     const { content, panel, screenEl, storage } = this.d;
-    const outpost = this.offers!.outpost;
+    const outpost = this.outpost!;
     this.save.cash += result.total;
     this.save.runs += 1;
     if (result.stars > (this.save.bestByOutpost[outpost.id] ?? 0)) this.save.bestByOutpost[outpost.id] = result.stars;
