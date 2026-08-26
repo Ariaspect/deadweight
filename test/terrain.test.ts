@@ -37,6 +37,13 @@ describe('generateRoute', () => {
     const b = generateRoute(2, 600, 0, hz, tuning.terrain);
     expect(a.segments).not.toEqual(b.segments);
   });
+  it('builds a winding route with optional off-road discoveries', () => {
+    const r = generateRoute(4417, 700, 2, hz, tuning.terrain);
+    expect(r.centerAt(0)).toBe(0); expect(r.centerAt(r.length)).toBe(0);
+    expect(r.segments.some((s) => Math.abs(s.z1 ?? 0) > 0.5)).toBe(true);
+    expect(r.discoveries).toHaveLength(5);
+    for (const d of r.discoveries) expect(Math.abs(d.z - r.centerAt(d.x))).toBeGreaterThanOrEqual(tuning.terrain.discoveryOffset);
+  });
   it('covers exactly [0, length] with contiguous segments', () => {
     const r = generateRoute(5, 600, 1, hz, tuning.terrain);
     expect(r.segments[0]!.x0).toBe(0);

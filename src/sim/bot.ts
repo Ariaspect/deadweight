@@ -3,10 +3,10 @@ import { evaluate } from './score';
 import { mulberry32, hashSeed } from './rng';
 import type { Gait, InputFrame, ItemState, LoadoutItem, RigState, RouteDef, RunResult, Trace, Tuning } from './types';
 
-export interface BotView { x: number; tilt: number; tiltVel: number; strap: number; braced: boolean; recovering: number; items: ItemState[] }
+export interface BotView { x: number; z?: number; tilt: number; tiltVel: number; strap: number; braced: boolean; recovering: number; items: ItemState[] }
 
 function view(s: RigState): BotView {
-  return { x: s.x, tilt: s.tilt, tiltVel: s.tiltVel, strap: s.strap, braced: s.braced, recovering: s.recovering, items: s.items.map((it) => ({ ...it })) };
+  return { x: s.x, z: s.z, tilt: s.tilt, tiltVel: s.tiltVel, strap: s.strap, braced: s.braced, recovering: s.recovering, items: s.items.map((it) => ({ ...it })) };
 }
 
 export class LagBuffer {
@@ -28,14 +28,17 @@ export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFra
     if (h.x <= v.x) continue;
     if (h.x > v.x + 40) break;
     if (h.impulse === 0) continue;
-    if (h.type === 'gap' && h.x <= v.x + b.braceAheadM) { near = true; brace = true; }
-    if ((h.type === 'rubble' || h.type === 'scree') && h.x <= v.x + b.braceAheadM) slow = true;
+    const mustBrace = h.type === 'gap' || h.type === 'hammer' || h.type === 'crusher' || h.type === 'launchpad' || h.type === 'fan';
+    if (mustBrace && h.x <= v.x + b.braceAheadM) { near = true; brace = true; }
+    if (h.type !== 'gust' && h.x <= v.x + b.braceAheadM) slow = true;
   }
   const gait: Gait = slow ? 1 : near ? 2 : 3;   // cruise at 3 to bank reserve; slow into impulse hazards
   const slopeAhead = route.slopeAt(v.x + tuning.gaitSpeed[gait]! * tuning.gaitSpeedMul * b.leadSec);
   const load = loadOffsetOf(v.items, tuning);
   const feedForward = -(tuning.kSlope * slopeAhead + tuning.kLoad * load) / tuning.kBallast * 100;
   const feedback = -b.kp * v.tilt - b.kd * v.tiltVel;
+  const centerError = route.centerAt(v.x + 8) - (v.z ?? 0);
+  const steer = centerError > 0.35 ? 1 : centerError < -0.35 ? -1 : 0;
   return {
     gait,
     ballast: clampInt(feedForward + feedback, -tuning.ballastRange, tuning.ballastRange),
@@ -43,6 +46,7 @@ export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFra
     brace,
     deploy: 0,
     recover: v.recovering === 0 && v.items.some((it) => it.lost),
+    steer,
   };
 }
 

@@ -17,7 +17,7 @@ function findSegment(segments: Segment[], x: number): Segment {
   return segments[lo]!;
 }
 
-export function routeFromSegments(seed: number, segments: Segment[], hazards: HazardInstance[], profileStepM: number): RouteDef {
+export function routeFromSegments(seed: number, segments: Segment[], hazards: HazardInstance[], profileStepM: number, discoveries: RouteDef['discoveries'] = []): RouteDef {
   const length = segments[segments.length - 1]!.x1;
   const slopeAt = (x: number): number => findSegment(segments, x).slope;
   const heightAt = (x: number): number => {
@@ -25,24 +25,34 @@ export function routeFromSegments(seed: number, segments: Segment[], hazards: Ha
     const cx = clamp(x, s.x0, s.x1);
     return s.y0 + s.slope * (cx - s.x0);
   };
+  const centerAt = (x: number): number => {
+    const s = findSegment(segments, x);
+    const f = clamp((x - s.x0) / Math.max(0.001, s.x1 - s.x0), 0, 1);
+    const z0 = s.z0 ?? 0, z1 = s.z1 ?? z0;
+    return z0 + (z1 - z0) * f;
+  };
   const slopeProfile: number[] = [];
   for (let x = 0; x <= length; x += profileStepM) slopeProfile.push(slopeAt(x));
-  return { seed, length, segments, hazards: [...hazards].sort((a, b) => a.x - b.x), slopeProfile, slopeAt, heightAt };
+  return { seed, length, segments, hazards: [...hazards].sort((a, b) => a.x - b.x), discoveries, slopeProfile, slopeAt, heightAt, centerAt };
 }
 
 export function generateRoute(seed: number, lengthM: number, tier: number, hazardDefs: HazardDef[], t: TerrainTuning): RouteDef {
   const rng = mulberry32(seed);
+  const mapRng = mulberry32((seed ^ 0x6d2b79f5) >>> 0);
   const sigma = t.slopeSigma[Math.min(tier, t.slopeSigma.length - 1)]!;
   const eligible = hazardDefs.filter((d) => d.minTier <= tier);
   const segments: Segment[] = [];
   const hazards: HazardInstance[] = [];
-  let x = 0, y = 0, id = 0;
+  let x = 0, y = 0, z = 0, id = 0;
 
   while (x < lengthM) {
     const len = t.segMin + rng.next() * (t.segMax - t.segMin);
     const x1 = Math.min(lengthM, x + len);
     const inSafe = x < t.safeStartM || x1 > lengthM - t.safeEndM;
     let slope = inSafe ? 0 : clamp(rng.gaussian() * sigma, -t.maxSlope, t.maxSlope);
+    let z1 = z;
+    if (!inSafe) z1 = clamp(z + (mapRng.next() * 2 - 1) * t.pathWander, -t.pathWander * 1.65, t.pathWander * 1.65);
+    if (x1 > lengthM - t.safeEndM) z1 = 0;
 
     if (!inSafe) {
       for (const def of eligible) {
@@ -62,9 +72,19 @@ export function generateRoute(seed: number, lengthM: number, tier: number, hazar
         }
       }
     }
-    segments.push({ x0: x, x1, slope, y0: y });
+    segments.push({ x0: x, x1, slope, y0: y, z0: z, z1 });
     y += slope * (x1 - x);
+    z = z1;
     x = x1;
   }
-  return routeFromSegments(seed, segments, hazards, t.profileStepM);
+  const base = routeFromSegments(seed, segments, hazards, t.profileStepM);
+  const discoveries: RouteDef['discoveries'] = [];
+  const names = ['ABANDONED RELAY', 'SMUGGLER CACHE', 'LOST WEATHER POD', 'FORGOTTEN SHRINE', 'CRASHED DRONE', 'SURVEY CAMP'];
+  const count = 3 + Math.min(3, tier);
+  for (let i = 0; i < count; i++) {
+    const dx = t.safeStartM + (i + 1) * (lengthM - t.safeStartM - t.safeEndM) / (count + 1) + (mapRng.next() - 0.5) * 24;
+    const side = mapRng.next() < 0.5 ? -1 : 1;
+    discoveries.push({ id: i, x: dx, z: base.centerAt(dx) + side * (t.discoveryOffset + mapRng.next() * 3), name: names[(i + tier) % names.length]! });
+  }
+  return routeFromSegments(seed, segments, hazards, t.profileStepM, discoveries);
 }

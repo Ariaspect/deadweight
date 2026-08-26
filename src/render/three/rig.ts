@@ -27,8 +27,12 @@ export class Rig {
 
   constructor() {
     this.body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.1, 1.8), new THREE.MeshLambertMaterial({ color: '#4a4f55', flatShading: true }));
-    this.body.position.y = BODY_Y;
+    this.body.position.y = BODY_Y; this.body.castShadow = true;
     this.group.add(this.body);
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.16, 2.2), new THREE.MeshStandardMaterial({ color: '#24282b', metalness: 0.55, roughness: 0.62 }));
+    deck.position.y = BODY_Y + 0.65; deck.castShadow = true; this.group.add(deck);
+    const lampMat = new THREE.MeshBasicMaterial({ color: '#ffd078' });
+    for (const z of [-0.58, 0.58]) { const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), lampMat); lamp.position.set(1.74, BODY_Y + 0.12, z); this.group.add(lamp); }
     const cyl = new THREE.CylinderGeometry(0.11, 0.09, 1, 6);
     const ball = new THREE.SphereGeometry(0.16, 6, 6);
     for (let i = 0; i < 6; i++) {
@@ -37,13 +41,15 @@ export class Rig {
       const phase = ((col + (side > 0 ? 0 : 1)) % 2) * Math.PI;   // tripod gait
       const upper = new THREE.Mesh(cyl, this.legMat), lower = new THREE.Mesh(cyl, this.legMat), foot = new THREE.Mesh(ball, this.footMat);
       this.group.add(upper, lower, foot);
+      upper.castShadow = true; lower.castShadow = true; foot.castShadow = true;
       this.legs.push({ hipX: (col - 1) * 1.25, side, phase, upper, lower, foot });
     }
   }
 
-  update(x: number, y: number, tilt: number, speed: number, gait: Gait, tick: number, route: RouteDef): void {
-    this.group.position.set(x, y, 0);
+  update(x: number, y: number, z: number, lift: number, lateralVel: number, tilt: number, speed: number, gait: Gait, tick: number, route: RouteDef): void {
+    this.group.position.set(x, y + lift, z);
     this.group.rotation.z = tilt * MAX_PITCH;   // Rz(+θ) lifts +X (nose) → positive tilt = nose up
+    this.group.rotation.x = clamp(-lateralVel * 0.035, -0.28, 0.28);
     const dtick = tick - this.lastTick; this.lastTick = tick;
     this.phase += (speed / 14) * 7.6 * dtick / 60;   // speed-proportional stride rate; gait 4 (14 m/s) ≈ the old 7.6 rad/s
     const hip = new THREE.Vector3(), foot = new THREE.Vector3(), knee = new THREE.Vector3();
@@ -51,7 +57,7 @@ export class Rig {
       const ph = this.phase + leg.phase;
       hip.set(leg.hipX, HIP_Y, leg.side * 1.0);
       const fx = leg.hipX + STRIDE * Math.cos(ph);
-      const groundY = route.heightAt(x + fx) - y;
+      const groundY = route.heightAt(x + fx) - y - lift;
       const fy = groundY + LIFT * Math.max(0, Math.sin(ph)) * (gait > 0 ? 1 : 0);
       foot.set(fx, fy, leg.side * 2.1);
       // 2-bone IK in the hip→foot plane; knee bends up/outward
@@ -72,6 +78,9 @@ export class Rig {
   dispose(): void {
     this.body.geometry.dispose(); (this.body.material as THREE.Material).dispose();
     for (const leg of this.legs) { leg.upper.geometry.dispose(); leg.foot.geometry.dispose(); }
+    for (const child of this.group.children) if (child instanceof THREE.Mesh && child !== this.body && !this.legs.some((l) => l.upper === child || l.lower === child || l.foot === child)) { child.geometry.dispose(); (child.material as THREE.Material).dispose(); }
     this.legMat.dispose(); this.footMat.dispose();
   }
 }
+
+function clamp(v: number, lo: number, hi: number): number { return v < lo ? lo : v > hi ? hi : v; }
