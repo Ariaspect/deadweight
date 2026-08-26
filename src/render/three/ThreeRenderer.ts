@@ -3,7 +3,8 @@ import type { Renderer, RenderPrev } from '../Renderer';
 import type { ItemDef, RigState, RouteDef } from '../../sim/types';
 import { buildTerrain, setTerrainRadar } from './terrain';
 import { animateHazards, buildHazards, disposeHazards, setHazardsRadar } from './hazards';
-import { buildScenery, disposeScenery, syncScenery } from './scenery';
+import { addRoadside, addRuins, buildScenery, disposeScenery, syncScenery } from './scenery';
+import { loadPropLibrary, type PropLibrary } from './props';
 import { buildWalls, disposeWalls, setWallsRadar } from './walls';
 import { buildTurrets, disposeTurrets, syncMissiles } from './turret';
 import { Rig } from './rig';
@@ -35,6 +36,8 @@ export class ThreeRenderer implements Renderer {
   private readonly camTarget = new THREE.Vector3();
   private firstFrame = true;
   private radarOn = false;
+  private props: PropLibrary | null = null;
+  private pendingRoute: RouteDef | null = null;
   private readonly stormFog = new THREE.Color();
 
   mount(el: HTMLElement): void {
@@ -57,6 +60,10 @@ export class ThreeRenderer implements Renderer {
     this.rig.group.add(this.cargo.group);
     this.scene.add(this.cargo.debrisGroup);
     this.resize();
+    void loadPropLibrary().then((props) => {
+      this.props = props;
+      if (this.pendingRoute && this.scenery) { addRuins(this.scenery, this.pendingRoute, props); addRoadside(this.scenery, this.pendingRoute, props); this.pendingRoute = null; }
+    }).catch(() => { /* the world still renders procedurally without authored props */ });
   }
 
   setLoadout(items: ItemDef[]): void { this.cargo.setLoadout(items); }
@@ -72,6 +79,10 @@ export class ThreeRenderer implements Renderer {
     this.scene.add(this.hazardGroup);
     if (this.scenery) { this.scene.remove(this.scenery); disposeScenery(this.scenery); }
     this.scenery = buildScenery(route); this.scene.add(this.scenery);
+    // ruins arrive with the prop library, which loads once and asynchronously; a route set before it
+    // resolves is remembered so the skyline still appears on the run the player is already driving
+    if (this.props) { addRuins(this.scenery, route, this.props); addRoadside(this.scenery, route, this.props); }
+    else this.pendingRoute = route;
     if (this.walls) { this.scene.remove(this.walls); disposeWalls(this.walls); }
     this.walls = buildWalls(route); this.scene.add(this.walls);
     if (this.turrets) { this.scene.remove(this.turrets); disposeTurrets(this.turrets); }

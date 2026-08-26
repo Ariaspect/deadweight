@@ -15,7 +15,7 @@ export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tunin
   }));
   return {
     t: 0, x: 0, z: 0, lateralVel: 0, lift: 0, liftVel: 0, grounded: true,
-    tilt: 0, tiltVel: 0, gait: 0, speed: 0, targetSpeed: 0, ballast: 0, trimTarget: 0,
+    tilt: 0, tiltVel: 0, gait: 0, speed: 0, targetSpeed: 0, ballast: 0, trimTarget: 0, assist: 0,
     strap: tuning.strapStart, selectedSlot: items.reduce((m, it) => Math.min(m, it.slot), items.length ? 99 : 0), reserve: tuning.reserveStart, braced: false,
     storm: 0, radar: false,
     missiles: [], shield: -1, shieldUntil: 0, shieldReadyAt: 0,
@@ -141,7 +141,11 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   const load = loadOffsetOf(s.items, tuning);
   const ideal = -(tuning.kSlope * slope + tuning.kLoad * load) / tuning.kBallast * 100;
   s.trimTarget = clamp(Math.round(ideal), -tuning.ballastRange, tuning.ballastRange);   // read by the panel's ballast target pip
-  const effBallast = s.ballast + tuning.autoTrim * (ideal - s.ballast);
+  // The trim assist EASES toward closing the gap rather than holding a fixed fraction of it, so a fitted
+  // governor actually arrives at the calculated trim instead of parking part-way. autoTrim is a per-tick
+  // rate: 0.006 closes ~85% of the gap in 6 s and ~97% in 10 s. At the base value of 0 the assist never moves.
+  s.assist += (ideal - s.ballast - s.assist) * tuning.autoTrim;
+  const effBallast = clamp(s.ballast + s.assist, -tuning.ballastRange, tuning.ballastRange);
   const torque = tuning.kSlope * slope + tuning.kBallast * (effBallast / 100) + tuning.kLoad * load - s.lateralVel * tuning.lateralTip;
   const acc = torque - tuning.damping * s.tiltVel - tuning.stiffness * s.tilt;
   s.tiltVel += acc * dt;

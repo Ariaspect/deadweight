@@ -1,8 +1,8 @@
 [
-  { "id": "wide-trim", "name": "Wide Trim Rack", "cost": 250, "blurb": "Ballast dial swings to ±130.", "effect": { "key": "ballastRange", "value": 130 } },
-  { "id": "governor", "name": "Trim Assist Governor", "cost": 400, "blurb": "Pulls 30% of the way to neutral for you.", "effect": { "key": "autoTrim", "value": 0.3 } },
-  { "id": "straps", "name": "Reinforced Straps", "cost": 300, "blurb": "Jolts loosen straps 40% less.", "effect": { "key": "strapJoltMul", "value": 0.6 } },
+  { "id": "cells", "name": "Auxiliary Cells", "cost": 250, "blurb": "Start every haul with 130 reserve instead of 100.", "effect": { "key": "reserveStart", "value": 130 } },
+  { "id": "governor", "name": "Trim Assist Governor", "cost": 400, "blurb": "Trim drifts to the calculated point on its own over a few seconds.", "effect": { "key": "autoTrim", "value": 0.006 } },
+  { "id": "treads", "name": "Silt Treads", "cost": 300, "blurb": "Mud costs you far less speed.", "effect": { "key": "mudSpeedMul", "value": 0.85 } },
+  { "id": "gimbal", "name": "Gimballed Deck", "cost": 450, "blurb": "Cargo tolerates a wider tilt before it starts sliding.", "effect": { "key": "driftThreshold", "value": 0.4 } },
   { "id": "bay", "name": "Third Cargo Bay", "cost": 500, "blurb": "Carry three orders at once.", "effect": { "key": "capacity", "value": 3 } },
-  { "id": "stride", "name": "Long-Stride Actuators", "cost": 350, "blurb": "Every gait 20% faster.", "effect": { "key": "gaitSpeedMul", "value": 1.2 } },
-  { "id": "surplus", "name": "Kit Surplus Contract", "cost": 200, "blurb": "Infrastructure kits half price.", "effect": { "key": "kitCostMul", "value": 0.5 } }
+  { "id": "stride", "name": "Long-Stride Actuators", "cost": 350, "blurb": "Every gait 20% faster.", "effect": { "key": "gaitSpeedMul", "value": 1.2 } }
 ]

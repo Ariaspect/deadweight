@@ -1,4 +1,4 @@
-import { createRun, predictTrim, step } from '../sim/step';
+import { createRun, highestDanger, predictTrim, step } from '../sim/step';
 import { evaluate } from '../sim/score';
 import { generateRoute } from '../sim/terrain';
 import { applyUpgrades } from '../sim/upgrades';
@@ -8,6 +8,7 @@ import { loadSave, writeSave, type SaveData, type StorageLike } from './save';
 import { generateCargo, pickRoutes, playerTier, routeDifficulty, stormRisk, type RouteRating } from './orders';
 import { pickHq, pickReview } from './reviews';
 import { renderDispatch } from '../ui/screens/dispatch';
+import { showBriefing } from '../ui/briefing';
 import { renderRouteSelect, type RouteOption } from '../ui/screens/route';
 import { renderLoadout } from '../ui/screens/loadout';
 import { renderResult } from '../ui/screens/result';
@@ -16,6 +17,8 @@ import { Hud } from '../ui/hud';
 import { routeSketchSvg } from '../ui/sketch';
 import { describeEvents, snapshot, type EventSnapshot } from './events';
 import type { Renderer, RenderPrev } from '../render/Renderer';
+import type { GameAudio } from '../audio/gameAudio';
+import { ThreatAudio } from '../audio/cues';
 import type { Panel } from '../ui/panel/panel';
 import type { InputController } from '../ui/input';
 import type { HazardDef, HazardType, HqDef, ItemDef, LoadoutItem, OutpostDef, ReviewDef, RigState, RouteDef, RunResult, Tuning, UpgradeDef } from '../sim/types';
@@ -23,7 +26,7 @@ import type { HazardDef, HazardType, HqDef, ItemDef, LoadoutItem, OutpostDef, Re
 export interface Content { cargo: ItemDef[]; outposts: OutpostDef[]; hazards: HazardDef[]; upgrades: UpgradeDef[]; reviews: ReviewDef[]; hq: HqDef[] }
 export interface FlowDeps {
   viewportEl: HTMLElement; panel: Panel; screenEl: HTMLElement; input: InputController;
-  renderer: Promise<Renderer>; baseTuning: Tuning; content: Content; storage: StorageLike;
+  renderer: Promise<Renderer>; baseTuning: Tuning; content: Content; storage: StorageLike; audio?: GameAudio;
 }
 
 const LINGER: Record<NonNullable<RigState['ended']>, number> = { arrived: 60, stalled: 90, spilled: 180 };
@@ -41,6 +44,7 @@ export class Flow {
   private readonly metaRng = mulberry32((Date.now() & 0x7fffffff) >>> 0);
   private readonly telegraph: Record<HazardType, number>;
   private readonly hud: Hud;
+  private readonly threatAudio = new ThreatAudio();
 
   constructor(private readonly d: FlowDeps) {
     const { data, reset } = loadSave(d.storage);
@@ -61,7 +65,7 @@ export class Flow {
   private dispatch(): void {
     const { content, panel, screenEl } = this.d;
     const routes = new Map<string, RouteDef>();
-    const options: RouteOption[] = pickRoutes(content.outposts, this.save.runs, this.tuning).map((outpost) => {
+    const options: RouteOption[] = pickRoutes(content.outposts, this.save.hauls, this.tuning).map((outpost) => {
       const route = generateRoute(outpost.seed, outpost.lengthM, outpost.tier, content.hazards, this.tuning);
       routes.set(outpost.id, route);
       return {
@@ -72,7 +76,7 @@ export class Flow {
     });
     const hqLine = pickHq(content.hq, 'dispatch', 'any', this.metaRng);
     panel.setMessage(hqLine);
-    renderRouteSelect(screenEl, { options, hqLine, cash: this.save.cash, tier: playerTier(this.save.runs) }, (picked) => {
+    renderRouteSelect(screenEl, { options, hqLine, cash: this.save.cash, tier: playerTier(this.save.hauls) }, (picked) => {
       this.outpost = picked;
       this.route = routes.get(picked.id)!;
       this.rating = options.find((o) => o.outpost.id === picked.id)!.rating;
@@ -84,13 +88,13 @@ export class Flow {
   private manifest(): void {
     const { content, panel, screenEl } = this.d;
     const outpost = this.outpost!, route = this.route!;
-    const cargo = generateCargo(content.cargo, this.save.runs, this.metaRng, this.tuning);
+    const cargo = generateCargo(content.cargo, this.save.hauls, this.metaRng, this.tuning);
     const hqLine = pickHq(content.hq, 'dispatch', cargo[0]?.behavior ?? 'any', this.metaRng);
     panel.setMessage(hqLine);
     renderDispatch(screenEl, {
       offers: { outpost, cargo }, profile: route.slopeProfile, profileStepM: this.tuning.terrain.profileStepM,
       sketch: routeSketchSvg(route), hqLine, rating: this.rating,
-      capacity: this.tuning.capacity, cash: this.save.cash, tier: playerTier(this.save.runs), traceCount: 0, tuning: this.tuning,
+      capacity: this.tuning.capacity, cash: this.save.cash, tier: playerTier(this.save.hauls), traceCount: 0, tuning: this.tuning,
     }, (selected) => this.load(selected));
   }
 
@@ -109,9 +113,12 @@ export class Flow {
     input.setBallast(predictTrim(loadout, tuning));   // start trimmed for the load, not already drifting
     input.setBays(loadout.map((l) => l.slot));
     let snap: EventSnapshot = snapshot(state);
+    d.audio?.beginRun(state);
+    this.threatAudio.beginRun(state);
     panel.setMessage(`HQ: ${this.outpost!.name}. ${loadout.length} aboard. W walks at the gait you set. Pick your lanes.`);
     const defs = loadout.map((l) => l.def);
-    const attach = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); };
+    // one frame painted behind the briefing so the world is visible while the sim is stopped
+    const attach = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); r.draw(state, prev, 0); };
     if (this.renderer) attach(this.renderer); else d.renderer.then(attach);
 
     let linger = 0;
@@ -123,6 +130,8 @@ export class Flow {
         if (finished) return;
         prev.x = state.x; prev.z = state.z; prev.lift = state.lift; prev.lateralVel = state.lateralVel; prev.tilt = state.tilt; prev.speed = state.speed;
         step(state, inp, route, this.save.traces, tuning, rng);
+        d.audio?.step(inp, state, tuning.dt);
+        this.threatAudio.step(state, highestDanger(state, tuning), inp.shieldSector);
         const ev = describeEvents(snap, state, route, tuning.cacheReserve); snap = ev.next;
         if (ev.lines.length) panel.setMessage(ev.lines.join('\n'));
         if (state.ended) { if (++linger > LINGER[state.ended]) { finished = true; this.finish(state, loop); } } else linger = 0;
@@ -131,15 +140,21 @@ export class Flow {
         this.renderer?.draw(state, prev, alpha);
         panel.update(state, tuning, route);
         this.hud.update(state, route);
-        panel.setHazard(route.hazards.some((h) => h.impulse > 0 && (h.x1 ?? h.x) >= state.x && h.x <= state.x + this.telegraph[h.type] && Math.abs(state.z - h.z) < h.halfW));
+        const hazard = route.hazards.some((h) => h.impulse > 0 && (h.x1 ?? h.x) >= state.x && h.x <= state.x + this.telegraph[h.type] && Math.abs(state.z - h.z) < h.halfW);
+        panel.setHazard(hazard);
+        d.audio?.setHazard(hazard);
       },
     });
     this.loop = loop;
-    loop.start();
+    // the briefing holds the run: the loop is not started, so no tick runs and the input log stays clean
+    panel.update(state, tuning, route);
+    this.hud.update(state, route);
+    showBriefing(d.viewportEl.parentElement ?? document.body, this.outpost?.name ?? '', () => loop.start());
   }
 
   private finish(state: RigState, loop: GameLoop): void {
     loop.stop();
+    this.threatAudio.stop();
     this.review(evaluate(state, this.tuning, this.rating.payoutMul), state);
   }
 
@@ -148,6 +163,7 @@ export class Flow {
     const outpost = this.outpost!;
     this.save.cash += result.total;
     this.save.runs += 1;
+    if (result.ended === 'arrived') this.save.hauls += 1;   // rank comes from deliveries, not attempts
     if (result.stars > (this.save.bestByOutpost[outpost.id] ?? 0)) this.save.bestByOutpost[outpost.id] = result.stars;
     writeSave(storage, this.save);
     const worst = [...state.items].sort((a, b) => (a.lost ? 2 : a.stress) - (b.lost ? 2 : b.stress)).at(-1);

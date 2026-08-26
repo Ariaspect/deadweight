@@ -8,8 +8,9 @@ import { generateRoute } from '../src/sim/terrain';
 import { crateDef } from './helpers';
 
 describe('playerTier', () => {
-  it('steps every 3 runs, caps at 3', () => {
-    expect(playerTier(0)).toBe(0); expect(playerTier(2)).toBe(0); expect(playerTier(3)).toBe(1); expect(playerTier(9)).toBe(3); expect(playerTier(40)).toBe(3);
+  it('is one rank per delivered haul, capped at 3', () => {
+    expect(playerTier(0)).toBe(0); expect(playerTier(1)).toBe(1); expect(playerTier(2)).toBe(2);
+    expect(playerTier(3)).toBe(3); expect(playerTier(40)).toBe(3);
   });
 });
 
