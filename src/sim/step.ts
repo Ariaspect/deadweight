@@ -1,7 +1,8 @@
-import type { HazardInstance, InputFrame, ItemState, LoadoutItem, RigState, RouteDef, Trace, Tuning } from './types';
+import type { HazardInstance, InputFrame, ItemState, LoadoutItem, Missile, RigState, RouteDef, Trace, Tuning } from './types';
 import type { Rng } from './rng';
 import { resolveWalls } from './walls';
 import { stormLevel } from './storm';
+import { dangerLevel, octantOf } from './turret';
 
 export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tuning): RigState {
   void route;
@@ -17,6 +18,7 @@ export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tunin
     tilt: 0, tiltVel: 0, gait: 0, speed: 0, targetSpeed: 0, ballast: 0, trimTarget: 0,
     strap: tuning.strapStart, selectedSlot: items.reduce((m, it) => Math.min(m, it.slot), items.length ? 99 : 0), reserve: tuning.reserveStart, braced: false,
     storm: 0, radar: false,
+    missiles: [], shield: -1, shieldUntil: 0, shieldReadyAt: 0,
     items, foundDiscoveries: [], zoneCooldown: [], recovering: 0, hazardCursor: 0, overTiltTicks: 0, ended: null,
   };
 }
@@ -71,6 +73,60 @@ function applyRestraintInput(s: RigState, input: InputFrame, tuning: Tuning): vo
   syncStrap(s);
 }
 
+/** The worst level among missiles in flight, or 0 when the sky is clear. Read by the HUD and the bot. */
+export function highestDanger(s: RigState, tuning: Tuning): number {
+  let worst = 0;
+  for (const m of s.missiles) {
+    const l = dangerLevel(s.t - m.launchTick, tuning);
+    if (l > worst) worst = l;
+  }
+  return worst;
+}
+
+function stepTurrets(s: RigState, route: RouteDef, tuning: Tuning): void {
+  const t = tuning.turret;
+  for (const turret of route.turrets) {
+    if (Math.abs(turret.x - s.x) > t.rangeM) continue;
+    if ((s.t + turret.phase) % t.cooldownTicks !== 0) continue;
+    s.missiles.push({ id: s.t * 8 + turret.id, x: turret.x, z: turret.z, launchTick: s.t, impactTick: s.t + t.flightTicks });
+  }
+}
+
+function stepMissiles(s: RigState, tuning: Tuning): void {
+  const t = tuning.turret;
+  const live: Missile[] = [];
+  for (const m of s.missiles) {
+    const left = m.impactTick - s.t;
+    if (left > 0) {
+      // Close a share of the remaining gap each tick. The denominator is left + 1, NOT left: closing the
+      // whole gap would put the missile exactly on the rig at impact, and a zero vector has no bearing to
+      // block against. This leaves a gap of D/(flightTicks + 1) — visually on top of you, still directional.
+      const f = 1 / (left + 1);
+      m.x += (s.x - m.x) * f;
+      m.z += (s.z - m.z) * f;
+      live.push(m);
+      continue;
+    }
+    const blocked = s.shield >= 0 && s.shield === octantOf(m.x - s.x, m.z - s.z);
+    if (!blocked) {
+      s.tiltVel += (m.z >= s.z ? 1 : -1) * t.impulse * hazardScale(s, tuning);
+      loosenAll(s, t.strapJolt * tuning.strapJoltMul);
+    }
+  }
+  s.missiles = live;
+}
+
+function stepShield(s: RigState, input: InputFrame, tuning: Tuning): void {
+  const t = tuning.turret;
+  if (s.shield >= 0 && s.t >= s.shieldUntil) { s.shield = -1; s.shieldReadyAt = s.t + t.shieldCooldown; }
+  const want = input.shieldSector;
+  if (want === undefined || s.shield >= 0 || s.t < s.shieldReadyAt) return;
+  if (Math.abs(s.speed) >= t.shieldStopEpsilon) return;    // you must already be stopped
+  s.shield = want;
+  s.shieldUntil = s.t + t.shieldTicks;
+  s.reserve -= t.shieldCost;
+}
+
 export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning: Tuning): void {
   const dt = tuning.dt, mul = tuning.gaitSpeedMul, vmax = tuning.gaitSpeed[4]! * mul;
   s.gait = input.gait;
@@ -79,6 +135,7 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   s.storm = stormLevel(route, s.t, tuning);   // must precede applyRestraintInput, which works the straps loose by it
   s.radar = input.radar ?? false;
   applyRestraintInput(s, input, tuning);
+  stepShield(s, input, tuning);   // must precede the speed target below, which reads this tick's shield state
 
   const slope = route.slopeAt(s.x);
   const load = loadOffsetOf(s.items, tuning);
@@ -96,6 +153,7 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   let target = throttle === 1 ? tuning.gaitSpeed[s.gait]! * mul : throttle === -1 ? -tuning.gaitSpeed[1]! * mul : 0;
   if (s.braced) target = clamp(target, -tuning.braceSpeed, tuning.braceSpeed);
   if (inMud) target *= tuning.mudSpeedMul;
+  if (s.shield >= 0) target = 0;   // the shield only holds from a standstill
   if (s.storm > 0) target *= 1 - (1 - tuning.storm.speedMul) * s.storm;   // eases in with the 5 s ramp
   s.targetSpeed = target;
   s.speed += clamp(target - s.speed, -tuning.gaitDecel * dt, tuning.gaitAccel * dt);
@@ -125,6 +183,10 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
     }
   }
   s.reserve -= (drainRate(route, tuning) + (s.braced ? tuning.braceDrain : 0) + (s.radar ? tuning.radarDrain : 0)) * dt;
+
+  // after s.x has advanced, so a missile resolves against the position the rig actually reached this tick
+  stepTurrets(s, route, tuning);
+  stepMissiles(s, tuning);
 }
 
 export function hazardScale(s: RigState, tuning: Tuning): number {

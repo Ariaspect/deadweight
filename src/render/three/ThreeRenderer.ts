@@ -5,6 +5,7 @@ import { buildTerrain, setTerrainRadar } from './terrain';
 import { animateHazards, buildHazards, disposeHazards, setHazardsRadar } from './hazards';
 import { buildScenery, disposeScenery, syncScenery } from './scenery';
 import { buildWalls, disposeWalls, setWallsRadar } from './walls';
+import { buildTurrets, disposeTurrets, syncMissiles } from './turret';
 import { Rig } from './rig';
 import { CargoView } from './cargo';
 import { tuning } from '../../content';
@@ -23,6 +24,7 @@ export class ThreeRenderer implements Renderer {
   private hazardGroup: THREE.Group | null = null;
   private scenery: THREE.Group | null = null;
   private walls: THREE.Group | null = null;
+  private turrets: THREE.Group | null = null;
   private route: RouteDef | null = null;
   private readonly rig = new Rig();
   private readonly cargo = new CargoView();
@@ -72,6 +74,8 @@ export class ThreeRenderer implements Renderer {
     this.scenery = buildScenery(route); this.scene.add(this.scenery);
     if (this.walls) { this.scene.remove(this.walls); disposeWalls(this.walls); }
     this.walls = buildWalls(route); this.scene.add(this.walls);
+    if (this.turrets) { this.scene.remove(this.turrets); disposeTurrets(this.turrets); }
+    this.turrets = buildTurrets(route); this.scene.add(this.turrets);
     this.firstFrame = true;
   }
 
@@ -90,6 +94,7 @@ export class ThreeRenderer implements Renderer {
     const now = performance.now(); const dtSec = this.lastDrawMs ? Math.min(0.05, (now - this.lastDrawMs) / 1000) : 0; this.lastDrawMs = now;
     this.cargo.tickDebris(dtSec, (px) => this.route!.heightAt(px));
     if (this.hazardGroup) animateHazards(this.hazardGroup, curr.t + alpha);
+    if (this.turrets) syncMissiles(this.turrets, curr.missiles, this.route, curr.t + alpha);
     if (this.scenery) syncScenery(this.scenery, curr.foundDiscoveries, curr.t / 60);
     this.sun.position.set(x - 25, y + 42, z + 28); this.sunTarget.position.set(x, y, z); this.sunTarget.updateMatrixWorld();
     const danger = Math.min(1, Math.abs(curr.tilt));
@@ -133,6 +138,7 @@ export class ThreeRenderer implements Renderer {
     if (this.hazardGroup) disposeHazards(this.hazardGroup);
     if (this.scenery) disposeScenery(this.scenery);
     if (this.walls) disposeWalls(this.walls);
+    if (this.turrets) disposeTurrets(this.turrets);
     this.cargo.dispose();
     this.rig.dispose();
     this.gl.dispose(); this.gl.domElement.remove();

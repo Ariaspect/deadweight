@@ -57,6 +57,16 @@ describe('routeDifficulty', () => {
     expect(gravel.label).toBe('easy');
     expect(lantern.label).toBe('hard');
   });
+  it('routes with turrets score higher than otherwise identical routes without them', () => {
+    const o = outposts.find((x) => x.id === 'gravel')!;
+    const withoutTurrets = generateRoute(o.seed, o.lengthM, o.tier, hazards, tuning);
+    const withTurrets = generateRoute(o.seed, o.lengthM, o.tier, hazards, tuning);
+    withTurrets.turrets.push({ id: 0, x: o.lengthM / 2, z: 70, phase: 0 });
+    const scoreWithout = routeDifficulty(withoutTurrets, o, tuning).score;
+    const scoreWith = routeDifficulty(withTurrets, o, tuning).score;
+    expect(scoreWith).toBeGreaterThan(scoreWithout);
+    expect(scoreWith - scoreWithout).toBeCloseTo(tuning.route.turretWeight, 1);
+  });
 });
 
 describe('generateOffers', () => {

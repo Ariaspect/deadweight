@@ -1,6 +1,7 @@
 import type { RouteDef } from '../sim/types';
 
 const f1 = (n: number): string => n.toFixed(1);
+const HALF_MARK = 2;   // turret marks are 4x4, drawn from their centre
 
 /** Screen mapping: x across the window, +z downwards, bound = halfWidth + pocketDepth + 3 (edge walls visible). */
 export function mapPoint(route: RouteDef, x: number, z: number, x0: number, x1: number, w: number, h: number): { sx: number; sy: number } {
@@ -31,6 +32,16 @@ function layer(route: RouteDef, x0: number, x1: number, w: number, h: number): s
     if (d.x < x0 || d.x > x1) continue;
     const c = p(d.x, d.z);
     parts.push(`<rect class="cache" data-cache="${d.id}" x="${f1(c.sx - 2)}" y="${f1(c.sy - 2)}" width="4" height="4" transform="rotate(45 ${f1(c.sx)} ${f1(c.sy)})"/>`);
+  }
+  for (const t of route.turrets) {
+    if (t.x < x0 || t.x > x1) continue;
+    // Turrets sit far outside the corridor, so their z has to be pulled in. Clamping to the band edge itself
+    // puts the marker half outside the viewBox and the rest under the border — inset by its own size instead.
+    const bound = route.halfWidth + 11;
+    const inset = bound * (1 - HALF_MARK * 2 / (h / 2));
+    const clampedZ = Math.max(-inset, Math.min(inset, t.z));
+    const c = p(t.x, clampedZ);
+    parts.push(`<rect class="turret" x="${f1(c.sx - HALF_MARK)}" y="${f1(c.sy - HALF_MARK)}" width="${HALF_MARK * 2}" height="${HALF_MARK * 2}"/>`);
   }
   return parts.join('');
 }

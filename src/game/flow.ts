@@ -47,7 +47,10 @@ export class Flow {
     this.save = data;
     this.tuning = applyUpgrades(d.baseTuning, data.upgrades, d.content.upgrades);
     this.telegraph = Object.fromEntries(d.content.hazards.map((h) => [h.type, h.telegraphM])) as Record<HazardType, number>;
-    this.hud = new Hud(d.viewportEl, { onSelectBay: (slot) => d.input.selectCargo(slot), onToggleRadar: () => d.input.toggleRadar() });
+    this.hud = new Hud(d.viewportEl, {
+      onSelectBay: (slot) => d.input.selectCargo(slot),
+      onToggleRadar: () => d.input.toggleRadar(),
+    });
     if (reset) d.panel.setMessage('HQ: Save data unreadable. Fresh ledger opened.');
     d.renderer.then((r) => { this.renderer = r; });
   }
@@ -126,7 +129,7 @@ export class Flow {
       },
       render: (alpha) => {
         this.renderer?.draw(state, prev, alpha);
-        panel.update(state, tuning);
+        panel.update(state, tuning, route);
         this.hud.update(state, route);
         panel.setHazard(route.hazards.some((h) => h.impulse > 0 && (h.x1 ?? h.x) >= state.x && h.x <= state.x + this.telegraph[h.type] && Math.abs(state.z - h.z) < h.halfW));
       },

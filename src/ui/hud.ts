@@ -122,5 +122,6 @@ export class Hud {
       this.stormEl.classList.toggle('warning', s.storm === 0);
     }
     this.radarEl.hidden = !s.radar;
+
   }
 }
