@@ -132,8 +132,8 @@ describe('octantOf', () => {
       const a = deg * Math.PI / 180;
       const o = octantOf(Math.cos(a) * 50, Math.sin(a) * 50);
       const centre = o * 45;
-      let diff = Math.abs(((deg - centre + 540) % 360) - 180);
-      diff = 180 - diff;
+      // wrapped circular distance between the angle and its octant's centre
+      const diff = Math.abs(((deg - centre + 540) % 360) - 180);
       expect(diff, `angle ${deg} deg landed in octant ${o}`).toBeLessThanOrEqual(22.5001);
     }
   });

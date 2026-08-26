@@ -17,6 +17,7 @@ export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tunin
     tilt: 0, tiltVel: 0, gait: 0, speed: 0, targetSpeed: 0, ballast: 0, trimTarget: 0,
     strap: tuning.strapStart, selectedSlot: items.reduce((m, it) => Math.min(m, it.slot), items.length ? 99 : 0), reserve: tuning.reserveStart, braced: false,
     storm: 0, radar: false,
+    missiles: [], shield: -1, shieldUntil: 0, shieldReadyAt: 0,
     items, foundDiscoveries: [], zoneCooldown: [], recovering: 0, hazardCursor: 0, overTiltTicks: 0, ended: null,
   };
 }
