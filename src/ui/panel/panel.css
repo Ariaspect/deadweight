@@ -93,10 +93,10 @@ button.big:disabled { opacity: .35; }
 .cargo-bay { cursor: pointer; }
 .minimap .wall { fill: #8a847c; } .minimap .rock { fill: #5a544c; } .minimap .ruin { fill: #7a5a44; } .minimap .baffle { fill: #a09a90; }
 .minimap .hz { fill: #d9603a; } .minimap .hz-mud { fill: #4b3f33; opacity: .8; } .minimap .hz-rockfall, .minimap .hz-crane { fill: #b83a2a; opacity: .75; }
-.minimap .cache { fill: #d29a4a; } .minimap .cache.found { fill: #59615f; }
+.minimap .cache { fill: #d29a4a; } .minimap .cache.found { fill: #59615f; } .minimap .turret { fill: #d29a4a; }
 .sketch { display: block; width: 100%; height: 96px; background: #f4ecd8; border: 2px solid var(--gun); border-radius: 4px; margin-bottom: 10px; }
 .sketch .corridor { fill: #d9cfb6; } .sketch .wall { fill: #6f6a63; } .sketch .rock { fill: #4f4a44; } .sketch .ruin { fill: #6e4a34; } .sketch .baffle { fill: #8a847c; }
-.sketch .hz { fill: #c8622a; } .sketch .hz-mud { fill: #4b3f33; } .sketch .hz-rockfall, .sketch .hz-crane { fill: #8f2f22; opacity: .7; } .sketch .cache { fill: #b8860b; }
+.sketch .hz { fill: #c8622a; } .sketch .hz-mud { fill: #4b3f33; } .sketch .hz-rockfall, .sketch .hz-crane { fill: #8f2f22; opacity: .7; } .sketch .cache { fill: #b8860b; } .sketch .turret { fill: #d29a4a; }
 .profile-strip .profile { height: 34px; }
 @keyframes warning-pulse { 50% { filter: brightness(1.45); } }
 .hud .storm { position: absolute; left: 50%; top: 74px; transform: translateX(-50%); padding: 6px 12px; color: #f4ead2; background: rgba(96,64,28,.82); border: 1px solid #d29a4a; letter-spacing: .14em; }

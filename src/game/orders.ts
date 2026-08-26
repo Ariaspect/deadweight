@@ -25,7 +25,8 @@ export function routeDifficulty(route: RouteDef, outpost: OutpostDef, tuning: Tu
     + impulse / (route.length / 100) * r.hazardWeight
     + route.zones.length * r.zoneWeight
     + maxSlope * r.slopeWeight
-    + route.storms.length * r.stormWeight;
+    + route.storms.length * r.stormWeight
+    + route.turrets.length * r.turretWeight;
   return {
     score,
     payoutMul: 1 + Math.max(0, score - r.baseScore) * r.payWeight,

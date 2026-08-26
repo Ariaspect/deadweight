@@ -6,12 +6,13 @@ import { tuning, hazards } from '../src/content';
 const route = generateRoute(6142, 780, 2, hazards, tuning);
 
 describe('route sketch', () => {
-  it('draws one rect per wall, one glyph per hazard and one marker per discovery', () => {
+  it('draws one rect per wall, one glyph per hazard, one marker per discovery and one mark per turret', () => {
     const svg = routeSketchSvg(route);
     expect(svg.startsWith('<svg')).toBe(true);
     expect(svg.match(/class="wall (wall|rock|ruin|baffle)"/g)).toHaveLength(route.walls.length);
     expect(svg.match(/class="hz hz-/g)).toHaveLength(route.hazards.length);
     expect(svg.match(/class="cache"/g)).toHaveLength(route.discoveries.length);
+    expect(svg.match(/class="turret"/g)).toHaveLength(route.turrets.length);
   });
   it('minimap only includes what falls inside the window', () => {
     const inside = minimapMarkup(route, 100, 340);

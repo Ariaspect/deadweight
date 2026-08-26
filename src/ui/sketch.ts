@@ -32,6 +32,14 @@ function layer(route: RouteDef, x0: number, x1: number, w: number, h: number): s
     const c = p(d.x, d.z);
     parts.push(`<rect class="cache" data-cache="${d.id}" x="${f1(c.sx - 2)}" y="${f1(c.sy - 2)}" width="4" height="4" transform="rotate(45 ${f1(c.sx)} ${f1(c.sy)})"/>`);
   }
+  for (const t of route.turrets) {
+    if (t.x < x0 || t.x > x1) continue;
+    // Clamp z to the edge of the band since turrets sit outside the corridor
+    const bound = route.halfWidth + 11;
+    const clampedZ = Math.max(-bound, Math.min(bound, t.z));
+    const c = p(t.x, clampedZ);
+    parts.push(`<rect class="turret" x="${f1(c.sx - 1.5)}" y="${f1(c.sy - 1.5)}" width="3" height="3"/>`);
+  }
   return parts.join('');
 }
 
