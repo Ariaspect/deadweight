@@ -25,7 +25,8 @@ export interface OutpostDef { id: string; name: string; seed: number; lengthM: n
 
 export interface UpgradeDef {
   id: string; name: string; cost: number; blurb: string;
-  effect: { key: 'ballastRange' | 'autoTrim' | 'strapJoltMul' | 'capacity' | 'gaitSpeedMul' | 'kitCostMul'; value: number };
+  effect: { key: 'ballastRange' | 'autoTrim' | 'strapJoltMul' | 'capacity' | 'gaitSpeedMul' | 'kitCostMul'
+    | 'reserveStart' | 'mudSpeedMul' | 'driftThreshold'; value: number };
 }
 
 export interface Segment { x0: number; x1: number; slope: number; y0: number; z0?: number; z1?: number }
@@ -65,7 +66,7 @@ export interface ItemState {
 
 export interface RigState {
   t: number; x: number; z: number; lateralVel: number; lift: number; liftVel: number; grounded: boolean;
-  tilt: number; tiltVel: number; gait: Gait; speed: number; targetSpeed: number; ballast: number; trimTarget: number;
+  tilt: number; tiltVel: number; gait: Gait; speed: number; targetSpeed: number; ballast: number; trimTarget: number; assist: number;
   strap: number; selectedSlot: number; reserve: number; braced: boolean; storm: number; radar: boolean; items: ItemState[]; foundDiscoveries: number[];
   zoneCooldown: number[];            // hazard id → tick until which it cannot hit again
   recovering: number; hazardCursor: number; overTiltTicks: number; ended: EndReason | null;
