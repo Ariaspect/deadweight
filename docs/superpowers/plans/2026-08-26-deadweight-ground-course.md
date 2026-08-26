@@ -2095,7 +2095,7 @@ git commit -m "feat(ui): bay keys and Tab cycling; route sketch and minimap buil
 
 No unit tests (WebGL); verification is `pnpm typecheck && pnpm lint && pnpm build` plus a manual run in Task 14.
 
-- [ ] **Step 1: terrain.ts**
+- [x] **Step 1: terrain.ts**
 
 Replace `src/render/three/terrain.ts` with:
 
@@ -2133,7 +2133,7 @@ export function buildTerrain(route: RouteDef, stepX = 2, stepZ = 2): THREE.Mesh 
     let rut = false;
     if (fork) for (const lane of fork.lanes) if (Math.abs(rz - (lane.z0 + lane.z1) / 2) < 1.2) rut = true;
     if (!fork && Math.abs(rz) < 1.4) rut = true;
-    const mud = route.zones.some((h) => h.type === 'mud' && x >= h.x && x <= h.x1! && Math.abs(rz - h.z) < h.halfW);
+    const mud = route.zones.some((h) => h.type === 'mud' && h.x1 !== undefined && x >= h.x && x <= h.x1 && Math.abs(rz - h.z) < h.halfW);
     let drop = 0;
     for (const h of route.hazards) if (h.type === 'gap' && Math.abs(x - h.x) < 1.5 && Math.abs(rz - h.z) < h.halfW) drop = 5;
     const rough = inside ? hashNoise(x, wz) * 0.12 : hashNoise(x, wz) * 1.4;
@@ -2154,7 +2154,7 @@ export function buildTerrain(route: RouteDef, stepX = 2, stepZ = 2): THREE.Mesh 
 }
 ```
 
-- [ ] **Step 2: walls.ts (render)**
+- [x] **Step 2: walls.ts (render)**
 
 Create `src/render/three/walls.ts`:
 
@@ -2188,7 +2188,8 @@ function chunks(w: Wall): { x0: number; x1: number }[] {
 export function buildWalls(route: RouteDef): THREE.Group {
   const group = new THREE.Group();
   const counts: Record<WallKind, number> = { wall: 0, rock: 0, ruin: 0, baffle: 0 };
-  for (const w of route.walls) counts[w.kind] += chunks(w).length * (w.kind === 'rock' ? 2 : 1);
+  // rock and ruin place two instances per chunk; wall and baffle place one
+  for (const w of route.walls) counts[w.kind] += chunks(w).length * (w.kind === 'rock' || w.kind === 'ruin' ? 2 : 1);
   const meshes = {} as Record<WallKind, THREE.InstancedMesh>;
   for (const kind of Object.keys(counts) as WallKind[]) {
     const m = new THREE.InstancedMesh(GEOMETRY[kind], MATERIAL[kind], Math.max(1, counts[kind]));
@@ -2227,7 +2228,7 @@ export function disposeWalls(group: THREE.Group): void {
 }
 ```
 
-- [ ] **Step 3: Wire into ThreeRenderer**
+- [x] **Step 3: Wire into ThreeRenderer**
 
 In `src/render/three/ThreeRenderer.ts`: import `{ buildWalls, disposeWalls } from './walls'`; add `private walls: THREE.Group | null = null;`; in `setRoute` after the scenery block add
 
@@ -2238,7 +2239,7 @@ In `src/render/three/ThreeRenderer.ts`: import `{ buildWalls, disposeWalls } fro
 
 and in `dispose()` add `if (this.walls) disposeWalls(this.walls);`.
 
-- [ ] **Step 4: Gates and commit**
+- [x] **Step 4: Gates and commit**
 
 Run: `pnpm typecheck && pnpm lint && pnpm build`
 Expected: green.
@@ -2247,6 +2248,12 @@ Expected: green.
 git add -A
 git commit -m "feat(render): corridor ground with ruts and mud; instanced wall, rock, ruin and baffle chunks"
 ```
+
+---
+
+**Ruling (execution):** the capacity count above multiplies by 2 for `ruin` as well as `rock` — the `ruin`
+branch calls `place()` twice, so the original `w.kind === 'rock' ? 2 : 1` overflowed every ruin's `InstancedMesh`.
+The mud test drops the `x1!` non-null assertion for an explicit `!== undefined` guard.
 
 ---
 
