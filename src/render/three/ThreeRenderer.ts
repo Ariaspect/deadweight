@@ -4,6 +4,7 @@ import type { ItemDef, RigState, RouteDef } from '../../sim/types';
 import { buildTerrain } from './terrain';
 import { animateHazards, buildHazards, disposeHazards } from './hazards';
 import { buildScenery, disposeScenery, syncScenery } from './scenery';
+import { buildWalls, disposeWalls } from './walls';
 import { Rig } from './rig';
 import { CargoView } from './cargo';
 import { tuning } from '../../content';
@@ -18,6 +19,7 @@ export class ThreeRenderer implements Renderer {
   private terrain: THREE.Mesh | null = null;
   private hazardGroup: THREE.Group | null = null;
   private scenery: THREE.Group | null = null;
+  private walls: THREE.Group | null = null;
   private route: RouteDef | null = null;
   private readonly rig = new Rig();
   private readonly cargo = new CargoView();
@@ -62,6 +64,8 @@ export class ThreeRenderer implements Renderer {
     this.scene.add(this.hazardGroup);
     if (this.scenery) { this.scene.remove(this.scenery); disposeScenery(this.scenery); }
     this.scenery = buildScenery(route); this.scene.add(this.scenery);
+    if (this.walls) { this.scene.remove(this.walls); disposeWalls(this.walls); }
+    this.walls = buildWalls(route); this.scene.add(this.walls);
     this.firstFrame = true;
   }
 
@@ -103,6 +107,7 @@ export class ThreeRenderer implements Renderer {
     if (this.terrain) { this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); }
     if (this.hazardGroup) disposeHazards(this.hazardGroup);
     if (this.scenery) disposeScenery(this.scenery);
+    if (this.walls) disposeWalls(this.walls);
     this.cargo.dispose();
     this.rig.dispose();
     this.gl.dispose(); this.gl.domElement.remove();
