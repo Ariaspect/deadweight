@@ -1,10 +1,11 @@
 import type { Trace } from '../sim/types';
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
-export interface SaveData { v: 1; cash: number; runs: number; upgrades: string[]; bestByOutpost: Record<string, number>; traces: Trace[] }
+/** `runs` counts every attempt; `hauls` counts only deliveries, and rank is driven by hauls. */
+export interface SaveData { v: 1; cash: number; runs: number; hauls: number; upgrades: string[]; bestByOutpost: Record<string, number>; traces: Trace[] }
 const KEY = 'deadweight.save';
 
-export function defaultSave(): SaveData { return { v: 1, cash: 0, runs: 0, upgrades: [], bestByOutpost: {}, traces: [] }; }
+export function defaultSave(): SaveData { return { v: 1, cash: 0, runs: 0, hauls: 0, upgrades: [], bestByOutpost: {}, traces: [] }; }
 
 export function loadSave(storage: StorageLike): { data: SaveData; reset: boolean } {
   const raw = storage.getItem(KEY);

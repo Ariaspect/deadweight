@@ -8,7 +8,8 @@ export interface RouteRating { score: number; payoutMul: number; label: Difficul
 const RISK_BANDS = ['NONE', 'LOW', 'MED', 'HIGH'] as const;
 export type StormRisk = typeof RISK_BANDS[number];
 
-export function playerTier(runs: number): number { return Math.min(3, Math.floor(runs / 3)); }
+/** One delivered haul is one rank. Turrets start at tier 2, so they show up on your third run out. */
+export function playerTier(hauls: number): number { return Math.min(3, hauls); }
 
 /**
  * What the route itself asks of you, from the generated geometry rather than the outpost's declared tier alone:
