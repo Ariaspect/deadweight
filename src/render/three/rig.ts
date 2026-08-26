@@ -1,91 +1,104 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Gait, RouteDef } from '../../sim/types';
+import type { PropLibrary } from './props';
 
-const L1 = 1.7, L2 = 1.9;             // leg segment lengths
-const HIP_Y = 1.7, BODY_Y = 2.3;
-const STRIDE = 1.1, LIFT = 0.7;
-const MAX_PITCH = 0.5;                 // rad at |tilt| = 1; sign: +tilt = nose up
+const MAX_PITCH = 0.5;
+const ROBOT_HEIGHT = 3.4;
 
-interface Leg { hipX: number; side: 1 | -1; phase: number; upper: THREE.Mesh; lower: THREE.Mesh; foot: THREE.Mesh }
-
-function setCylinder(m: THREE.Mesh, a: THREE.Vector3, b: THREE.Vector3): void {
-  const dir = new THREE.Vector3().subVectors(b, a);
-  const len = dir.length();
-  m.position.copy(a).addScaledVector(dir, 0.5);
-  m.scale.set(1, len, 1);
-  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
-}
+type Motion = 'idle' | 'walk' | 'run' | 'jump';
 
 export class Rig {
   readonly group = new THREE.Group();
-  readonly body: THREE.Mesh;
-  private legs: Leg[] = [];
-  private phase = 0;
+  private readonly visual = new THREE.Group();
+  private trailer: THREE.Group | null = null;
+  private robot: THREE.Group | null = null;
+  private mixer: THREE.AnimationMixer | null = null;
+  private actions = new Map<Motion, THREE.AnimationAction>();
+  private motion: Motion | null = null;
   private lastTick = 0;
-  private legMat = new THREE.MeshLambertMaterial({ color: '#3a3632', flatShading: true });
-  private footMat = new THREE.MeshLambertMaterial({ color: '#6e4a34', flatShading: true });
+  private disposed = false;
 
   constructor() {
-    this.body = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.1, 1.8), new THREE.MeshLambertMaterial({ color: '#5a5148', flatShading: true }));
-    this.body.position.y = BODY_Y; this.body.castShadow = true;
-    this.group.add(this.body);
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.16, 2.2), new THREE.MeshStandardMaterial({ color: '#3a352f', metalness: 0.55, roughness: 0.62 }));
-    deck.position.y = BODY_Y + 0.65; deck.castShadow = true; this.group.add(deck);
-    for (const [px, pz, w] of [[-1.1, 0.7, 0.9], [0.6, -0.8, 1.2], [1.3, 0.5, 0.7]] as const) {
-      const plate = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, 0.6), new THREE.MeshStandardMaterial({ color: '#6e4a34', roughness: 0.9, metalness: 0.3 }));
-      plate.position.set(px, BODY_Y + 0.6, pz); this.group.add(plate);
+    this.visual.rotation.y = Math.PI / 2;
+    this.group.add(this.visual);
+    void this.loadRobot().catch((error: unknown) => console.warn('CC0 robot did not load.', error));
+  }
+
+  private async loadRobot(): Promise<void> {
+    const loader = new GLTFLoader();
+    const gltf = await loader.loadAsync(new URL('../../assets/models/Robot.glb', import.meta.url).href);
+    const robot = gltf.scene;
+    if (this.disposed) return;
+    robot.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    robot.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(robot);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    const scale = ROBOT_HEIGHT / Math.max(0.001, size.y);
+    robot.scale.setScalar(scale);
+    robot.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+    this.visual.add(robot);
+    this.robot = robot;
+    this.mixer = new THREE.AnimationMixer(robot);
+    const find = (part: string): THREE.AnimationClip | undefined => gltf.animations.find((clip) => clip.name.toLowerCase().includes(part));
+    for (const [motion, part] of [['idle', 'idle'], ['walk', 'walking'], ['run', 'running'], ['jump', 'walkjump']] as const) {
+      const clip = find(part);
+      if (clip) this.actions.set(motion, this.mixer.clipAction(clip));
     }
-    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffd078' }));
-    lamp.position.set(1.74, BODY_Y + 0.12, 0.58); this.group.add(lamp);
-    const deadLamp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), new THREE.MeshBasicMaterial({ color: '#3a3632' }));
-    deadLamp.position.set(1.74, BODY_Y + 0.12, -0.58); this.group.add(deadLamp);
-    const cyl = new THREE.CylinderGeometry(0.11, 0.09, 1, 6);
-    const ball = new THREE.SphereGeometry(0.16, 6, 6);
-    for (let i = 0; i < 6; i++) {
-      const side: 1 | -1 = i < 3 ? 1 : -1;
-      const col = i % 3;
-      const phase = ((col + (side > 0 ? 0 : 1)) % 2) * Math.PI;   // tripod gait
-      const upper = new THREE.Mesh(cyl, this.legMat), lower = new THREE.Mesh(cyl, this.legMat), foot = new THREE.Mesh(ball, this.footMat);
-      this.group.add(upper, lower, foot);
-      upper.castShadow = true; lower.castShadow = true; foot.castShadow = true;
-      this.legs.push({ hipX: (col - 1) * 1.25, side, phase, upper, lower, foot });
-    }
+    this.setMotion('idle');
+  }
+
+  setPropLibrary(props: PropLibrary): void {
+    if (this.trailer) this.group.remove(this.trailer);
+    const trailer = props.clone('trailer', 0.9);
+    if (!trailer) return;
+    trailer.position.set(-2.35, 0, 0);
+    trailer.rotation.y = Math.PI / 2;
+    trailer.scale.set(1.45, 1, 1.35);
+    this.group.add(trailer);
+    this.trailer = trailer;
+  }
+
+  private setMotion(next: Motion): void {
+    if (next === this.motion) return;
+    const previous = this.motion ? this.actions.get(this.motion) : undefined;
+    const action = this.actions.get(next);
+    if (!action) return;
+    previous?.fadeOut(0.16);
+    action.reset().fadeIn(0.16).play();
+    this.motion = next;
   }
 
   update(x: number, y: number, z: number, lift: number, lateralVel: number, tilt: number, speed: number, gait: Gait, tick: number, route: RouteDef): void {
+    void route;
     this.group.position.set(x, y + lift, z);
-    this.group.rotation.z = tilt * MAX_PITCH;   // Rz(+θ) lifts +X (nose) → positive tilt = nose up
+    this.group.rotation.z = tilt * MAX_PITCH;
     this.group.rotation.x = clamp(-lateralVel * 0.035, -0.28, 0.28);
-    const dtick = tick - this.lastTick; this.lastTick = tick;
-    this.phase += (speed / 14) * 7.6 * dtick / 60;   // speed-proportional stride rate; gait 4 (14 m/s) ≈ the old 7.6 rad/s
-    const hip = new THREE.Vector3(), foot = new THREE.Vector3(), knee = new THREE.Vector3();
-    for (const leg of this.legs) {
-      const ph = this.phase + leg.phase;
-      hip.set(leg.hipX, HIP_Y, leg.side * 1.0);
-      const fx = leg.hipX + STRIDE * Math.cos(ph);
-      const groundY = route.heightAt(x + fx) - y - lift;
-      const fy = groundY + LIFT * Math.max(0, Math.sin(ph)) * (gait > 0 ? 1 : 0);
-      foot.set(fx, fy, leg.side * 2.1);
-      // 2-bone IK in the hip→foot plane; knee bends up/outward
-      const d = Math.min(hip.distanceTo(foot), L1 + L2 - 0.01);
-      const a = Math.acos(Math.max(-1, Math.min(1, (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d))));
-      const dir = new THREE.Vector3().subVectors(foot, hip).normalize();
-      const up = new THREE.Vector3(0, 1, 0);
-      const axis = new THREE.Vector3().crossVectors(dir, up).normalize();
-      if (axis.lengthSq() < 1e-6) axis.set(0, 0, 1);
-      knee.copy(dir).applyAxisAngle(axis, -a).multiplyScalar(L1).add(hip);
-      if (knee.y < hip.y) knee.copy(dir).applyAxisAngle(axis, a).multiplyScalar(L1).add(hip);
-      setCylinder(leg.upper, hip, knee);
-      setCylinder(leg.lower, knee, foot);
-      leg.foot.position.copy(foot);
-    }
+    const dt = this.lastTick ? clamp((tick - this.lastTick) / 60, 0, 0.1) : 0;
+    this.lastTick = tick;
+    const motion: Motion = lift > 0.08 ? 'jump' : gait === 0 || speed < 0.3 ? 'idle' : speed > 8 ? 'run' : 'walk';
+    this.setMotion(motion);
+    const current = this.actions.get(motion);
+    if (current) current.timeScale = motion === 'run' ? clamp(speed / 10, 0.7, 1.6) : motion === 'walk' ? clamp(speed / 4, 0.65, 1.5) : 1;
+    this.mixer?.update(dt);
   }
 
   dispose(): void {
-    this.body.geometry.dispose(); (this.body.material as THREE.Material).dispose();
-    for (const leg of this.legs) { leg.upper.geometry.dispose(); leg.foot.geometry.dispose(); }
-    for (const child of this.group.children) if (child instanceof THREE.Mesh && child !== this.body && !this.legs.some((l) => l.upper === child || l.lower === child || l.foot === child)) { child.geometry.dispose(); (child.material as THREE.Material).dispose(); }
-    this.legMat.dispose(); this.footMat.dispose();
+    this.disposed = true;
+    this.mixer?.stopAllAction();
+    if (this.robot) this.robot.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      child.geometry.dispose();
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      for (const material of materials) material.dispose();
+    });
+    this.group.clear();
   }
 }
 

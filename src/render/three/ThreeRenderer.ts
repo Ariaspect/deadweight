@@ -4,6 +4,7 @@ import type { ItemDef, RigState, RouteDef } from '../../sim/types';
 import { buildTerrain } from './terrain';
 import { animateHazards, buildHazards, disposeHazards } from './hazards';
 import { buildScenery, disposeScenery, syncScenery } from './scenery';
+import { loadPropLibrary, type PropLibrary } from './props';
 import { buildWalls, disposeWalls } from './walls';
 import { Rig } from './rig';
 import { CargoView } from './cargo';
@@ -19,6 +20,7 @@ export class ThreeRenderer implements Renderer {
   private terrain: THREE.Mesh | null = null;
   private hazardGroup: THREE.Group | null = null;
   private scenery: THREE.Group | null = null;
+  private props: PropLibrary | null = null;
   private walls: THREE.Group | null = null;
   private route: RouteDef | null = null;
   private readonly rig = new Rig();
@@ -49,24 +51,44 @@ export class ThreeRenderer implements Renderer {
     this.scene.add(hemi, this.sun, this.sunTarget, this.rig.group);
     this.rig.group.add(this.cargo.group);
     this.scene.add(this.cargo.debrisGroup);
+    void loadPropLibrary().then((props) => {
+      this.props = props;
+      this.cargo.setPropLibrary(props);
+      this.rig.setPropLibrary(props);
+      this.rebuildWorldAssets();
+    }).catch((error: unknown) => console.warn('CC0 environment pack did not load.', error));
     this.resize();
+  }
+
+  private rebuildWorldAssets(): void {
+    if (!this.props || !this.route) return;
+    if (this.hazardGroup) { this.scene.remove(this.hazardGroup); disposeHazards(this.hazardGroup); }
+    this.hazardGroup = buildHazards(this.route, this.props);
+    this.scene.add(this.hazardGroup);
+    if (this.scenery) { this.scene.remove(this.scenery); disposeScenery(this.scenery); }
+    this.scenery = buildScenery(this.route, this.props);
+    this.scene.add(this.scenery);
+    if (this.walls) { this.scene.remove(this.walls); disposeWalls(this.walls); }
+    this.walls = buildWalls(this.route, this.props);
+    this.scene.add(this.walls);
   }
 
   setLoadout(items: ItemDef[]): void { this.cargo.setLoadout(items); }
 
   setRoute(route: RouteDef): void {
-    if (this.terrain) { this.scene.remove(this.terrain); this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); }
+    if (this.terrain) { this.scene.remove(this.terrain); this.disposeTerrain(this.terrain); }
     this.route = route;
     this.terrain = buildTerrain(route);
     this.scene.add(this.terrain);
-    if (this.hazardGroup) { this.scene.remove(this.hazardGroup); disposeHazards(this.hazardGroup); }
-    this.hazardGroup = buildHazards(route);
-    this.scene.add(this.hazardGroup);
-    if (this.scenery) { this.scene.remove(this.scenery); disposeScenery(this.scenery); }
-    this.scenery = buildScenery(route); this.scene.add(this.scenery);
-    if (this.walls) { this.scene.remove(this.walls); disposeWalls(this.walls); }
-    this.walls = buildWalls(route); this.scene.add(this.walls);
+    this.rebuildWorldAssets();
     this.firstFrame = true;
+  }
+
+  private disposeTerrain(terrain: THREE.Mesh): void {
+    terrain.geometry.dispose();
+    const material = terrain.material as THREE.MeshStandardMaterial;
+    material.map?.dispose();
+    material.dispose();
   }
 
   draw(curr: RigState, prev: RenderPrev, alpha: number): void {
@@ -108,11 +130,12 @@ export class ThreeRenderer implements Renderer {
   }
 
   dispose(): void {
-    if (this.terrain) { this.terrain.geometry.dispose(); (this.terrain.material as THREE.Material).dispose(); }
+    if (this.terrain) this.disposeTerrain(this.terrain);
     if (this.hazardGroup) disposeHazards(this.hazardGroup);
     if (this.scenery) disposeScenery(this.scenery);
     if (this.walls) disposeWalls(this.walls);
     this.cargo.dispose();
+    this.props?.dispose();
     this.rig.dispose();
     this.gl.dispose(); this.gl.domElement.remove();
   }

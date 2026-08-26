@@ -17,12 +17,13 @@ import { describeEvents, snapshot, type EventSnapshot } from './events';
 import type { Renderer, RenderPrev } from '../render/Renderer';
 import type { Panel } from '../ui/panel/panel';
 import type { InputController } from '../ui/input';
+import type { GameAudio } from '../audio/gameAudio';
 import type { HazardDef, HazardType, HqDef, ItemDef, LoadoutItem, OutpostDef, ReviewDef, RigState, RouteDef, RunResult, Tuning, UpgradeDef } from '../sim/types';
 
 export interface Content { cargo: ItemDef[]; outposts: OutpostDef[]; hazards: HazardDef[]; upgrades: UpgradeDef[]; reviews: ReviewDef[]; hq: HqDef[] }
 export interface FlowDeps {
   viewportEl: HTMLElement; panel: Panel; screenEl: HTMLElement; input: InputController;
-  renderer: Promise<Renderer>; baseTuning: Tuning; content: Content; storage: StorageLike;
+  renderer: Promise<Renderer>; baseTuning: Tuning; content: Content; storage: StorageLike; audio?: GameAudio;
 }
 
 const LINGER: Record<NonNullable<RigState['ended']>, number> = { arrived: 60, stalled: 90, spilled: 180 };
@@ -74,6 +75,7 @@ export class Flow {
     const { tuning, d } = this; const { panel, input } = d;
     this.loop?.stop();
     const state = createRun(route, loadout, tuning);
+    d.audio?.beginRun(state);
     const rng = mulberry32(hashSeed(route.seed, this.runNonce++));
     const prev: RenderPrev = { x: 0, z: 0, lift: 0, lateralVel: 0, tilt: 0, speed: 0 };
     input.reset(); input.setTuning(tuning); input.setGait(2); panel.setGait(2);
@@ -94,6 +96,7 @@ export class Flow {
         if (finished) return;
         prev.x = state.x; prev.z = state.z; prev.lift = state.lift; prev.lateralVel = state.lateralVel; prev.tilt = state.tilt; prev.speed = state.speed;
         step(state, inp, route, this.save.traces, tuning, rng);
+        d.audio?.step(inp, state, tuning.dt);
         const ev = describeEvents(snap, state, route, tuning.cacheReserve); snap = ev.next;
         if (ev.lines.length) panel.setMessage(ev.lines.join('\n'));
         if (state.ended) { if (++linger > LINGER[state.ended]) { finished = true; this.finish(state, loop); } } else linger = 0;
@@ -102,7 +105,9 @@ export class Flow {
         this.renderer?.draw(state, prev, alpha);
         panel.update(state, tuning);
         this.hud.update(state, route);
-        panel.setHazard(route.hazards.some((h) => h.impulse > 0 && (h.x1 ?? h.x) >= state.x && h.x <= state.x + this.telegraph[h.type] && Math.abs(state.z - h.z) < h.halfW));
+        const hazard = route.hazards.some((h) => h.impulse > 0 && (h.x1 ?? h.x) >= state.x && h.x <= state.x + this.telegraph[h.type] && Math.abs(state.z - h.z) < h.halfW);
+        panel.setHazard(hazard);
+        d.audio?.setHazard(hazard);
       },
     });
     this.loop = loop;

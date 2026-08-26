@@ -19,7 +19,7 @@ Hard constraints you must never violate:
 - Loads and reaches first input in **under 3 seconds**.
 - Works on desktop mouse/keyboard **and** touch. Judges may play on a phone.
 - The simulation is deterministic (fixed timestep + seeded RNG) so replays, ghosts, and headless validation all work.
-- Zero external assets that need licensing. Everything drawn in code (canvas/SVG) or generated.
+- Asset policy amendment (2026-08-26): selected, redistributable CC0 assets may be used when their source and license are recorded in `THIRD_PARTY_ASSETS.md`; the shipped subset must preserve the cold-load target. Visible world entities should use the selected authored asset language wherever the packs provide coverage. Simulation-derived route geometry, effects, lighting, and responsive DOM instruments may remain generated in code.
 
 ---
 

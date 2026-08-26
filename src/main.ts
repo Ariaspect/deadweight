@@ -6,10 +6,14 @@ import { InputController } from './ui/input';
 import { mountDpad } from './ui/dpad';
 import { Flow } from './game/flow';
 import type { Renderer } from './render/Renderer';
+import { installUiSounds } from './audio/uiSounds';
+import { GameAudio } from './audio/gameAudio';
 
 const viewportEl = document.getElementById('viewport')!;
 const panelEl = document.getElementById('panel')!;
 const screenEl = document.getElementById('screen')!;
+installUiSounds(document);
+const audio = new GameAudio(document);
 
 const input = new InputController(tuning);
 input.attach(viewportEl, document);
@@ -26,5 +30,5 @@ const renderer: Promise<Renderer> = import('./render/three/ThreeRenderer').then(
   window.addEventListener('resize', () => r.resize());
   return r;
 });
-const flow = new Flow({ viewportEl, panel, screenEl, input, renderer, baseTuning: tuning, content: { cargo, outposts, hazards, upgrades, reviews, hq }, storage: localStorage });
+const flow = new Flow({ viewportEl, panel, screenEl, input, renderer, audio, baseTuning: tuning, content: { cargo, outposts, hazards, upgrades, reviews, hq }, storage: localStorage });
 flow.start();

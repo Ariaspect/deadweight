@@ -27,6 +27,7 @@ LEDGER ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
     </div>`;
   el.hidden = false;
   const cap = el.querySelector<HTMLElement>('.cap')!;
+  const offerList = el.querySelector<HTMLElement>('.offers')!;
   const btn = el.querySelector<HTMLButtonElement>('button.primary')!;
   for (const li of el.querySelectorAll<HTMLLIElement>('.offers li')) {
     li.addEventListener('pointerdown', () => {
@@ -35,6 +36,7 @@ LEDGER ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
       else if (selected.size < p.capacity) selected.add(id);
       else return;
       li.classList.toggle('on', selected.has(id));
+      offerList.classList.toggle('at-capacity', selected.size >= p.capacity);
       cap.textContent = `${selected.size} / ${p.capacity} BAYS`;
       btn.disabled = selected.size === 0;
     });
