@@ -66,6 +66,21 @@ describe('authored obstacle course', () => {
     expect(Math.abs(frame.vehicle.position.x - buildShowcaseCourse(0).spawn.x)).toBeLessThan(4);
   });
 
+  it('reports drive intent as gait so the RPM target tick moves', async () => {
+    const session = await PhysicsCourse.create(buildShowcaseCourse(0), [], tuning);
+    expect(session.step(input({ moveX: 1, moveZ: 0 })).state.gait).toBe(4);
+    expect(session.step(input({ moveX: 0.5, moveZ: 0 })).state.gait).toBe(2);
+    expect(session.step(input()).state.gait).toBe(0);
+  });
+
+  it('dispose() frees the world once and makes step()/frame() no-ops', async () => {
+    const session = await PhysicsCourse.create(buildShowcaseCourse(0), [{ def: cargo[0]!, slot: 1 }], tuning);
+    const last = session.step(input({ throttle: 1 }));
+    session.dispose(); session.dispose();
+    expect(session.frame().vehicle.position).toEqual(last.vehicle.position);
+    expect(session.step(input({ throttle: 1 })).vehicle.position).toEqual(last.vehicle.position);
+  });
+
   it('supports immediate manual checkpoint recovery', async () => {
     const course = buildShowcaseCourse(0);
     const session = await PhysicsCourse.create(course, [], tuning);

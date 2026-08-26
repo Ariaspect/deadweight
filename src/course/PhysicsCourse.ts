@@ -1,5 +1,5 @@
 import RAPIER from '@dimforge/rapier3d-compat';
-import type { InputFrame, ItemState, LoadoutItem, RigState, Tuning } from '../sim/types';
+import type { Gait, InputFrame, ItemState, LoadoutItem, RigState, Tuning } from '../sim/types';
 import type { CourseDef, CourseFrame, CourseObstacle, CourseObstacleFrame, Pose, Vec3 } from './types';
 
 interface CargoBody { state: ItemState; body: RAPIER.RigidBody; spawnOffset: Vec3; tension: number; restraint: number }
@@ -26,6 +26,8 @@ export class PhysicsCourse {
   private message: string | null = null;
   private lastVelocity = { x: 0, y: 0, z: 0 };
   private selectedCargo = 0;
+  private disposed = false;
+  private lastFrame: CourseFrame | null = null;
 
   static async create(course: CourseDef, loadout: LoadoutItem[], tuning: Tuning): Promise<PhysicsCourse> {
     await initRapier();
@@ -132,9 +134,11 @@ export class PhysicsCourse {
       moveX = (nx * throttle + rightX * steer) / length; moveZ = (nz * throttle + rightZ * steer) / length;
     }
     const intent = Math.min(1, Math.hypot(moveX, moveZ)), targetSpeed = 13.5 * intent;
+    this.state.gait = clamp(Math.round(intent * 4), 0, 4) as Gait;   // drives the panel's RPM target tick
     const targetVx = intent > 0 ? moveX / intent * targetSpeed : 0, targetVz = intent > 0 ? moveZ / intent * targetSpeed : 0;
     let forceX = (targetVx - vel.x) * 145, forceZ = (targetVz - vel.z) * 145;
-    const forceLength = Math.hypot(forceX, forceZ), maxForce = this.grounded() ? 1650 : 420;
+    const grounded = this.grounded();
+    const forceLength = Math.hypot(forceX, forceZ), maxForce = grounded ? 1650 : 420;
     if (forceLength > maxForce) { forceX *= maxForce / forceLength; forceZ *= maxForce / forceLength; }
     this.vehicle.addForce({ x: forceX, y: 0, z: forceZ }, true);
     const angular = this.vehicle.angvel();
@@ -147,7 +151,6 @@ export class PhysicsCourse {
     if (input.brace) {
       this.vehicle.setAngularDamping(10); this.vehicle.addForce({ x: 0, y: -65, z: 0 }, true);
     } else this.vehicle.setAngularDamping(3.4);
-    const grounded = this.grounded();
     if (input.jump && !this.jumpLatch && grounded) this.vehicle.applyImpulse({ x: 0, y: 310, z: 0 }, true);
     this.jumpLatch = Boolean(input.jump);
     const horizontal = Math.hypot(vel.x, vel.z);
@@ -261,6 +264,7 @@ export class PhysicsCourse {
   }
 
   step(input: InputFrame): CourseFrame {
+    if (this.disposed) return this.lastFrame ?? this.emptyFrame();
     this.message = null;
     let recoveredSpill = false;
     if (this.state.ended === 'spilled' && input.recover) {
@@ -273,6 +277,19 @@ export class PhysicsCourse {
       this.updateCargoControls(input); this.updateObstacles(); this.applyDrive(input); this.world.step(); this.sanitizeDynamics(); this.updateGameState(input);
     }
     return this.frame();
+  }
+
+  /** Frees the Rapier world (WASM heap is not reclaimed by GC). Safe to call twice; step() becomes a no-op afterwards. */
+  dispose(): void {
+    if (this.disposed) return;
+    this.lastFrame ??= this.frame();
+    this.disposed = true;
+    this.world.free();
+  }
+
+  private emptyFrame(): CourseFrame {
+    const spawn = this.course.spawn;
+    return { vehicle: { position: { ...spawn }, rotation: { x: 0, y: 0, z: 0, w: 1 } }, cargo: [], obstacles: [], state: this.state, speed: 0, elapsed: this.elapsed, checkpoint: this.checkpoint, resets: this.resets, salvage: [...this.state.foundDiscoveries], finishDistance: 0, message: null };
   }
 
   private sanitizeDynamics(): void {
@@ -289,9 +306,10 @@ export class PhysicsCourse {
   }
 
   frame(): CourseFrame {
+    if (this.disposed) return this.lastFrame ?? this.emptyFrame();
     const p = this.vehicle.translation();
     const obstacleFrames: CourseObstacleFrame[] = this.obstacles.map((o) => ({ id: o.def.id, pose: poseOf(o.body) }));
-    return {
+    return this.lastFrame = {
       vehicle: poseOf(this.vehicle), cargo: this.cargo.map((c, index) => ({ id: c.state.id, pose: poseOf(c.body), anchor: this.cargoAnchor(c), condition: clamp(1 - c.state.stress, 0, 1), lost: c.state.lost, tension: c.tension, restraint: c.restraint, selected: index === this.selectedCargo })),
       obstacles: obstacleFrames, state: this.state, speed: Math.hypot(this.vehicle.linvel().x, this.vehicle.linvel().z), elapsed: this.elapsed,
       checkpoint: this.checkpoint, resets: this.resets, salvage: [...this.state.foundDiscoveries], finishDistance: Math.hypot(p.x - this.course.finish.x, p.z - this.course.finish.z), message: this.message,

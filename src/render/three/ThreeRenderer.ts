@@ -9,6 +9,7 @@ import { CargoView } from './cargo';
 import { tuning } from '../../content';
 import type { CourseDef, CourseFrame } from '../../course/types';
 import { CourseView } from './CourseView';
+import { lerpFrame } from '../../course/interp';
 
 const SKY = '#c8aa7d';
 
@@ -120,9 +121,9 @@ export class ThreeRenderer implements Renderer {
     this.scene.background = new THREE.Color('#9fb5bd'); this.scene.fog = new THREE.Fog('#9fb5bd', 95, 245);
   }
 
-  drawCourse(frame: CourseFrame, alpha: number): void {
-    void alpha;
+  drawCourse(curr: CourseFrame, prev: CourseFrame, alpha: number): void {
     if (!this.courseMode) return;
+    const frame = lerpFrame(prev, curr, alpha);
     this.courseView.update(frame);
     const p = frame.vehicle.position;
     this.camTarget.set(p.x, p.y + 1.8, p.z);

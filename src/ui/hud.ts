@@ -25,6 +25,7 @@ export class Hud {
   private readonly mapEl: SVGElement;
   private readonly cargoRackEl: HTMLElement;
   private mapSeed = -1;
+  private rackKey = '';
 
   constructor(viewport: HTMLElement) {
     const el = document.createElement('div');
@@ -91,11 +92,13 @@ export class Hud {
   updateCourse(frame: CourseFrame, course: CourseDef): void {
     const { state } = frame;
     this.cargoRackEl.hidden = false;
-    this.cargoRackEl.innerHTML = frame.cargo.map((cargo, index) => {
+    const rackKey = frame.cargo.map((c) => `${c.lost ? 1 : 0}${c.selected ? 1 : 0}${c.tension > 0.95 ? 1 : 0}${Math.round(c.restraint * 100)}:${Math.round(c.condition * 100)}`).join('|');
+    if (rackKey !== this.rackKey) this.cargoRackEl.innerHTML = frame.cargo.map((cargo, index) => {
       const restraint = Math.round(cargo.restraint * 100), condition = Math.round(cargo.condition * 100);
       const warning = cargo.lost ? 'LOST' : cargo.tension > 0.95 ? 'OVERLOAD' : cargo.restraint < 0.3 ? 'LOOSE' : `${condition}% OK`;
       return `<div class="cargo-bay${cargo.selected ? ' selected' : ''}${cargo.lost || warning !== `${condition}% OK` ? ' warning' : ''}"><b>${index + 1} · ${cargo.id.toUpperCase()}</b><span>${warning}</span><i><em style="width:${restraint}%"></em></i></div>`;
     }).join('');
+    this.rackKey = rackKey;
     const mapKey = course.id.length * 1000 + course.obstacles.length;
     if (this.mapSeed !== mapKey) {
       this.mapSeed = mapKey;

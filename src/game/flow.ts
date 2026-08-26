@@ -8,6 +8,7 @@ import { renderResult } from '../ui/screens/result';
 import { Hud } from '../ui/hud';
 import { buildShowcaseCourse } from '../course/map';
 import type { CourseFrame } from '../course/types';
+import type { PhysicsCourse } from '../course/PhysicsCourse';
 import type { Renderer } from '../render/Renderer';
 import type { Panel } from '../ui/panel/panel';
 import type { InputController } from '../ui/input';
@@ -25,6 +26,7 @@ export class Flow {
   save: SaveData;
   tuning: Tuning;
   private loop: GameLoop | null = null;
+  private session: PhysicsCourse | null = null;
   private loadout: LoadoutItem[] = [];
   private readonly metaRng = mulberry32((Date.now() & 0x7fffffff) >>> 0);
   private readonly hud: Hud;
@@ -48,18 +50,20 @@ export class Flow {
   private async haul(): Promise<void> {
     const loadout = this.loadout, { tuning, d } = this, { panel, input, screenEl } = d;
     this.loop?.stop();
+    this.session?.dispose(); this.session = null;   // free the previous Rapier world before building the next
     const course = buildShowcaseCourse(2);
     screenEl.innerHTML = `<div class="screen loading"><h2>DEPLOYING MULE</h2><pre class="tele-block">INITIALIZING RIGID-BODY SYSTEM\nASSEMBLING ${course.name}\nSECURING ${loadout.length} CARGO BAYS…</pre></div>`;
     screenEl.hidden = false;
     const sessionPromise = import('../course/PhysicsCourse').then(({ PhysicsCourse }) => PhysicsCourse.create(course, loadout, tuning));
     const [session, renderer] = await Promise.all([sessionPromise, d.renderer]);
+    this.session = session;
     screenEl.hidden = true;
     renderer.setCourse(course, loadout.map((item) => item.def));
     input.reset(); input.setTuning(tuning); input.setGait(0); input.selectCargo(0); panel.setCargoBay(0);
     panel.setMessage('HQ: THREE ROUTES TO THE SUMMIT. Mouse controls camera. Find a line and commit.');
 
     let linger = 0, finished = false;
-    let frame: CourseFrame = session.frame();
+    let frame: CourseFrame = session.frame(), prev: CourseFrame = frame;
     const loop = new GameLoop({
       dt: tuning.dt,
       sampleInput: () => {
@@ -72,14 +76,14 @@ export class Flow {
       },
       step: (sample) => {
         if (finished) return;
-        frame = session.step(sample);
+        prev = frame; frame = session.step(sample);
         if (frame.message) panel.setMessage(frame.message);
         if (frame.state.ended) {
           if (++linger > LINGER[frame.state.ended]) { finished = true; this.finish(frame.state, loop); }
         } else linger = 0;
       },
       render: (alpha) => {
-        renderer.drawCourse(frame, alpha);
+        renderer.drawCourse(frame, prev, alpha);
         panel.update(frame.state, tuning);
         this.hud.updateCourse(frame, course);
         panel.setHazard(frame.finishDistance < 25 || Math.abs(frame.state.tilt) > 0.65);

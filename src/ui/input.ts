@@ -90,6 +90,7 @@ export class InputController {
   queueStrap(): void { this.state.strapQueued = true; }
   queueRecover(): void { this.state.recoverQueued = true; }
   queueJump(): void { this.state.jumpQueued = true; }
+  setDrive(axis: 'forward' | 'backward' | 'left' | 'right', on: boolean): void { this.state[axis] = on; }
   selectCargo(index: number): void { this.state.cargoSelectQueued = index; }
   setBrace(on: boolean): void { this.state.brace = on; }
   queueDeploy(k: KitId): void { this.state.deployQueued = k; }

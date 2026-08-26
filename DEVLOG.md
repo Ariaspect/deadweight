@@ -10,6 +10,12 @@
 - One-button RECOVER (8 s freeze) instead of a reverse-and-winch sequence.
 - Gait changes are not instant: rig speed converges at gaitAccel/gaitDecel; hazard impulse scales by actual speed, so slowing down only helps if you actually slowed. RPM dial shows actual vs target.
 
+## Pivot: porter obstacle course (PR #1, 2026-08-26)
+- kheesu's branch replaces what the player plays: a hand-authored 3D yard (three routes, spinners, a hammer, a crusher, fans, a boulder, salvage caches, checkpoints) simulated by Rapier rigid bodies, camera-relative WASD drive + jump, per-bay ratchet straps, minimap/threat HUD.
+- The deterministic 1-D sim, bot and validator are kept (and gained lateral steering, jumps, discoveries and four hazard types) but are no longer the player's path; dispatch/loadout/upgrade screens are currently bypassed (fixed loadout, straight to the yard).
+- Merge-time fixes: touch D-pad (coarse pointers) so phones can drive; Rapier `World.free()` between runs; drive intent reported as gait so the RPM target tick still leads the needle; render-side interpolation between physics frames (snap on teleport); cargo-rack DOM rebuilt only on change.
+- Costs accepted: +766 KB gzip (inlined WASM), no cross-platform replay determinism on the course path, gait rail repurposed as CARGO BAY. Open follow-ups: restore dispatch/upgrade loop around the course, move the physics literals into tuning.json, gate keyboard `R` like the panel button.
+
 ## What AI built
 - M0: seeded piecewise-linear terrain generator, fixed-step loop with input log, Three.js ribbon + procedural hexapod behind a Renderer interface.
 - M1: headless PD bot with reaction lag; validator rejects unsolvable seeds; determinism/replay test suite; fun-gate metrics harness.

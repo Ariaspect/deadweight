@@ -77,4 +77,9 @@ button.big:disabled { opacity: .35; }
 .map-cache.found { fill: #59615f; stroke: none; animation: none; } .map-player { fill: #ff6a22; stroke: #fff1d3; stroke-width: 1; }
 @keyframes cache-pulse { to { r: 3; } }
 @media (max-width: 700px) { .drive-help { display: none; } .cargo-rack { width: 138px; } button.big { font-size: 10px; } }
+.dpad { position: absolute; left: 12px; bottom: 40px; z-index: 2; display: none; grid-template-columns: repeat(3, 46px); grid-template-rows: repeat(2, 46px); gap: 4px; }
+.dpad-btn { font: 16px/1 var(--font); color: var(--cream); background: rgba(30,34,37,.82); border: 1px solid #747a7e; border-radius: 6px; box-shadow: 0 3px 0 #0f1113; touch-action: none; -webkit-user-select: none; user-select: none; }
+.dpad-btn.on { background: var(--orange); color: var(--ink); transform: translateY(2px); box-shadow: 0 1px 0 #0f1113; }
+.dpad-btn.up { grid-column: 2; grid-row: 1; } .dpad-btn.left { grid-column: 1; grid-row: 2; } .dpad-btn.right { grid-column: 3; grid-row: 2; } .dpad-btn.down { grid-column: 2; grid-row: 2; }
+@media (pointer: coarse) { .dpad { display: grid; } .drive-help { display: none; } }
 @keyframes warning-pulse { 50% { filter: brightness(1.45); } }

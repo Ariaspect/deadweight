@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { initialInput, applyKey, applyDragStart, applyDragMove, applyDragEnd, sampleFrame, resetInput } from '../src/ui/input';
+import { initialInput, applyKey, applyDragStart, applyDragMove, applyDragEnd, sampleFrame, resetInput, InputController } from '../src/ui/input';
 import { tuning } from '../src/content';
 
 describe('input reducers', () => {
@@ -31,6 +31,15 @@ describe('input reducers', () => {
     const st = initialInput(); applyKey(st, 'Space', true);
     expect(sampleFrame(st, tuning).jump).toBe(true);
     expect(sampleFrame(st, tuning).jump).toBe(false);
+  });
+  it('touch D-pad drives through setDrive and clears on reset', () => {
+    const c = new InputController(tuning);
+    c.setDrive('forward', true); c.setDrive('left', true);
+    expect(c.sample()).toMatchObject({ throttle: 1, steer: -1 });
+    c.setDrive('forward', false);
+    expect(c.sample()).toMatchObject({ throttle: 0, steer: -1 });
+    c.reset();
+    expect(c.sample()).toMatchObject({ throttle: 0, steer: 0 });
   });
   it('shift is a held brace', () => {
     const st = initialInput(); applyKey(st, 'ShiftLeft', true);

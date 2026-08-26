@@ -7,7 +7,7 @@ export interface Renderer {
   setRoute(route: RouteDef): void;
   draw(curr: RigState, prev: RenderPrev, alpha: number): void;
   setCourse(course: CourseDef, items: ItemDef[]): void;
-  drawCourse(frame: CourseFrame, alpha: number): void;
+  drawCourse(curr: CourseFrame, prev: CourseFrame, alpha: number): void;
   courseControlAxes(): { forwardX: number; forwardZ: number; rightX: number; rightZ: number };
   resize(): void;
   dispose(): void;
