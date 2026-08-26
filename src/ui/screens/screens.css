@@ -20,6 +20,10 @@
 .offers li:hover, .bays li:hover { transform: translateX(3px); } .offers li.on { background: #ed6b2e; border-left-color: #1e2124; color: var(--ink); }
 .offers .meta, .bays .meta { grid-column: 1; font-size: 11px; opacity: .75; letter-spacing: .06em; }
 .offers .pay { grid-column: 2; grid-row: 1 / span 2; font-size: 20px; }
+.offers .strapinfo { grid-column: 1; display: none; margin-top: 5px; padding: 5px 7px; font: 10px ui-monospace, monospace; letter-spacing: .06em; background: rgba(42,46,51,.12); border-left: 2px solid var(--gun); }
+.offers .strapinfo b { font: inherit; font-size: 12px; }
+.offers li:hover .strapinfo, .offers li.on .strapinfo { display: block; }
+.offers li.on .strapinfo { background: rgba(30,33,36,.18); border-left-color: #1e2124; }
 .bays .slots { grid-column: 1 / span 2; display: flex; gap: 6px; margin-top: 6px; }
 .bays .slots button { flex: 1; font: inherit; font-size: 12px; padding: 8px 0; background: #e8dcc0; border: 2px solid var(--gun); border-radius: 4px; }
 .bays .slots button.on { background: var(--gun); color: var(--cream); }

@@ -6,6 +6,13 @@ export interface DispatchProps { offers: Offers; profile: number[]; profileStepM
 
 const fragility = (c: ItemDef): string => (c.tolerance < 0.4 ? 'FRAGILE' : c.tolerance < 0.6 ? 'DELICATE' : 'STURDY');
 
+/** What the ratchet can do to this load before it starts crushing it. */
+function strapNote(c: ItemDef, t: Tuning): string {
+  const loadsAt = Math.min(t.strapStart, c.crushLimit);
+  const taps = Math.floor((c.crushLimit - loadsAt) / t.strapTap);
+  return `MAX STRAP <b>${c.crushLimit}</b> · LOADS AT <b>${loadsAt}</b> · <b>${taps}</b> SAFE RATCHET${taps === 1 ? '' : 'S'}`;
+}
+
 export function renderDispatch(el: HTMLElement, p: DispatchProps, onLoad: (selected: ItemDef[]) => void): void {
   const o = p.offers.outpost;
   const selected = new Set<string>();
@@ -21,6 +28,7 @@ SCRAP ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
           <b>${c.name} <em class="diff ${cargoDifficulty(c, p.tuning)}">${cargoDifficulty(c, p.tuning).toUpperCase()}</em></b>
           <span class="meta">${c.mass.toFixed(1)} t · ${fragility(c)} · ${c.behavior.toUpperCase()}${c.rush ? ` · RUSH ${c.rush}s` : ''}</span>
           <span class="pay">${Math.round(c.payout * p.rating.payoutMul)}</span>
+          <span class="strapinfo">${strapNote(c, p.tuning)}</span>
         </li>`).join('')}
       </ul>
       <div class="row"><span class="cap">0 / ${p.capacity} BAYS</span><button class="big primary" disabled>LOAD</button></div>
