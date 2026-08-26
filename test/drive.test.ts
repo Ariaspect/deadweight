@@ -84,3 +84,17 @@ describe('drive', () => {
     expect(s.strap).toBe(tuning.strapStart);
   });
 });
+
+describe('discoveries', () => {
+  it('off-road caches restore reserve and repair cargo, and are collected once', () => {
+    const route = routeFromSegments(10, [{ x0: 0, x1: 100, slope: 0, y0: 0 }], [], 10, [{ id: 4, x: 20, z: 9, name: 'LOST POD' }]);
+    const s = createRun(route, [{ def: crateDef(), slot: 1 }], tuning); s.x = 20; s.z = 9; s.reserve = 40; s.items[0]!.stress = 0.5;
+    step(s, frame({ gait: 0, throttle: 0 }), route, [], tuning, mulberry32(6));
+    expect(s.foundDiscoveries).toEqual([4]);
+    expect(s.reserve).toBeCloseTo(40 + tuning.cacheReserve - (tuning.reserveBudget * 100 * tuning.gaitSpeed[2]! / route.length) * tuning.dt, 5);
+    expect(s.items[0]!.stress).toBeCloseTo(0.5 - tuning.cacheRepair);
+    const after = s.reserve;
+    step(s, frame({ gait: 0, throttle: 0 }), route, [], tuning, mulberry32(6));
+    expect(s.foundDiscoveries).toEqual([4]); expect(s.reserve).toBeLessThan(after);
+  });
+});
