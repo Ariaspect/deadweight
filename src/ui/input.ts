@@ -121,6 +121,8 @@ export class InputController {
   setBrace(on: boolean): void { this.state.brace = on; }
   queueDeploy(k: KitId): void { this.state.deployQueued = k; }
   toggleRadar(): void { this.state.radar = !this.state.radar; }
+  /** Radar is a latch, so it survives resetInput like the gait does — a new haul has to clear it explicitly. */
+  setRadar(on: boolean): void { this.state.radar = on; }
 
   private onKeyDown = (e: KeyboardEvent): void => { if (e.repeat) return; applyKey(this.state, e.code, true); if (e.code === 'Space' || e.code === 'Tab') e.preventDefault(); };
   private onKeyUp = (e: KeyboardEvent): void => { applyKey(this.state, e.code, false); };

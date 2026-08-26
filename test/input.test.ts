@@ -120,4 +120,14 @@ describe('bays and keys v3', () => {
     c.toggleRadar();
     expect(c.sample().radar).toBe(false);
   });
+  it('setRadar clears the latch, so a new haul does not start burning reserve', () => {
+    const st = initialInput();
+    applyKey(st, 'KeyV', true);
+    expect(sampleFrame(st, tuning).radar).toBe(true);
+    resetInput(st);
+    expect(sampleFrame(st, tuning).radar, 'resetInput leaves the latch alone, like gait').toBe(true);
+    st.radar = false;   // what InputController.setRadar(false) does, and what haul() now calls
+    expect(sampleFrame(st, tuning).radar).toBe(false);
+  });
+
 });

@@ -101,7 +101,7 @@ export class Flow {
     const state = createRun(route, loadout, tuning);
     const rng = mulberry32(hashSeed(route.seed, this.runNonce++));
     const prev: RenderPrev = { x: 0, z: 0, lift: 0, lateralVel: 0, tilt: 0, speed: 0 };
-    input.reset(); input.setTuning(tuning); input.setGait(2); panel.setGait(2);
+    input.reset(); input.setTuning(tuning); input.setGait(2); panel.setGait(2); input.setRadar(false);
     input.setBallast(predictTrim(loadout, tuning));   // start trimmed for the load, not already drifting
     input.setBays(loadout.map((l) => l.slot));
     let snap: EventSnapshot = snapshot(state);
