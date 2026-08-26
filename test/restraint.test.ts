@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createRun, step, itemAtSlot } from '../src/sim/step';
 import { mulberry32 } from '../src/sim/rng';
 import { tuning } from '../src/content';
-import { flatRoute, frame, crateDef, hazard } from './helpers';
+import { flatRoute, slopeRoute, frame, crateDef, hazard } from './helpers';
 import { routeFromSegments } from '../src/sim/terrain';
 
 const three = () => [{ def: crateDef({ id: 'a', behavior: 'static' }), slot: 0 }, { def: crateDef({ id: 'b', behavior: 'livestock' }), slot: 1 }, { def: crateDef({ id: 'c', behavior: 'slosh' }), slot: 2 }];
@@ -45,5 +45,14 @@ describe('per-bay restraint', () => {
     for (let i = 0; i < 120; i++) step(s, frame({ gait: 0, throttle: 0, ballast: 0 }), r, [], tuning, rng);
     expect(Math.abs(s.items[0]!.offset)).toBeGreaterThan(Math.abs(s.items[1]!.offset));
     expect(s.items[1]!.stress).toBeGreaterThan(0);
+  });
+  it('strap readout follows the selected bay through spill and recovery', () => {
+    const r = slopeRoute(0.5, 5000); const s = createRun(r, [{ def: crateDef(), slot: 1 }], tuning); const rng = mulberry32(1);
+    while (!s.items[0]!.lost) step(s, frame({ gait: 1 }), r, [], tuning, rng);
+    expect(s.strap).toBe(0);                                   // the selected bay is gone
+    step(s, frame({ recover: true, ballast: -60 }), r, [], tuning, rng);
+    for (let i = 0; i < tuning.recoverTicks; i++) step(s, frame({ ballast: -60 }), r, [], tuning, rng);
+    expect(s.items[0]!.lost).toBe(false);
+    expect(s.strap).toBe(s.items[0]!.restraint);              // synced on the restore tick, not a tick later
   });
 });

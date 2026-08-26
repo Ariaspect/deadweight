@@ -199,6 +199,7 @@ function spillCheck(s: RigState, tuning: Tuning): void {
   }
   if (!worst) return;
   worst.lost = true;
+  syncStrap(s);
   s.tilt = s.tilt > 0 ? Math.max(0, s.tilt - tuning.spillRelief) : Math.min(0, s.tilt + tuning.spillRelief);
   s.tiltVel = 0;
   s.overTiltTicks = 0;
@@ -226,6 +227,7 @@ function stepRecovering(s: RigState, tuning: Tuning): void {
   if (s.recovering > 0) return;
   const it = s.items.find((i) => i.lost);
   if (it) { it.lost = false; it.offset = 0; it.offsetVel = 0; it.stress += tuning.recoverStress; }
+  syncStrap(s);
   s.overTiltTicks = 0;
   s.speed = 0;
 }
