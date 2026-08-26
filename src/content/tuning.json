@@ -74,7 +74,7 @@
   },
   "turret": {
     "countByTier": [0, 0, 1, 2],
-    "rangeM": 120, "cooldownTicks": 1800, "offCorridorZ": 70,
+    "rangeM": 120, "scopeRangeM": 420, "cooldownTicks": 1800, "offCorridorZ": 70,
     "flightTicks": 300, "levels": 6,
     "impulse": 1.6, "strapJolt": 30,
     "shieldCost": 3, "shieldTicks": 72, "shieldCooldown": 90, "shieldStopEpsilon": 0.05

@@ -50,7 +50,6 @@ export class Flow {
     this.hud = new Hud(d.viewportEl, {
       onSelectBay: (slot) => d.input.selectCargo(slot),
       onToggleRadar: () => d.input.toggleRadar(),
-      onShieldSector: (sector) => d.input.queueShield(sector),
     });
     if (reset) d.panel.setMessage('HQ: Save data unreadable. Fresh ledger opened.');
     d.renderer.then((r) => { this.renderer = r; });
@@ -130,8 +129,8 @@ export class Flow {
       },
       render: (alpha) => {
         this.renderer?.draw(state, prev, alpha);
-        panel.update(state, tuning);
-        this.hud.update(state, route, tuning);
+        panel.update(state, tuning, route);
+        this.hud.update(state, route);
         panel.setHazard(route.hazards.some((h) => h.impulse > 0 && (h.x1 ?? h.x) >= state.x && h.x <= state.x + this.telegraph[h.type] && Math.abs(state.z - h.z) < h.halfW));
       },
     });

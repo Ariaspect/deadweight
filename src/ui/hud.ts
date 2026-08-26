@@ -1,7 +1,6 @@
-import type { HazardType, RigState, RouteDef, Tuning } from '../sim/types';
+import type { HazardType, RigState, RouteDef } from '../sim/types';
 import { moverActive } from '../sim/step';
 import { minimapMarkup, mapPoint } from './sketch';
-import { scopeMarkup } from './scope';
 
 const HAZARD_NAMES: Record<HazardType, string> = {
   gust: 'CROSSWIND', rubble: 'RUBBLE FIELD', gap: 'COLLAPSED SPAN', grade: 'STEEP GRADE', scree: 'SCREE RUN',
@@ -17,7 +16,7 @@ function thinThousands(n: number): string {
   return (neg ? '-' : '') + groups.join(' ');
 }
 
-export interface HudHandlers { onSelectBay(slot: number): void; onToggleRadar(): void; onShieldSector(sector: number): void }
+export interface HudHandlers { onSelectBay(slot: number): void; onToggleRadar(): void }
 
 export class Hud {
   private readonly slopeEl: HTMLElement;
@@ -32,10 +31,8 @@ export class Hud {
   private readonly cargoRackEl: HTMLElement;
   private readonly stormEl: HTMLElement;
   private readonly radarEl: HTMLElement;
-  private readonly scopeEl: HTMLElement;
   private windowX0 = Number.NaN;
   private rackKey = '';
-  private scopeKey = '';
 
   constructor(viewport: HTMLElement, private readonly h: HudHandlers) {
     const el = document.createElement('div');
@@ -47,7 +44,6 @@ export class Hud {
       <div class="explore"></div>
       <svg class="minimap" viewBox="0 0 ${MAP_W} ${MAP_H}" aria-label="Route map"><g class="layer"></g><circle class="map-player" r="2.5"/></svg>
       <div class="cargo-rack"></div>
-      <div class="scope" hidden></div>
       <div class="drive-help"><b>W/S</b> WALK · <b>A/D</b> LANE · <b>SPACE</b> JUMP · <b>TAB</b> BAY · <b>F</b> RATCHET · <b>SHIFT</b> BRACE · <b>DRAG</b> BALLAST</div>
       <div class="hud-bottom"><span class="slope"></span><span class="alt"></span><span class="spd"></span></div>
       <div class="route-progress"><i></i></div>`;
@@ -56,19 +52,15 @@ export class Hud {
     this.slopeEl = q('.slope'); this.altEl = q('.alt'); this.spdEl = q('.spd'); this.distanceEl = q('.distance');
     this.threatEl = q('.threat'); this.progressEl = q('.route-progress i'); this.exploreEl = q('.explore');
     this.mapLayer = q('.minimap .layer'); this.mapPlayer = q('.map-player'); this.cargoRackEl = q('.cargo-rack');
-    this.stormEl = q('.storm'); this.radarEl = q('.radar-lamp'); this.scopeEl = q('.scope');
+    this.stormEl = q('.storm'); this.radarEl = q('.radar-lamp');
     this.cargoRackEl.addEventListener('pointerdown', (e) => {
       const bay = (e.target as HTMLElement).closest<HTMLElement>('.cargo-bay');
       if (bay) this.h.onSelectBay(Number(bay.dataset.slot));
     });
     this.radarEl.addEventListener('pointerdown', () => this.h.onToggleRadar());
-    this.scopeEl.addEventListener('pointerdown', (e) => {
-      const sector = (e.target as HTMLElement).closest<HTMLElement>('[data-sector]');
-      if (sector) this.h.onShieldSector(Number(sector.dataset.sector));
-    });
   }
 
-  update(s: RigState, route: RouteDef, tuning: Tuning): void {
+  update(s: RigState, route: RouteDef): void {
     // minimap: scrolling window, static layer rebuilt every REBUILD_EVERY metres
     const x0 = Math.max(0, Math.floor((s.x - WINDOW_BEHIND) / REBUILD_EVERY) * REBUILD_EVERY), x1 = x0 + WINDOW_BEHIND + WINDOW_AHEAD;
     if (x0 !== this.windowX0) { this.windowX0 = x0; this.mapLayer.innerHTML = minimapMarkup(route, x0, x1, MAP_W, MAP_H); }
@@ -131,15 +123,5 @@ export class Hud {
     }
     this.radarEl.hidden = !s.radar;
 
-    // threat scope: free and live whenever a turret is in range, whether or not anything is airborne yet
-    const turretNear = route.turrets.some((t) => Math.abs(t.x - s.x) <= tuning.turret.rangeM);
-    const showScope = s.missiles.length > 0 || turretNear;
-    this.scopeEl.hidden = !showScope;
-    if (showScope) {
-      const markup = scopeMarkup(s, tuning);
-      if (markup !== this.scopeKey) { this.scopeKey = markup; this.scopeEl.innerHTML = markup; }
-    } else if (this.scopeKey !== '') {
-      this.scopeKey = '';
-    }
   }
 }

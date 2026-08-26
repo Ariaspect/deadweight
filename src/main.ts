@@ -21,6 +21,7 @@ const panel = new Panel(panelEl, {
   onRecover: () => input.queueRecover(),
   onJump: () => input.queueJump(),
   onRadar: () => input.toggleRadar(),
+  onShieldSector: (sector: number) => input.queueShield(sector),
 });
 const renderer: Promise<Renderer> = import('./render/three/ThreeRenderer').then(({ ThreeRenderer }) => {
   const r = new ThreeRenderer(); r.mount(viewportEl);

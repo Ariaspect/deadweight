@@ -96,7 +96,7 @@ export interface StormTuning {
   speedMul: number; strapDrain: number;
 }
 export interface TurretTuning {
-  countByTier: number[]; rangeM: number; cooldownTicks: number; offCorridorZ: number;
+  countByTier: number[]; rangeM: number; scopeRangeM: number; cooldownTicks: number; offCorridorZ: number;
   flightTicks: number; levels: number; impulse: number; strapJolt: number;
   shieldCost: number; shieldTicks: number; shieldCooldown: number; shieldStopEpsilon: number;
 }

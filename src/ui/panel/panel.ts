@@ -1,7 +1,9 @@
-import type { Gait, RigState, Tuning } from '../../sim/types';
+import type { Gait, RigState, RouteDef, Tuning } from '../../sim/types';
+import { scopeMarkup } from '../scope';
+import { dangerLevel, octantOf } from '../../sim/turret';
 import { itemAtSlot } from '../../sim/step';
 
-export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace(on: boolean): void; onRecover(): void; onJump(): void; onRadar(): void }
+export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace(on: boolean): void; onRecover(): void; onJump(): void; onRadar(): void; onShieldSector(sector: number): void }
 
 function clamp(v: number, lo: number, hi: number): number { return v < lo ? lo : v > hi ? hi : v; }
 function rpmAngle(rpm: number): number { return -120 + 240 * rpm / 3000; }
@@ -14,6 +16,7 @@ export class Panel {
   private recoverBtn!: HTMLButtonElement; private hazardLamp!: HTMLElement; private rush!: HTMLElement;
   private rpmNeedle!: HTMLElement; private rpmTarget!: HTMLElement; private rpmVal!: HTMLElement;
   private cargoFill!: HTMLElement; private cargoVal!: HTMLElement;
+  private scopeEl!: HTMLElement; private scopeKey = ''; private padBtns: HTMLElement[] = [];
 
   constructor(private readonly root: HTMLElement, private readonly h: PanelHandlers) {
     root.innerHTML = `
@@ -35,6 +38,12 @@ export class Panel {
           <button class="big radar m2">RADAR <kbd>V</kbd></button>
           <button class="big recover m2" disabled>RECOVER <kbd>R</kbd></button>
         </div>
+        <div class="threat">
+          <div class="scope"></div>
+          <div class="shield-pad">${[7, 0, 1, 6, -1, 2, 5, 4, 3].map((sec) => (sec < 0
+            ? '<span class="pad-mid">SHIELD</span>'
+            : `<button class="pad" data-sector="${sec}" title="shield the ${sec * 45} degree bearing"></button>`)).join('')}</div>
+        </div>
         <div class="lamp hazard m2">HAZARD</div>
         <pre class="tele"></pre>
         <div class="rush"></div>
@@ -47,6 +56,9 @@ export class Panel {
     this.hazardLamp = q('.lamp.hazard'); this.recoverBtn = q('button.recover'); this.rush = q('.rush');
     this.rpmNeedle = q('.rpm .needle'); this.rpmTarget = q('.rpm .target'); this.rpmVal = q('.rpm .val');
     this.cargoFill = q('.cargo .fill'); this.cargoVal = q('.cargo .val');
+    this.scopeEl = q('.threat .scope');
+    this.padBtns = Array.from(root.querySelectorAll<HTMLElement>('.shield-pad .pad'));
+    for (const b of this.padBtns) b.addEventListener('pointerdown', () => h.onShieldSector(Number(b.dataset.sector)));
     this.gaitBtns = Array.from(root.querySelectorAll<HTMLElement>('.rail button'));
     for (const b of this.gaitBtns) b.addEventListener('pointerdown', () => { const g = Number(b.dataset.gait) as Gait; this.setGait(g); h.onGait(g); });
     q<HTMLButtonElement>('button.strap').addEventListener('pointerdown', () => h.onStrap());
@@ -64,7 +76,7 @@ export class Panel {
   setHazard(on: boolean): void { this.hazardLamp.classList.toggle('on', on); }
   setRadar(on: boolean): void { this.root.querySelector('button.radar')!.classList.toggle('on', on); }
 
-  update(s: RigState, tuning: Tuning): void {
+  update(s: RigState, tuning: Tuning, route?: RouteDef): void {
     const deg = Math.max(-1.2, Math.min(1.2, s.tilt)) * 60;
     this.needle.style.transform = `rotate(${deg}deg)`;
     this.needle.classList.toggle('red', Math.abs(s.tilt) > 0.7);
@@ -103,6 +115,22 @@ export class Panel {
     this.setRadar(s.radar);
     const rushItems = s.items.filter((it) => it.deadlineTick >= 0 && !it.lost);
     this.rush.textContent = rushItems.map((it) => `RUSH ${it.id.toUpperCase()} ${Math.max(0, Math.ceil((it.deadlineTick - s.t) * tuning.dt))}s`).join('  ');
+    // the scope is an instrument, not a popup: it is always on, and reads empty when the sky is clear
+    const markup = scopeMarkup(s, tuning, route);
+    if (markup !== this.scopeKey) { this.scopeKey = markup; this.scopeEl.innerHTML = markup; }
+    // the pad lights the bearing of whichever missile is closest to landing
+    let worst: RigState['missiles'][number] | undefined;
+    for (const m of s.missiles) {
+      if (!worst || dangerLevel(s.t - m.launchTick, tuning) > dangerLevel(s.t - worst.launchTick, tuning)) worst = m;
+    }
+    const armed = worst ? octantOf(worst.x - s.x, worst.z - s.z) : -1;
+    const ready = s.shield < 0 && s.t >= s.shieldReadyAt && Math.abs(s.speed) < tuning.turret.shieldStopEpsilon;
+    for (const b of this.padBtns) {
+      const sec = Number(b.dataset.sector);
+      b.classList.toggle('armed', sec === armed);
+      b.classList.toggle('up', sec === s.shield);
+      (b as HTMLButtonElement).disabled = !ready && s.shield < 0;
+    }
     this.root.classList.toggle('recovering', s.recovering > 0);
   }
 }

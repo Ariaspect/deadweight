@@ -1,4 +1,4 @@
-import type { RigState, Tuning } from '../sim/types';
+import type { RigState, RouteDef, Tuning } from '../sim/types';
 import { octantOf, dangerLevel } from '../sim/turret';
 import { highestDanger } from '../sim/step';
 
@@ -21,7 +21,7 @@ function polar(angleDeg: number, radius: number): { x: number; y: number } {
  * current danger level, and one blip per missile in flight — positioned by octantOf for its bearing
  * and by dangerLevel for its radius (closer to the centre the nearer it is to impact).
  */
-export function scopeMarkup(s: RigState, tuning: Tuning): string {
+export function scopeMarkup(s: RigState, tuning: Tuning, route?: RouteDef): string {
   const worst = highestDanger(s, tuning);
   let armedOctant = -1;
   if (worst > 0) {
@@ -50,7 +50,19 @@ export function scopeMarkup(s: RigState, tuning: Tuning): string {
     return `<circle class="blip" data-level="${level}" cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(2.5 + level * 0.4)}"/>`;
   }).join('');
 
+  // emplacements inside the scope's own, longer range: a turret is on the dial well before it can fire
+  const contacts = (route?.turrets ?? []).map((t) => {
+    const dx = t.x - s.x, dz = t.z - s.z;
+    const far = tuning.turret.scopeRangeM;
+    const spread = Math.abs(dx) + Math.abs(dz);          // a dial needs a proxy for range, not an exact distance
+    if (spread > far) return '';
+    const radius = BLIP_INNER + Math.min(1, spread / far) * (R - BLIP_INNER - 3);
+    const p = polar(octantOf(dx, dz) * 45, radius);
+    const live = Math.abs(dx) <= tuning.turret.rangeM;   // inside its firing range: it can shoot you now
+    return `<rect class="contact${live ? ' live' : ''}" x="${f1(p.x - 2)}" y="${f1(p.y - 2)}" width="4" height="4"/>`;
+  }).join('');
+
   const level = `<text class="level" x="${f1(CX)}" y="${f1(CY)}" text-anchor="middle" dominant-baseline="central">${worst > 0 ? worst : ''}</text>`;
 
-  return `<svg class="scope-svg" viewBox="0 0 ${CX * 2} ${CY * 2}" aria-label="Threat scope">${sectors.join('')}${sweep}${level}${blips}</svg>`;
+  return `<svg class="scope-svg" viewBox="0 0 ${CX * 2} ${CY * 2}" aria-label="Threat scope">${sectors.join('')}${sweep}${contacts}${level}${blips}</svg>`;
 }
