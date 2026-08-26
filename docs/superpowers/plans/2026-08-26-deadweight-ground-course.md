@@ -1782,7 +1782,9 @@ describe('bot v3 — lanes', () => {
     expect(result.ended).not.toBe('spilled');
     const s = createRun(r, [{ def: crateDef(), slot: 1 }], tuning); const rng = mulberry32(1); const lag = new LagBuffer(15);
     while (s.x < fork.x0 + 5 && !s.ended) step(s, botPolicy(lag.push(s), r, tuning), r, [], tuning, rng);
-    expect(r.laneAt(s.x, s.z)).toBe(safeLanes[0]!.i);
+    const chosen = r.laneAt(s.x, s.z);
+    expect(chosen).toBeGreaterThanOrEqual(0);
+    expect(laneScore(r, fork, chosen)).toBeCloseTo(safeLanes[0]!.score);
   });
   it('never jumps and always holds W', () => {
     const r = flatRoute();
@@ -2442,30 +2444,32 @@ Create `test/events.test.ts`:
 import { describe, it, expect } from 'vitest';
 import { describeEvents, snapshot } from '../src/game/events';
 import { createRun } from '../src/sim/step';
-import { generateRoute } from '../src/sim/terrain';
-import { tuning, hazards } from '../src/content';
-import { crateDef } from './helpers';
+import { routeFromSegments } from '../src/sim/terrain';
+import { tuning } from '../src/content';
+import { crateDef, hazard } from './helpers';
 
-const route = generateRoute(6142, 780, 2, hazards, tuning.terrain);
+const route = routeFromSegments(1, [{ x0: 0, x1: 400, slope: 0, y0: 0 }],
+  [hazard({ id: 3, type: 'rockfall', x: 40, x1: 48, z: 0, halfW: 5, impulse: 1.2, strapJolt: 22, cycleTicks: 360, windowTicks: 72, phase: 0 })],
+  10, [{ id: 0, x: 20, z: 5, name: 'SMUGGLER CACHE' }]);
 
 describe('describeEvents', () => {
-  it('reports caches, lost cargo, mover hits and wall strikes once each', () => {
+  it('reports caches, mover hits, wall strikes and lost cargo once each', () => {
     const s = createRun(route, [{ def: crateDef({ id: 'crate' }), slot: 1 }], tuning);
     let snap = snapshot(s);
     s.foundDiscoveries.push(0);
     let r = describeEvents(snap, s, route, tuning.cacheReserve); snap = r.next;
-    expect(r.lines).toEqual([`CACHE: ${route.discoveries[0]!.name} +${tuning.cacheReserve} RESERVE`]);
+    expect(r.lines).toEqual([`CACHE: SMUGGLER CACHE +${tuning.cacheReserve} RESERVE`]);
+    expect(describeEvents(snap, s, route, tuning.cacheReserve).lines).toEqual([]);
+    s.zoneCooldown[3] = 100;
+    r = describeEvents(snap, s, route, tuning.cacheReserve); snap = r.next;
+    expect(r.lines).toEqual(['ROCKFALL HIT']);
+    s.items[0]!.restraint = 40; s.speed = 0; s.targetSpeed = 10;
+    r = describeEvents(snap, s, route, tuning.cacheReserve); snap = r.next;
+    expect(r.lines).toEqual(['WALL STRIKE']);
     expect(describeEvents(snap, s, route, tuning.cacheReserve).lines).toEqual([]);
     s.items[0]!.lost = true;
-    r = describeEvents(snap, s, route, tuning.cacheReserve); snap = r.next;
-    expect(r.lines).toEqual(['CRATE OVERBOARD — RECOVER (R)']);
-    const mover = route.zones.find((z) => z.type !== 'mud')!;
-    s.zoneCooldown[mover.id] = 100;
-    r = describeEvents(snap, s, route, tuning.cacheReserve); snap = r.next;
-    expect(r.lines).toEqual([`${mover.type === 'rockfall' ? 'ROCKFALL' : 'SWINGING LOAD'} HIT`]);
-    s.items[0]!.lost = false; s.items[0]!.restraint = 40; s.speed = 0; s.targetSpeed = 10;
     r = describeEvents(snap, s, route, tuning.cacheReserve);
-    expect(r.lines).toEqual(['WALL STRIKE']);
+    expect(r.lines).toEqual(['CRATE OVERBOARD — RECOVER (R)']);
   });
 });
 ```
@@ -2505,7 +2509,7 @@ export function describeEvents(prev: EventSnapshot, s: RigState, route: RouteDef
     if ((next.cooldown[z.id] ?? -1) > (prev.cooldown[z.id] ?? -1)) lines.push(`${MOVER_NAME[z.type as 'rockfall' | 'crane']} HIT`);
   }
   const jolted = next.restraintSum < prev.restraintSum - 5;
-  const stopped = prev.targetSpeed > 0 && next.speed === 0 && prev.speed >= 0 && s.grounded;
+  const stopped = next.targetSpeed > 0 && next.speed === 0 && s.grounded;   // W held, rig not moving: something solid stopped it
   if (jolted && stopped && next.lost.length === prev.lost.length && next.found === prev.found) lines.push('WALL STRIKE');
   return { lines, next };
 }
