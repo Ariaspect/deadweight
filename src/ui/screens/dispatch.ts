@@ -8,9 +8,7 @@ const fragility = (c: ItemDef): string => (c.tolerance < 0.4 ? 'FRAGILE' : c.tol
 
 /** What the ratchet can do to this load before it starts crushing it. */
 function strapNote(c: ItemDef, t: Tuning): string {
-  const loadsAt = Math.min(t.strapStart, c.crushLimit);
-  const taps = Math.floor((c.crushLimit - loadsAt) / t.strapTap);
-  return `MAX STRAP <b>${c.crushLimit}</b> · LOADS AT <b>${loadsAt}</b> · <b>${taps}</b> SAFE RATCHET${taps === 1 ? '' : 'S'}`;
+  return `MAX STRAP <b>${c.crushLimit}</b> · LOADS AT <b>${Math.min(t.strapStart, c.crushLimit)}</b>`;
 }
 
 export function renderDispatch(el: HTMLElement, p: DispatchProps, onLoad: (selected: ItemDef[]) => void): void {
