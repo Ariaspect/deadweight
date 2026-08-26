@@ -1594,7 +1594,7 @@ function applyRestraintInput(s: RigState, input: InputFrame, tuning: Tuning): vo
 - In `crossHazards` replace `s.strap = Math.max(0, s.strap - h.strapJolt * tuning.strapJoltMul);` with `loosenAll(s, h.strapJolt * tuning.strapJoltMul);`.
 - In `stepItems` delete `const loose = 1 - s.strap / 100;` and inside the loop, after `if (it.lost) continue;`, add `const loose = 1 - it.restraint / 100;`; change the crush line to `it.stress += Math.max(0, it.restraint - it.crushLimit) * tuning.kCrush * dt;`.
 - In `createRun`: `selectedSlot: items.reduce((m, it) => Math.min(m, it.slot), items.length ? 99 : 0)` (lowest slot; 0 when empty).
-- In `stepRecovering` the restored item keeps its restraint.
+- In `stepRecovering` the restored item keeps its restraint; call `syncStrap(s)` right after the restore, and in `spillCheck` right after `worst.lost = true`, so the readout never goes stale across those transitions (ruling from the Task 7 review).
 - `src/sim/bot.ts`: replace `strap: v.strap < b.strapBelow,` with
 
 ```ts
