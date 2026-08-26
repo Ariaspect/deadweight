@@ -145,6 +145,23 @@ function crossHazards(s: RigState, route: RouteDef, traces: Trace[], tuning: Tun
   }
 }
 
+export function moverActive(t: number, h: HazardInstance): boolean {
+  if (h.cycleTicks === undefined || h.windowTicks === undefined) return false;
+  return ((t + (h.phase ?? 0)) % h.cycleTicks) < h.windowTicks;
+}
+
+function stepZones(s: RigState, route: RouteDef, tuning: Tuning): void {
+  for (const h of route.zones) {
+    if (h.type === 'mud' || !inZone(s, h) || !moverActive(s.t, h)) continue;
+    if (s.t < (s.zoneCooldown[h.id] ?? -1)) continue;
+    s.zoneCooldown[h.id] = s.t + tuning.hazardCooldownTicks;
+    loosenAll(s, h.strapJolt * tuning.strapJoltMul);
+    if (s.braced) continue;
+    s.tiltVel += h.dir * h.impulse * hazardScale(s, tuning);
+    if (h.type === 'crane') s.lateralVel += h.dir * tuning.craneShove * hazardScale(s, tuning);
+  }
+}
+
 function collectDiscoveries(s: RigState, route: RouteDef, tuning: Tuning): void {
   for (const discovery of route.discoveries) {
     if (s.foundDiscoveries.includes(discovery.id)) continue;
@@ -209,6 +226,7 @@ function spillCheck(s: RigState, tuning: Tuning): void {
 export function stepEvents(s: RigState, input: InputFrame, route: RouteDef, traces: Trace[], tuning: Tuning, rng: Rng): void {
   void rng;
   crossHazards(s, route, traces, tuning);
+  stepZones(s, route, tuning);
   collectDiscoveries(s, route, tuning);
   spillCheck(s, tuning);
   if (input.recover && s.recovering === 0 && s.reserve > tuning.recoverCost && s.items.some((it) => it.lost)) {

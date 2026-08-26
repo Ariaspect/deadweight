@@ -3,15 +3,15 @@ import { createRun, step } from '../src/sim/step';
 import { generateRoute } from '../src/sim/terrain';
 import { mulberry32, hashSeed } from '../src/sim/rng';
 import { GameLoop } from '../src/game/loop';
-import { tuning } from '../src/content';
+import { tuning, hazards } from '../src/content';
 import { crateDef, frame } from './helpers';
 import type { InputFrame, Gait } from '../src/sim/types';
 
-const route = generateRoute(4417, 500, 1, [], tuning.terrain);
+const route = generateRoute(4417, 700, 2, hazards, tuning.terrain);
 const loadout = [{ def: crateDef({ behavior: 'livestock' }), slot: 0 }, { def: crateDef({ id: 'soup', behavior: 'slosh' }), slot: 2 }];
 
 function script(i: number): InputFrame {
-  return frame({ gait: ((Math.floor(i / 300) % 4) + 1) as Gait, ballast: Math.floor(i / 120) % 2 === 0 ? 60 : -60, strap: i % 90 === 0 });
+  return frame({ gait: ((Math.floor(i / 300) % 4) + 1) as Gait, ballast: Math.floor(i / 120) % 2 === 0 ? 60 : -60, strap: i % 90 === 0, jump: i % 400 === 0, steer: ((Math.floor(i / 150) % 3) - 1) as -1 | 0 | 1, throttle: 1 });
 }
 
 function play(inputs: InputFrame[]) {
