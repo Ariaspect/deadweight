@@ -4,10 +4,10 @@ import { mulberry32, hashSeed } from './rng';
 import { laneCentre } from './course';
 import type { Fork, Gait, InputFrame, ItemState, Lane, LoadoutItem, RigState, RouteDef, RunResult, Trace, Tuning } from './types';
 
-export interface BotView { x: number; z: number; lateralVel: number; tilt: number; tiltVel: number; strap: number; braced: boolean; recovering: number; items: ItemState[] }
+export interface BotView { x: number; z: number; lateralVel: number; tilt: number; tiltVel: number; strap: number; braced: boolean; recovering: number; items: ItemState[]; storm: number }
 
 function view(s: RigState): BotView {
-  return { x: s.x, z: s.z, lateralVel: s.lateralVel, tilt: s.tilt, tiltVel: s.tiltVel, strap: s.strap, braced: s.braced, recovering: s.recovering, items: s.items.map((it) => ({ ...it })) };
+  return { x: s.x, z: s.z, lateralVel: s.lateralVel, tilt: s.tilt, tiltVel: s.tiltVel, strap: s.strap, braced: s.braced, recovering: s.recovering, items: s.items.map((it) => ({ ...it })), storm: s.storm };
 }
 
 export class LagBuffer {
@@ -92,6 +92,7 @@ export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFra
     strap: loosest !== undefined && loosest.restraint < b.strapBelow,
     cargoSelect: loosest?.slot,
     brace,
+    radar: v.storm > 0,   // the bot has no vision to lose, so without this the validator only ever proves the free branch
     deploy: 0,
     recover: v.recovering === 0 && v.items.some((it) => it.lost),
   };

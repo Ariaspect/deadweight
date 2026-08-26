@@ -12,6 +12,7 @@
   "braceSpeed": 3,
   "reserveBudget": 0.62,
   "braceDrain": 1.0,
+  "radarDrain": 0.5,
   "reserveStart": 100,
   "ballastRange": 100,
   "ballastRate": 160,
@@ -62,7 +63,15 @@
   "cacheReserve": 8,
   "cacheRepair": 0.12,
   "cacheBonus": 75,
-  "route": { "tierWeight": 0.5, "lengthWeight": 0.12, "hazardWeight": 0.2, "zoneWeight": 0.06, "slopeWeight": 1.2, "payWeight": 0.5, "baseScore": 1.45, "easyBelow": 2.2, "hardAtOrAbove": 3.1, "offerCount": 3 },
+  "route": { "tierWeight": 0.5, "lengthWeight": 0.12, "hazardWeight": 0.2, "zoneWeight": 0.06, "slopeWeight": 1.2, "payWeight": 0.5, "baseScore": 1.45, "easyBelow": 2.2, "hardAtOrAbove": 3.1, "offerCount": 3, "stormWeight": 0.25 },
+  "storm": {
+    "maxFronts": [0, 1, 1, 2],
+    "frontChance": [0, 0.6, 0.75, 0.8],
+    "minDurationS": 14, "maxDurationS": 28, "maxStormFrac": 0.4,
+    "rampS": 5,
+    "windowLo": 0.15, "windowHi": 0.85,
+    "speedMul": 0.7, "strapDrain": 0.6
+  },
   "difficulty": { "fragileWeight": 2, "precariousWeight": 0.6, "rushWeight": 0.5, "massWeight": 0.15, "easyBelow": 1.6, "hardAtOrAbove": 2.3 },
   "terrain": {
     "segMin": 20, "segMax": 60,

@@ -99,3 +99,7 @@ button.big:disabled { opacity: .35; }
 .sketch .hz { fill: #c8622a; } .sketch .hz-mud { fill: #4b3f33; } .sketch .hz-rockfall, .sketch .hz-crane { fill: #8f2f22; opacity: .7; } .sketch .cache { fill: #b8860b; }
 .profile-strip .profile { height: 34px; }
 @keyframes warning-pulse { 50% { filter: brightness(1.45); } }
+.hud .storm { position: absolute; left: 50%; top: 74px; transform: translateX(-50%); padding: 6px 12px; color: #f4ead2; background: rgba(96,64,28,.82); border: 1px solid #d29a4a; letter-spacing: .14em; }
+.hud .storm.warning { background: rgba(143,47,34,.85); border-color: #ff8a4c; animation: blink .5s steps(2) infinite; }
+.hud .radar-lamp { position: absolute; left: 50%; top: 108px; transform: translateX(-50%); pointer-events: auto; cursor: pointer; padding: 5px 10px; color: #0f1a18; background: #65efd6; letter-spacing: .14em; }
+button.big.radar.on { background: #65efd6; color: var(--ink); }

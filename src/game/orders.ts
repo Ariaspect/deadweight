@@ -5,6 +5,9 @@ export interface Offers { outpost: OutpostDef; cargo: ItemDef[] }
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export interface RouteRating { score: number; payoutMul: number; label: Difficulty }
 
+const RISK_BANDS = ['NONE', 'LOW', 'MED', 'HIGH'] as const;
+export type StormRisk = typeof RISK_BANDS[number];
+
 export function playerTier(runs: number): number { return Math.min(3, Math.floor(runs / 3)); }
 
 /**
@@ -21,12 +24,20 @@ export function routeDifficulty(route: RouteDef, outpost: OutpostDef, tuning: Tu
     + (route.length / 100) * r.lengthWeight
     + impulse / (route.length / 100) * r.hazardWeight
     + route.zones.length * r.zoneWeight
-    + maxSlope * r.slopeWeight;
+    + maxSlope * r.slopeWeight
+    + route.storms.length * r.stormWeight;
   return {
     score,
     payoutMul: 1 + Math.max(0, score - r.baseScore) * r.payWeight,
     label: score < r.easyBelow ? 'easy' : score < r.hardAtOrAbove ? 'medium' : 'hard',
   };
+}
+
+/** The forecast: the player learns a route is likely to storm, never how many fronts or when. */
+export function stormRisk(outpost: OutpostDef, tuning: Tuning): StormRisk {
+  const maxFronts = tuning.storm.maxFronts[Math.min(outpost.tier, tuning.storm.maxFronts.length - 1)] ?? 0;
+  if (maxFronts === 0) return 'NONE';
+  return RISK_BANDS[Math.min(RISK_BANDS.length - 1, outpost.tier)]!;
 }
 
 /**

@@ -5,7 +5,7 @@ import { applyUpgrades } from '../sim/upgrades';
 import { mulberry32, hashSeed } from '../sim/rng';
 import { GameLoop } from './loop';
 import { loadSave, writeSave, type SaveData, type StorageLike } from './save';
-import { generateCargo, pickRoutes, playerTier, routeDifficulty, type RouteRating } from './orders';
+import { generateCargo, pickRoutes, playerTier, routeDifficulty, stormRisk, type RouteRating } from './orders';
 import { pickHq, pickReview } from './reviews';
 import { renderDispatch } from '../ui/screens/dispatch';
 import { renderRouteSelect, type RouteOption } from '../ui/screens/route';
@@ -47,7 +47,7 @@ export class Flow {
     this.save = data;
     this.tuning = applyUpgrades(d.baseTuning, data.upgrades, d.content.upgrades);
     this.telegraph = Object.fromEntries(d.content.hazards.map((h) => [h.type, h.telegraphM])) as Record<HazardType, number>;
-    this.hud = new Hud(d.viewportEl, { onSelectBay: (slot) => d.input.selectCargo(slot) });
+    this.hud = new Hud(d.viewportEl, { onSelectBay: (slot) => d.input.selectCargo(slot), onToggleRadar: () => d.input.toggleRadar() });
     if (reset) d.panel.setMessage('HQ: Save data unreadable. Fresh ledger opened.');
     d.renderer.then((r) => { this.renderer = r; });
   }
@@ -59,11 +59,12 @@ export class Flow {
     const { content, panel, screenEl } = this.d;
     const routes = new Map<string, RouteDef>();
     const options: RouteOption[] = pickRoutes(content.outposts, this.save.runs, this.tuning).map((outpost) => {
-      const route = generateRoute(outpost.seed, outpost.lengthM, outpost.tier, content.hazards, this.tuning.terrain);
+      const route = generateRoute(outpost.seed, outpost.lengthM, outpost.tier, content.hazards, this.tuning);
       routes.set(outpost.id, route);
       return {
         outpost, rating: routeDifficulty(route, outpost, this.tuning), sketch: routeSketchSvg(route),
         hazardCount: route.hazards.filter((h) => h.impulse > 0).length, zoneCount: route.zones.length,
+        stormRisk: stormRisk(outpost, this.tuning),
       };
     });
     const hqLine = pickHq(content.hq, 'dispatch', 'any', this.metaRng);
@@ -101,7 +102,7 @@ export class Flow {
     const state = createRun(route, loadout, tuning);
     const rng = mulberry32(hashSeed(route.seed, this.runNonce++));
     const prev: RenderPrev = { x: 0, z: 0, lift: 0, lateralVel: 0, tilt: 0, speed: 0 };
-    input.reset(); input.setTuning(tuning); input.setGait(2); panel.setGait(2);
+    input.reset(); input.setTuning(tuning); input.setGait(2); panel.setGait(2); input.setRadar(false);
     input.setBallast(predictTrim(loadout, tuning));   // start trimmed for the load, not already drifting
     input.setBays(loadout.map((l) => l.slot));
     let snap: EventSnapshot = snapshot(state);

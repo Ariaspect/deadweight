@@ -1,7 +1,7 @@
 import type { Gait, RigState, Tuning } from '../../sim/types';
 import { itemAtSlot } from '../../sim/step';
 
-export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace(on: boolean): void; onRecover(): void; onJump(): void }
+export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace(on: boolean): void; onRecover(): void; onJump(): void; onRadar(): void }
 
 function clamp(v: number, lo: number, hi: number): number { return v < lo ? lo : v > hi ? hi : v; }
 function rpmAngle(rpm: number): number { return -120 + 240 * rpm / 3000; }
@@ -32,6 +32,7 @@ export class Panel {
           <button class="big jump">JUMP <kbd>SPACE</kbd></button>
           <button class="big strap m2">RATCHET <kbd>F</kbd></button>
           <button class="big brace m2">BRACE <kbd>SHIFT</kbd></button>
+          <button class="big radar m2">RADAR <kbd>V</kbd></button>
           <button class="big recover m2" disabled>RECOVER <kbd>R</kbd></button>
         </div>
         <div class="lamp hazard m2">HAZARD</div>
@@ -55,11 +56,13 @@ export class Panel {
     const off = (): void => { brace.classList.remove('on'); h.onBrace(false); };
     brace.addEventListener('pointerup', off); brace.addEventListener('pointercancel', off);
     this.recoverBtn.addEventListener('pointerdown', () => h.onRecover());
+    q<HTMLButtonElement>('button.radar').addEventListener('pointerdown', () => h.onRadar());
   }
 
   setGait(g: Gait): void { for (const b of this.gaitBtns) b.classList.toggle('on', Number(b.dataset.gait) === g); }
   setMessage(text: string): void { this.message.textContent = text; }
   setHazard(on: boolean): void { this.hazardLamp.classList.toggle('on', on); }
+  setRadar(on: boolean): void { this.root.querySelector('button.radar')!.classList.toggle('on', on); }
 
   update(s: RigState, tuning: Tuning): void {
     const deg = Math.max(-1.2, Math.min(1.2, s.tilt)) * 60;
@@ -97,6 +100,7 @@ export class Panel {
     this.ballastAim.classList.toggle('off', Math.abs(off) > tuning.ballastRange * 0.15);
     const lost = s.items.some((it) => it.lost);
     this.recoverBtn.disabled = !(lost && s.recovering === 0 && (s.ended === null || s.ended === 'spilled') && s.reserve > tuning.recoverCost);
+    this.setRadar(s.radar);
     const rushItems = s.items.filter((it) => it.deadlineTick >= 0 && !it.lost);
     this.rush.textContent = rushItems.map((it) => `RUSH ${it.id.toUpperCase()} ${Math.max(0, Math.ceil((it.deadlineTick - s.t) * tuning.dt))}s`).join('  ');
     this.root.classList.toggle('recovering', s.recovering > 0);

@@ -1,7 +1,7 @@
 import type { OutpostDef } from '../../sim/types';
-import type { RouteRating } from '../../game/orders';
+import type { RouteRating, StormRisk } from '../../game/orders';
 
-export interface RouteOption { outpost: OutpostDef; rating: RouteRating; sketch: string; hazardCount: number; zoneCount: number }
+export interface RouteOption { outpost: OutpostDef; rating: RouteRating; sketch: string; hazardCount: number; zoneCount: number; stormRisk: StormRisk }
 export interface RouteSelectProps { options: RouteOption[]; hqLine: string; cash: number; tier: number }
 
 const plural = (n: number, word: string): string => (n === 1 ? word : `${word}S`);
@@ -25,6 +25,7 @@ ${p.hqLine}</pre>
             <span>TIER <b>${o.outpost.tier}</b></span>
             <span>${plural(o.hazardCount, 'HAZARD')} <b>${o.hazardCount}</b></span>
             <span>${plural(o.zoneCount, 'ZONE')} <b>${o.zoneCount}</b></span>
+            <span>STORM <b>${o.stormRisk}</b></span>
           </div>
           <p class="flavor">${o.outpost.flavor}</p>
         </li>`).join('')}

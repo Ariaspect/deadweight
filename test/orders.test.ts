@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cargoDifficulty, generateOffers, pickRoutes, routeDifficulty, playerTier } from '../src/game/orders';
+import { cargoDifficulty, generateOffers, pickRoutes, routeDifficulty, playerTier, stormRisk } from '../src/game/orders';
 import { pickReview, pickHq } from '../src/game/reviews';
 import { predictTrim } from '../src/sim/step';
 import { mulberry32 } from '../src/sim/rng';
@@ -47,7 +47,7 @@ describe('pickRoutes', () => {
 describe('routeDifficulty', () => {
   const of = (id: string) => {
     const o = outposts.find((x) => x.id === id)!;
-    return routeDifficulty(generateRoute(o.seed, o.lengthM, o.tier, hazards, tuning.terrain), o, tuning);
+    return routeDifficulty(generateRoute(o.seed, o.lengthM, o.tier, hazards, tuning), o, tuning);
   };
   it('ranks a short tier-0 run below the longest tier-3 run and never pays under 1x', () => {
     const gravel = of('gravel'), lantern = of('lantern');
@@ -106,5 +106,15 @@ describe('predictTrim', () => {
   it('is 0 for balanced fore/aft and positive for a fore-only load', () => {
     expect(predictTrim([{ def: crateDef(), slot: 0 }, { def: crateDef({ id: 'b' }), slot: 2 }], tuning)).toBe(0);
     expect(predictTrim([{ def: crateDef(), slot: 0 }], tuning)).toBe(Math.round(tuning.kLoad / tuning.kBallast * 100));
+  });
+});
+
+describe('stormRisk', () => {
+  it('bands by tier and never promises a storm on a tier-0 run', () => {
+    const at = (tier: number) => stormRisk(outposts.find((o) => o.tier === tier)!, tuning);
+    expect(at(0)).toBe('NONE');
+    expect(at(1)).toBe('LOW');
+    expect(at(2)).toBe('MED');
+    expect(at(3)).toBe('HIGH');
   });
 });

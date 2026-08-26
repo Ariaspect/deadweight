@@ -7,12 +7,13 @@ export interface InputState {
   cargoSelectQueued: number | null;
   baySlots: number[]; bayIndex: number;
   dragging: boolean; dragStartPx: number; dragStartBallast: number;
+  radar: boolean;
 }
 
 export function initialInput(): InputState {
   return { gait: 0, ballast: 0, keyFore: false, keyAft: false, brace: false, strapQueued: false, recoverQueued: false, deployQueued: 0,
     forward: false, backward: false, left: false, right: false, jumpQueued: false, cargoSelectQueued: null, baySlots: [], bayIndex: 0,
-    dragging: false, dragStartPx: 0, dragStartBallast: 0 };
+    dragging: false, dragStartPx: 0, dragStartBallast: 0, radar: false };
 }
 
 const clampGait = (g: number): Gait => (g < 0 ? 0 : g > 4 ? 4 : g) as Gait;
@@ -25,6 +26,7 @@ export function applyKey(st: InputState, code: string, down: boolean): void {
     case 'KeyD': st.right = down; break;
     case 'KeyQ': st.keyFore = down; break;
     case 'KeyE': st.keyAft = down; break;
+    case 'KeyV': if (down) st.radar = !st.radar; break;
     case 'ShiftLeft': case 'ShiftRight': st.brace = down; break;
     case 'Space': if (down) st.jumpQueued = true; break;
     case 'KeyF': if (down) st.strapQueued = true; break;
@@ -65,7 +67,7 @@ export function sampleFrame(st: InputState, tuning: Tuning): InputFrame {
   }
   const throttle = (st.forward === st.backward ? 0 : st.forward ? 1 : -1) as -1 | 0 | 1;
   const steer = (st.left === st.right ? 0 : st.left ? -1 : 1) as -1 | 0 | 1;
-  const f: InputFrame = { gait: st.gait, ballast: Math.round(st.ballast), strap: st.strapQueued, brace: st.brace, deploy: st.deployQueued, recover: st.recoverQueued, throttle, steer, jump: st.jumpQueued, cargoSelect: st.cargoSelectQueued ?? undefined };
+  const f: InputFrame = { gait: st.gait, ballast: Math.round(st.ballast), strap: st.strapQueued, brace: st.brace, deploy: st.deployQueued, recover: st.recoverQueued, throttle, steer, jump: st.jumpQueued, radar: st.radar, cargoSelect: st.cargoSelectQueued ?? undefined };
   st.strapQueued = false; st.recoverQueued = false; st.deployQueued = 0; st.jumpQueued = false; st.cargoSelectQueued = null;
   return f;
 }
@@ -118,6 +120,9 @@ export class InputController {
   }
   setBrace(on: boolean): void { this.state.brace = on; }
   queueDeploy(k: KitId): void { this.state.deployQueued = k; }
+  toggleRadar(): void { this.state.radar = !this.state.radar; }
+  /** Radar is a latch, so it survives resetInput like the gait does — a new haul has to clear it explicitly. */
+  setRadar(on: boolean): void { this.state.radar = on; }
 
   private onKeyDown = (e: KeyboardEvent): void => { if (e.repeat) return; applyKey(this.state, e.code, true); if (e.code === 'Space' || e.code === 'Tab') e.preventDefault(); };
   private onKeyUp = (e: KeyboardEvent): void => { applyKey(this.state, e.code, false); };
