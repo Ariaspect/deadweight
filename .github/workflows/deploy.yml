@@ -2,6 +2,8 @@ name: deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:        # the merge of PR #6 pushed to main without firing this workflow;
+                            # without a manual trigger the only recovery is an empty commit
 permissions:
   contents: read
   pages: write
