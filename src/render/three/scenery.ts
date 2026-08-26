@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { RouteDef } from '../../sim/types';
-import { placeAsset, type PropLibrary } from './props';
+import { placeAsset, type PropLibrary, type PropName } from './props';
 
 const mountainMat = new THREE.MeshStandardMaterial({ color: '#4a453f', roughness: 1, flatShading: true });
 const mountainFarMat = new THREE.MeshStandardMaterial({ color: '#7b746a', roughness: 1, flatShading: true });
@@ -44,6 +44,20 @@ export function addRuins(group: THREE.Group, route: RouteDef, props: PropLibrary
     const name = noise(i * 23 + route.seed) < 0.5 ? 'ruinA' : 'ruinB';
     placeAsset(group, props, name, height, x, route.heightAt(x) - 1, route.centerAt(x) + side * distance,
       noise(i * 29 + route.seed) * Math.PI * 2);
+  }
+}
+
+/**
+ * Roadside abandoned houses. The corridor is 18 wide, its edge walls run to 21 and pockets reach 26, so nothing
+ * here starts inside 28 — close enough to read as you drive past, far enough that it never blocks the route.
+ */
+export function addRoadside(group: THREE.Group, route: RouteDef, props: PropLibrary): void {
+  for (let i = 0, x = 40; x < route.length - 30; i++, x += 48 * (0.7 + noise(i * 41 + route.seed) * 0.7)) {
+    const side = noise(i * 19 + route.seed) < 0.5 ? 1 : -1;
+    const z = route.centerAt(x) + side * (28 + noise(i * 11 + route.seed) * 16);
+    const name: PropName = noise(i * 23 + route.seed) < 0.5 ? 'ruinA' : 'ruinB';
+    const height = 6.5 + noise(i * 29 + route.seed) * 7;
+    placeAsset(group, props, name, height, x, route.heightAt(x) - 0.4, z, noise(i * 7 + route.seed) * Math.PI * 2);
   }
 }
 

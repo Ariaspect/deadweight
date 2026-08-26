@@ -3,7 +3,7 @@ import type { Renderer, RenderPrev } from '../Renderer';
 import type { ItemDef, RigState, RouteDef } from '../../sim/types';
 import { buildTerrain, setTerrainRadar } from './terrain';
 import { animateHazards, buildHazards, disposeHazards, setHazardsRadar } from './hazards';
-import { addRuins, buildScenery, disposeScenery, syncScenery } from './scenery';
+import { addRoadside, addRuins, buildScenery, disposeScenery, syncScenery } from './scenery';
 import { loadPropLibrary, type PropLibrary } from './props';
 import { buildWalls, disposeWalls, setWallsRadar } from './walls';
 import { buildTurrets, disposeTurrets, syncMissiles } from './turret';
@@ -62,7 +62,7 @@ export class ThreeRenderer implements Renderer {
     this.resize();
     void loadPropLibrary().then((props) => {
       this.props = props;
-      if (this.pendingRoute && this.scenery) { addRuins(this.scenery, this.pendingRoute, props); this.pendingRoute = null; }
+      if (this.pendingRoute && this.scenery) { addRuins(this.scenery, this.pendingRoute, props); addRoadside(this.scenery, this.pendingRoute, props); this.pendingRoute = null; }
     }).catch(() => { /* the world still renders procedurally without authored props */ });
   }
 
@@ -81,7 +81,7 @@ export class ThreeRenderer implements Renderer {
     this.scenery = buildScenery(route); this.scene.add(this.scenery);
     // ruins arrive with the prop library, which loads once and asynchronously; a route set before it
     // resolves is remembered so the skyline still appears on the run the player is already driving
-    if (this.props) addRuins(this.scenery, route, this.props);
+    if (this.props) { addRuins(this.scenery, route, this.props); addRoadside(this.scenery, route, this.props); }
     else this.pendingRoute = route;
     if (this.walls) { this.scene.remove(this.walls); disposeWalls(this.walls); }
     this.walls = buildWalls(route); this.scene.add(this.walls);
