@@ -1,6 +1,7 @@
 import type { HazardInstance, InputFrame, ItemState, LoadoutItem, RigState, RouteDef, Trace, Tuning } from './types';
 import type { Rng } from './rng';
 import { resolveWalls } from './walls';
+import { stormLevel } from './storm';
 
 export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tuning): RigState {
   void route;
@@ -65,7 +66,8 @@ function applyRestraintInput(s: RigState, input: InputFrame, tuning: Tuning): vo
   if (input.cargoSelect !== undefined && itemAtSlot(s, input.cargoSelect)) s.selectedSlot = input.cargoSelect;
   const sel = itemAtSlot(s, s.selectedSlot);
   if (input.strap && sel && !sel.lost) sel.restraint = Math.min(100, sel.restraint + tuning.strapTap);
-  for (const it of s.items) if (!it.lost) it.restraint = Math.max(0, it.restraint - tuning.restraintDecay[it.behavior] * tuning.dt);
+  const stormDrain = s.storm * tuning.storm.strapDrain;   // s.storm is this tick's level: stepRig assigns it above the call
+  for (const it of s.items) if (!it.lost) it.restraint = Math.max(0, it.restraint - (tuning.restraintDecay[it.behavior] + stormDrain) * tuning.dt);
   syncStrap(s);
 }
 
@@ -74,6 +76,8 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   s.gait = input.gait;
   s.ballast = clamp(Math.round(input.ballast), -tuning.ballastRange, tuning.ballastRange);
   s.braced = input.brace;
+  s.storm = stormLevel(route, s.t, tuning);   // must precede applyRestraintInput, which works the straps loose by it
+  s.radar = input.radar ?? false;
   applyRestraintInput(s, input, tuning);
 
   const slope = route.slopeAt(s.x);
@@ -92,6 +96,7 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   let target = throttle === 1 ? tuning.gaitSpeed[s.gait]! * mul : throttle === -1 ? -tuning.gaitSpeed[1]! * mul : 0;
   if (s.braced) target = clamp(target, -tuning.braceSpeed, tuning.braceSpeed);
   if (inMud) target *= tuning.mudSpeedMul;
+  if (s.storm > 0) target *= 1 - (1 - tuning.storm.speedMul) * s.storm;   // eases in with the 5 s ramp
   s.targetSpeed = target;
   s.speed += clamp(target - s.speed, -tuning.gaitDecel * dt, tuning.gaitAccel * dt);
   s.x = Math.max(0, s.x + s.speed * dt);
@@ -119,7 +124,7 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
       loosenAll(s, tuning.landingJolt * tuning.strapJoltMul);
     }
   }
-  s.reserve -= (drainRate(route, tuning) + (s.braced ? tuning.braceDrain : 0)) * dt;
+  s.reserve -= (drainRate(route, tuning) + (s.braced ? tuning.braceDrain : 0) + (s.radar ? tuning.radarDrain : 0)) * dt;
 }
 
 export function hazardScale(s: RigState, tuning: Tuning): number {
