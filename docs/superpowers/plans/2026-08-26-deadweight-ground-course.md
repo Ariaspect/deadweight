@@ -2005,10 +2005,13 @@ In `src/ui/input.ts`:
       break;
     default:
       if (down && /^Digit[0-4]$/.test(code)) st.gait = clampGait(Number(code.slice(5)));
-      else if (down && /^Digit[5-7]$/.test(code)) { const slot = Number(code.slice(5)) - 5; st.cargoSelectQueued = slot; st.bayIndex = Math.max(0, st.baySlots.indexOf(slot)); }
+      else if (down && /^Digit[5-7]$/.test(code)) {
+        const slot = Number(code.slice(5)) - 5, idx = st.baySlots.indexOf(slot);
+        if (idx >= 0) { st.cargoSelectQueued = slot; st.bayIndex = idx; }   // unloaded bays are ignored (ruling)
+      }
 ```
 
-- `InputController`: `setBays(slots: number[]): void { this.state.baySlots = [...slots].sort((a, b) => a - b); this.state.bayIndex = 0; }` and `selectCargo(slot: number): void { this.state.cargoSelectQueued = slot; this.state.bayIndex = Math.max(0, this.state.baySlots.indexOf(slot)); }`.
+- `InputController`: `setBays(slots: number[]): void { this.state.baySlots = [...slots].sort((a, b) => a - b); this.state.bayIndex = 0; }` and `selectCargo(slot: number): void { const idx = this.state.baySlots.indexOf(slot); if (idx < 0) return; this.state.cargoSelectQueued = slot; this.state.bayIndex = idx; }` (unloaded bays are ignored — ruling from the Task 10 review; tests that press Digit5–7 must load bays first).
 - `onKeyDown`: `if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();`.
 - `resetInput` leaves `baySlots` alone (set per haul by the flow).
 
