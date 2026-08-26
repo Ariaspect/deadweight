@@ -1,5 +1,6 @@
 import type { HazardInstance, InputFrame, ItemState, LoadoutItem, RigState, RouteDef, Trace, Tuning } from './types';
 import type { Rng } from './rng';
+import { resolveWalls } from './walls';
 
 export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tuning): RigState {
   void route;
@@ -41,8 +42,16 @@ export function predictTrim(loadout: LoadoutItem[], tuning: Tuning): number {
   return Math.round(-(tuning.kLoad * load) / tuning.kBallast * 100) || 0; // normalise -0 (balanced load) to 0
 }
 
+export function inZone(s: RigState, h: HazardInstance): boolean {
+  return h.x1 !== undefined && s.x >= h.x && s.x <= h.x1 && Math.abs(s.z - h.z) < h.halfW;
+}
+
+export function loosenAll(s: RigState, amount: number): void {
+  s.strap = Math.max(0, s.strap - amount);
+}
+
 export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning: Tuning): void {
-  const dt = tuning.dt;
+  const dt = tuning.dt, mul = tuning.gaitSpeedMul, vmax = tuning.gaitSpeed[4]! * mul;
   s.gait = input.gait;
   s.ballast = clamp(Math.round(input.ballast), -tuning.ballastRange, tuning.ballastRange);
   s.braced = input.brace;
@@ -58,26 +67,37 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   if (s.braced) s.tiltVel *= tuning.braceDamp;
   s.tilt += s.tiltVel * dt;
 
-  let target = tuning.gaitSpeed[s.gait]! * tuning.gaitSpeedMul;
-  if (input.throttle === 1) target = tuning.gaitSpeed[4]! * tuning.gaitSpeedMul;
-  else if (input.throttle === -1) target = -tuning.gaitSpeed[1]! * tuning.gaitSpeedMul;
-  if (s.braced) target = Math.sign(target || s.speed || 1) * tuning.braceSpeed;
-  const delta = target - s.speed;
-  s.speed += clamp(delta, -tuning.gaitDecel * dt, tuning.gaitAccel * dt);
+  const inMud = route.zones.some((h) => h.type === 'mud' && inZone(s, h));
+  const throttle = input.throttle ?? 0;
+  let target = throttle === 1 ? tuning.gaitSpeed[s.gait]! * mul : throttle === -1 ? -tuning.gaitSpeed[1]! * mul : 0;
+  if (s.braced) target = clamp(target, -tuning.braceSpeed, tuning.braceSpeed);
+  if (inMud) target *= tuning.mudSpeedMul;
+  s.targetSpeed = target;
+  s.speed += clamp(target - s.speed, -tuning.gaitDecel * dt, tuning.gaitAccel * dt);
   s.x = Math.max(0, s.x + s.speed * dt);
 
   const steer = input.steer ?? 0;
-  const traction = s.grounded ? 1 : 0.28;
+  const traction = !s.grounded ? tuning.airTraction : inMud ? tuning.mudTraction : 1;
   s.lateralVel += steer * tuning.steerAccel * traction * dt;
   s.lateralVel *= Math.max(0, 1 - tuning.lateralDamping * dt * (steer === 0 ? 1 : 0.35));
   s.z += s.lateralVel * dt;
+
+  const strike = resolveWalls(s, route.walls, tuning.rigRadius, tuning.wallStrikeSpeed);
+  if (strike) {
+    s.tiltVel += strike.dir * tuning.wallStrikeTilt * strike.speed / vmax;
+    loosenAll(s, tuning.wallStrikeJolt * tuning.strapJoltMul);
+  }
   const bound = route.halfWidth + tuning.terrain.pocketDepth;
   if (s.z < -bound) { s.z = -bound; s.lateralVel = 0; } else if (s.z > bound) { s.z = bound; s.lateralVel = 0; }
 
   if (input.jump && s.grounded) { s.grounded = false; s.liftVel = tuning.jumpSpeed; }
   if (!s.grounded) {
     s.liftVel -= tuning.gravity * dt; s.lift += s.liftVel * dt;
-    if (s.lift <= 0) { s.lift = 0; s.liftVel = 0; s.grounded = true; s.tiltVel += Math.abs(s.speed) * tuning.landingTilt; }
+    if (s.lift <= 0) {
+      s.lift = 0; s.liftVel = 0; s.grounded = true;
+      s.tiltVel += Math.abs(s.speed) * tuning.landingTilt;
+      loosenAll(s, tuning.landingJolt * tuning.strapJoltMul);
+    }
   }
   s.reserve -= (drainRate(route, tuning) + (s.braced ? tuning.braceDrain : 0)) * dt;
 }

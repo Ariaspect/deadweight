@@ -55,7 +55,7 @@ describe('hazards', () => {
   });
   it('impulse scales with speed', () => {
     const r = hzRoute([hz({ x: 200 })]);
-    const peak = (g: 1 | 4) => { const s = createRun(r, [], tuning); const rng = mulberry32(1); while (s.x < 200) step(s, frame({ gait: g, throttle: 0 }), r, [], tuning, rng); step(s, frame({ gait: g, throttle: 0 }), r, [], tuning, rng); return Math.abs(s.tiltVel); };
+    const peak = (g: 1 | 4) => { const s = createRun(r, [], tuning); const rng = mulberry32(1); while (s.x < 200) step(s, frame({ gait: g }), r, [], tuning, rng); step(s, frame({ gait: g }), r, [], tuning, rng); return Math.abs(s.tiltVel); };
     expect(peak(4)).toBeGreaterThan(peak(1) * 1.5);
   });
   it('hazardScale is 0.6 at rest and 1.5 at full speed', () => {

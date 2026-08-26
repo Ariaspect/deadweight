@@ -40,6 +40,7 @@ export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFra
   const centerError = 0 - v.z;
   const steer = centerError > 0.35 ? 1 : centerError < -0.35 ? -1 : 0;
   return {
+    throttle: 1,
     gait,
     ballast: clampInt(feedForward + feedback, -tuning.ballastRange, tuning.ballastRange),
     strap: v.strap < b.strapBelow,
