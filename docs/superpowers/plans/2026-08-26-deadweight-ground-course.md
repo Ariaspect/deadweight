@@ -2266,7 +2266,7 @@ The mud test drops the `x1!` non-null assertion for an explicit `!== undefined` 
 - Consumes: `moverActive` (Task 8) — the renderer imports it from `src/sim/step` (allowed direction: render → sim).
 - Produces: `buildHazards(route)`, `animateHazards(group, tick)`, `disposeHazards(group)`; `buildScenery/syncScenery/disposeScenery` unchanged signatures.
 
-- [ ] **Step 1: hazards.ts**
+- [x] **Step 1: hazards.ts**
 
 Replace `src/render/three/hazards.ts` with:
 
@@ -2408,7 +2408,7 @@ export function disposeHazards(g: THREE.Group): void {
 
 In `ThreeRenderer.draw` change the call to `animateHazards(this.hazardGroup, curr.t + alpha)`.
 
-- [ ] **Step 2: scenery.ts palette and ruins**
+- [x] **Step 2: scenery.ts palette and ruins**
 
 In `src/render/three/scenery.ts`:
 - Materials: `mountainMat` colour `#4a453f`, `mountainFarMat` `#7b746a`, `orangeMat` → rename `rustMat` colour `#6e4a34`, `cacheMat` colour `#d29a4a` emissive `#5a3a12` intensity 0.9, `beaconMat` colour `#e8b86a` opacity 0.35.
@@ -2417,7 +2417,7 @@ In `src/render/three/scenery.ts`:
 - Discovery sites: keep; the `beacon` cone now uses the amber `beaconMat`.
 - Discovery sites use world z: `site.position.set(x, route.heightAt(x), route.centerAt(x) + z)` (sim `z` is corridor-relative).
 
-- [ ] **Step 3: rig.ts skin**
+- [x] **Step 3: rig.ts skin**
 
 In `src/render/three/rig.ts`:
 - Body material colour `#5a5148`; `legMat` `#3a3632`; `footMat` `#6e4a34`; deck colour `#3a352f`.
@@ -2425,11 +2425,11 @@ In `src/render/three/rig.ts`:
 - Replace the two lamps with one headlamp on the right: `const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffd078' })); lamp.position.set(1.74, BODY_Y + 0.12, 0.58); this.group.add(lamp);` and a dead lamp on the left with colour `#3a3632`.
 - `dispose()` already disposes non-leg children; no change.
 
-- [ ] **Step 4: ThreeRenderer palette**
+- [x] **Step 4: ThreeRenderer palette**
 
 In `src/render/three/ThreeRenderer.ts`: `SKY = '#b9b0a3'`; fog `new THREE.Fog(SKY, 60, 180)`; hemisphere `('#c9bfae', '#3e3a35', 1.4)`; sun colour `'#e8c39a'` intensity 3.0; `toneMappingExposure = 1.0`.
 
-- [ ] **Step 5: Gates and commit**
+- [x] **Step 5: Gates and commit**
 
 Run: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
 Expected: green.
@@ -2438,6 +2438,12 @@ Expected: green.
 git add -A
 git commit -m "feat(render): post-apocalypse hazard set with rockfall and crane movers, ruins scenery, rusted rig, ash palette"
 ```
+
+---
+
+**Ruling (execution):** `scenery.ts` drops the `cone` geometry (the block ruins are its only former user) and registers
+`[blockGeo, postGeo, markerGeo]`. `hazards.ts` uses `h.x1 ?? h.x` and an explicit `cycleTicks`/`windowTicks` undefined guard
+rather than `!` assertions, and names the mover local `windowTicks` so it does not shadow the global `window`.
 
 ---
 
