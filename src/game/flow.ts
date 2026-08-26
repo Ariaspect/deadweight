@@ -8,6 +8,7 @@ import { loadSave, writeSave, type SaveData, type StorageLike } from './save';
 import { generateCargo, pickRoutes, playerTier, routeDifficulty, stormRisk, type RouteRating } from './orders';
 import { pickHq, pickReview } from './reviews';
 import { renderDispatch } from '../ui/screens/dispatch';
+import { showBriefing } from '../ui/briefing';
 import { renderRouteSelect, type RouteOption } from '../ui/screens/route';
 import { renderLoadout } from '../ui/screens/loadout';
 import { renderResult } from '../ui/screens/result';
@@ -116,7 +117,8 @@ export class Flow {
     this.threatAudio.beginRun(state);
     panel.setMessage(`HQ: ${this.outpost!.name}. ${loadout.length} aboard. W walks at the gait you set. Pick your lanes.`);
     const defs = loadout.map((l) => l.def);
-    const attach = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); };
+    // one frame painted behind the briefing so the world is visible while the sim is stopped
+    const attach = (r: Renderer): void => { r.setLoadout(defs); r.setRoute(route); r.draw(state, prev, 0); };
     if (this.renderer) attach(this.renderer); else d.renderer.then(attach);
 
     let linger = 0;
@@ -144,7 +146,10 @@ export class Flow {
       },
     });
     this.loop = loop;
-    loop.start();
+    // the briefing holds the run: the loop is not started, so no tick runs and the input log stays clean
+    panel.update(state, tuning, route);
+    this.hud.update(state, route);
+    showBriefing(d.viewportEl.parentElement ?? document.body, this.outpost?.name ?? '', () => loop.start());
   }
 
   private finish(state: RigState, loop: GameLoop): void {
