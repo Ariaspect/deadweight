@@ -129,7 +129,7 @@ export class Flow {
         prev.x = state.x; prev.z = state.z; prev.lift = state.lift; prev.lateralVel = state.lateralVel; prev.tilt = state.tilt; prev.speed = state.speed;
         step(state, inp, route, this.save.traces, tuning, rng);
         d.audio?.step(inp, state, tuning.dt);
-        this.threatAudio.step(state, highestDanger(state, tuning));
+        this.threatAudio.step(state, highestDanger(state, tuning), inp.shieldSector);
         const ev = describeEvents(snap, state, route, tuning.cacheReserve); snap = ev.next;
         if (ev.lines.length) panel.setMessage(ev.lines.join('\n'));
         if (state.ended) { if (++linger > LINGER[state.ended]) { finished = true; this.finish(state, loop); } } else linger = 0;

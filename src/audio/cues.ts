@@ -12,7 +12,7 @@ const SOURCES: Record<Cue, URL> = {
   denied: new URL('../assets/audio/denied.ogg', import.meta.url),
   missileLaunch: new URL('../assets/audio/missile_launch.ogg', import.meta.url),
   dangerTick: new URL('../assets/audio/danger_tick.ogg', import.meta.url),
-  radarOn: new URL('../assets/audio/radar_on.ogg', import.meta.url),
+  radarOn: new URL('../assets/audio/radar_activate.ogg', import.meta.url),   // the night-vision sting, once
   radarOff: new URL('../assets/audio/radar_off.ogg', import.meta.url),
   cacheFound: new URL('../assets/audio/cache_found.ogg', import.meta.url),
 };
@@ -21,7 +21,6 @@ const VOLUME: Record<Cue, number> = {
 };
 
 const WIND = new URL('../assets/audio/wind.ogg', import.meta.url);
-const RADAR_LOOP = new URL('../assets/audio/radar_loop.ogg', import.meta.url);
 
 function play(cue: Cue, rate = 1): void {
   const el = new Audio(SOURCES[cue].href);
@@ -44,7 +43,6 @@ interface Snap { storm: number; radar: boolean; shield: number; missiles: number
 /** Storm and turret audio. Construct once, call beginRun per haul and step every tick. */
 export class ThreatAudio {
   private wind: HTMLAudioElement | null = null;
-  private radar: HTMLAudioElement | null = null;
   private prev: Snap | null = null;
   private seen = new Set<number>();
 
@@ -57,31 +55,32 @@ export class ThreatAudio {
     this.seen.clear();
   }
 
-  /** `danger` is highestDanger(s, tuning); passed in so this module never imports the sim's step. */
-  step(s: RigState, danger: number): void {
+  /** `danger` is highestDanger(s, tuning), `requestedSector` the shield press this tick, if any — both passed
+   *  in so this module never imports the sim's step and never guesses at player intent. */
+  step(s: RigState, danger: number, requestedSector?: number): void {
     if (!this.wind) this.wind = loop(WIND, 0.5);
-    if (!this.radar) this.radar = loop(RADAR_LOOP, 0.22);
     const prev = this.prev ?? this.snap(s, danger);
 
     // the storm bed rides the same 0..1 ramp the fog does, so it arrives and lifts with the weather
     this.wind.volume = Math.min(1, s.storm) * 0.5;
-    this.radar.volume = s.radar ? 0.22 : 0;
 
+    // one sting on the transition only — radar has no ambient bed, the reserve drain is its own reminder
     if (s.radar !== prev.radar) play(s.radar ? 'radarOn' : 'radarOff');
     // a launch is the one thing you cannot see coming, so it gets its own alert
     for (const m of s.missiles) if (!this.seen.has(m.id)) { this.seen.add(m.id); play('missileLaunch'); }
     // the level climb ticks upward in pitch: six steps from launch to impact
     if (danger > prev.danger && danger > 0) play('dangerTick', 0.8 + danger * 0.12);
     if (s.shield >= 0 && prev.shield < 0) play('shieldUp');
-    // shield asked for and refused — moving, or still cooling down
-    if (s.shield < 0 && prev.shield < 0 && danger >= 5 && Math.abs(s.speed) >= 0.05 && s.t % 30 === 0) play('denied');
+    // refused only when the player actually ASKED and the shield did not come up — moving, or cooling down.
+    // Inferring this from danger alone made it a twice-a-second nag nobody had triggered.
+    if (requestedSector !== undefined && s.shield < 0) play('denied');
     if (s.foundDiscoveries.length > prev.found) play('cacheFound');
 
     this.prev = this.snap(s, danger);
   }
 
   stop(): void {
-    for (const el of [this.wind, this.radar]) { if (el) { el.pause(); el.currentTime = 0; } }
-    this.wind = null; this.radar = null;
+    if (this.wind) { this.wind.pause(); this.wind.currentTime = 0; }
+    this.wind = null;
   }
 }
