@@ -372,8 +372,10 @@ function stepMissiles(s: RigState, tuning: Tuning): void {
   for (const m of s.missiles) {
     const left = m.impactTick - s.t;
     if (left > 0) {
-      // close a proportional share of the remaining gap each tick: arrives exactly at impactTick
-      const f = 1 / left;
+      // Close a share of the gap each tick. The denominator is left + 1, NOT left: closing the whole
+      // gap puts the missile exactly on the rig at impact, and a zero vector has no bearing to block
+      // against. This leaves a gap of D/(flightTicks + 1) — visually on top of you, still directional.
+      const f = 1 / (left + 1);
       m.x += (s.x - m.x) * f;
       m.z += (s.z - m.z) * f;
       live.push(m);
@@ -407,6 +409,12 @@ In `stepRig`, call `stepShield(s, input, tuning)` immediately after `applyRestra
 ```
 
 Call `stepTurrets(s, route, tuning)` and then `stepMissiles(s, tuning)` at the end of `stepRig`, after `s.x` has been advanced, so a missile resolves against the position the rig actually reached this tick.
+
+**Watch out:** `octantOf(0, 0)` must never be reached by the blocked check. Task 1's `octantOf` pins a zero
+vector to octant 0, but the real guard is the `left + 1` denominator above, which stops the missile from ever
+coinciding with the rig. Getting this wrong makes the shield block on octant 1 and nothing else, whatever
+bearing the missile flew in on — and no test in Task 2's own block catches it, so the sector test in Task 7's
+integration is what proves it.
 
 **Watch out:** `s.missiles.push` inside `stepTurrets` mutates during iteration of `route.turrets`, not of `s.missiles` — that is safe. `stepMissiles` rebuilds the array rather than splicing, which keeps ordering deterministic.
 

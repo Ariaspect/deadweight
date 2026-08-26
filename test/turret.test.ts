@@ -132,4 +132,30 @@ describe('the shield', () => {
     step(s, frame({ gait: 0, throttle: 0, shieldSector: 1 }), route, [], tuning, rng);
     expect(s.shield, 'still cooling down').toBe(-1);
   });
+  it('blocks only the sector the missile actually flew in on', () => {
+    // a turret at +z fires from the port side, so the missile must be blocked by that bearing and no other
+    const results: Record<number, boolean> = {};
+    let trueOctant = -1;
+    for (let sector = 0; sector < 8; sector++) {
+      const route = routeFromSegments(1, [{ x0: 0, x1: 2000, slope: 0, y0: 0 }], [], 10, [], undefined, 18, [],
+        [{ id: 0, x: 200, z: 70, phase: 0 }]);
+      const s = createRun(route, [{ def: crateDef(), slot: 1 }], tuning);
+      const rng = mulberry32(11);
+      for (let i = 0; i < 60; i++) step(s, frame({ gait: 2, throttle: 1 }), route, [], tuning, rng);
+      expect(s.missiles.length, 'a missile is in flight').toBeGreaterThan(0);
+      const m = s.missiles[0]!;
+      while (s.t < m.impactTick - tuning.turret.shieldTicks / 2) step(s, frame({ gait: 0, throttle: 0 }), route, [], tuning, rng);
+      const strapBefore = s.items[0]!.restraint;
+      step(s, frame({ gait: 0, throttle: 0, shieldSector: sector }), route, [], tuning, rng);
+      while (s.t < m.impactTick) step(s, frame({ gait: 0, throttle: 0 }), route, [], tuning, rng);
+      trueOctant = octantOf(m.x - s.x, m.z - s.z);   // the real bearing on the last tick before impact
+      step(s, frame({ gait: 0, throttle: 0 }), route, [], tuning, rng);
+      results[sector] = s.items[0]!.restraint >= strapBefore - 0.5;   // no strap jolt means it was blocked
+    }
+    const blocking = Object.entries(results).filter(([, ok]) => ok).map(([k]) => Number(k));
+    expect(blocking, 'exactly one sector blocks').toHaveLength(1);
+    expect(blocking[0], 'and it is the bearing the missile actually flew in on').toBe(trueOctant);
+    expect(trueOctant, 'the bearing is a real one, not the zero-vector fallthrough this test exists to catch').toBe(0);
+  });
+
 });

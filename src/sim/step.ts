@@ -98,16 +98,15 @@ function stepMissiles(s: RigState, tuning: Tuning): void {
   for (const m of s.missiles) {
     const left = m.impactTick - s.t;
     if (left > 0) {
-      // close a proportional share of the remaining gap each tick: arrives exactly at impactTick
-      const f = 1 / left;
+      // Close a share of the remaining gap each tick. The denominator is left + 1, NOT left: closing the
+      // whole gap would put the missile exactly on the rig at impact, and a zero vector has no bearing to
+      // block against. This leaves a gap of D/(flightTicks + 1) — visually on top of you, still directional.
+      const f = 1 / (left + 1);
       m.x += (s.x - m.x) * f;
       m.z += (s.z - m.z) * f;
       live.push(m);
       continue;
     }
-    // KNOWN DEFECT (plan Task 2, awaiting an owner ruling): at left === 1 the closing step above puts
-    // the missile exactly on the rig, so by the impact tick dx/dz are 0 and octantOf(0, 0) is always 1.
-    // The shield therefore blocks only when sector 1 was chosen, whatever bearing the missile flew in on.
     const blocked = s.shield >= 0 && s.shield === octantOf(m.x - s.x, m.z - s.z);
     if (!blocked) {
       s.tiltVel += (m.z >= s.z ? 1 : -1) * t.impulse * hazardScale(s, tuning);

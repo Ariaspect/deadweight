@@ -9,6 +9,7 @@ const TAN_67_5 = 2.41421356;    // tan(67.5 deg)
  * +z. Comparisons only — src/sim forbids Math.atan2, so a bearing is never computed as an angle.
  */
 export function octantOf(dx: number, dz: number): number {
+  if (dx === 0 && dz === 0) return 0;   // a zero vector has no bearing; pin it rather than let it fall through to 1
   const ax = Math.abs(dx), az = Math.abs(dz);
   const shallow = az < ax * TAN_22_5;    // within 22.5 deg of the x axis
   const steep = az > ax * TAN_67_5;      // within 22.5 deg of the z axis
