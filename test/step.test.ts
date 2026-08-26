@@ -11,6 +11,8 @@ describe('createRun', () => {
     expect(s.reserve).toBe(tuning.reserveStart);
     expect(s.strap).toBe(tuning.strapStart);
     expect(s.ended).toBeNull();
+    expect(s.targetSpeed).toBe(0);
+    expect(s.zoneCooldown).toEqual([]);
   });
   it('sets deadlineTick from rush (presence, not truthiness)', () => {
     const rushDef = { ...crateDef(), rush: 55 };

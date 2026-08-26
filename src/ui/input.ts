@@ -5,12 +5,14 @@ export interface InputState {
   strapQueued: boolean; recoverQueued: boolean; deployQueued: KitId | 0;
   forward: boolean; backward: boolean; left: boolean; right: boolean; jumpQueued: boolean;
   cargoSelectQueued: number | null;
+  baySlots: number[]; bayIndex: number;
   dragging: boolean; dragStartPx: number; dragStartBallast: number;
 }
 
 export function initialInput(): InputState {
   return { gait: 0, ballast: 0, keyFore: false, keyAft: false, brace: false, strapQueued: false, recoverQueued: false, deployQueued: 0,
-    forward: false, backward: false, left: false, right: false, jumpQueued: false, cargoSelectQueued: null, dragging: false, dragStartPx: 0, dragStartBallast: 0 };
+    forward: false, backward: false, left: false, right: false, jumpQueued: false, cargoSelectQueued: null, baySlots: [], bayIndex: 0,
+    dragging: false, dragStartPx: 0, dragStartBallast: 0 };
 }
 
 const clampGait = (g: number): Gait => (g < 0 ? 0 : g > 4 ? 4 : g) as Gait;
@@ -28,10 +30,14 @@ export function applyKey(st: InputState, code: string, down: boolean): void {
     case 'KeyF': if (down) st.strapQueued = true; break;
     case 'KeyR': if (down) st.recoverQueued = true; break;
     case 'KeyP': if (down) st.deployQueued = 'plank'; break;
+    case 'Tab':
+      if (down && st.baySlots.length > 0) { st.bayIndex = (st.bayIndex + 1) % st.baySlots.length; st.cargoSelectQueued = st.baySlots[st.bayIndex]!; }
+      break;
     default:
-      if (down && /^Digit[0-4]$/.test(code)) {
-        st.gait = clampGait(Number(code.slice(5)));
-        const bay = Number(code.slice(5)); if (bay >= 1 && bay <= 3) st.cargoSelectQueued = bay - 1;
+      if (down && /^Digit[0-4]$/.test(code)) st.gait = clampGait(Number(code.slice(5)));
+      else if (down && /^Digit[5-7]$/.test(code)) {
+        const slot = Number(code.slice(5)) - 5, idx = st.baySlots.indexOf(slot);
+        if (idx >= 0) { st.cargoSelectQueued = slot; st.bayIndex = idx; }
       }
   }
 }
@@ -76,26 +82,55 @@ export class InputController {
     doc.addEventListener('keydown', this.onKeyDown);
     doc.addEventListener('keyup', this.onKeyUp);
     doc.defaultView?.addEventListener('blur', this.onBlur);
+    viewport.addEventListener('pointerdown', this.onPointerDown);
+    viewport.addEventListener('pointermove', this.onPointerMove);
+    viewport.addEventListener('pointerup', this.onPointerUp);
+    viewport.addEventListener('pointercancel', this.onPointerUp);
   }
   detach(): void {
     this.doc?.removeEventListener('keydown', this.onKeyDown);
     this.doc?.removeEventListener('keyup', this.onKeyUp);
     this.doc?.defaultView?.removeEventListener('blur', this.onBlur);
+    this.viewport?.removeEventListener('pointerdown', this.onPointerDown);
+    this.viewport?.removeEventListener('pointermove', this.onPointerMove);
+    this.viewport?.removeEventListener('pointerup', this.onPointerUp);
+    this.viewport?.removeEventListener('pointercancel', this.onPointerUp);
     this.viewport = null; this.doc = null;
   }
   sample(): InputFrame { return sampleFrame(this.state, this.tuning); }
   setTuning(t: Tuning): void { this.tuning = t; }
   reset(): void { resetInput(this.state); }
   setGait(g: Gait): void { this.state.gait = g; }
+  /** Pre-trim the ballast for the loaded cargo so the rig does not start already tipping. */
+  setBallast(v: number): void {
+    const r = this.tuning.ballastRange;
+    this.state.ballast = v < -r ? -r : v > r ? r : v;
+  }
   queueStrap(): void { this.state.strapQueued = true; }
   queueRecover(): void { this.state.recoverQueued = true; }
   queueJump(): void { this.state.jumpQueued = true; }
   setDrive(axis: 'forward' | 'backward' | 'left' | 'right', on: boolean): void { this.state[axis] = on; }
-  selectCargo(index: number): void { this.state.cargoSelectQueued = index; }
+  setBays(slots: number[]): void { this.state.baySlots = [...slots].sort((a, b) => a - b); this.state.bayIndex = 0; }
+  selectCargo(slot: number): void {
+    const idx = this.state.baySlots.indexOf(slot);
+    if (idx < 0) return;
+    this.state.cargoSelectQueued = slot; this.state.bayIndex = idx;
+  }
   setBrace(on: boolean): void { this.state.brace = on; }
   queueDeploy(k: KitId): void { this.state.deployQueued = k; }
 
-  private onKeyDown = (e: KeyboardEvent): void => { if (e.repeat) return; applyKey(this.state, e.code, true); if (e.code === 'Space') e.preventDefault(); };
+  private onKeyDown = (e: KeyboardEvent): void => { if (e.repeat) return; applyKey(this.state, e.code, true); if (e.code === 'Space' || e.code === 'Tab') e.preventDefault(); };
   private onKeyUp = (e: KeyboardEvent): void => { applyKey(this.state, e.code, false); };
   private onBlur = (): void => { resetInput(this.state); };
+
+  /** Ballast drag: any pointer on the viewport that did not start on a `.dpad` button. */
+  private onPointerDown = (e: PointerEvent): void => {
+    if ((e.target as HTMLElement | null)?.closest('.dpad')) return;
+    this.viewport?.setPointerCapture(e.pointerId); applyDragStart(this.state, e.clientX);
+  };
+  private onPointerMove = (e: PointerEvent): void => {
+    const w = this.viewport?.clientWidth ?? 300;
+    applyDragMove(this.state, e.clientX, w * 0.6, this.tuning.ballastRange);
+  };
+  private onPointerUp = (): void => { applyDragEnd(this.state); };
 }

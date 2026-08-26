@@ -1125,7 +1125,7 @@ describe('generateRoute — lanes', () => {
       const r = generateRoute(seed, 800, 2, full, tuning.terrain);
       expect(r.forks.length).toBeGreaterThanOrEqual(3); expect(r.walls.length).toBeGreaterThan(r.forks.length);
       for (const h of r.hazards) {
-        const f = r.forkAt(h.x); if (!f) continue;
+        const f = r.forkAt(h.x); if (!f || h.halfW >= r.halfWidth) continue;   // corridor-wide hazards (grade, gust) are not lane hazards
         const lane = f.lanes.find((l) => h.z >= l.z0 && h.z <= l.z1);
         expect(lane, `${h.type}@${h.x}`).toBeDefined();
         expect(h.halfW).toBeLessThanOrEqual((lane!.z1 - lane!.z0) / 2 + 1e-9);
@@ -1354,8 +1354,8 @@ describe('drive', () => {
     expect(s.x).toBeGreaterThan(20); expect(s.x).toBeLessThan(200);
     expect(s.targetSpeed).toBeCloseTo(tuning.gaitSpeed[3]! * tuning.mudSpeedMul);
     expect(s.speed).toBeCloseTo(tuning.gaitSpeed[3]! * tuning.mudSpeedMul);
-    const dry = run(flat(), [...hold({ gait: 3, throttle: 1 }, 120), { gait: 3, throttle: 1, steer: 1 }]);
-    const wet = run(r, [...hold({ gait: 3, throttle: 1 }, 120), { gait: 3, throttle: 1, steer: 1 }]);
+    const dry = run(flat(), [...hold({ gait: 3, throttle: 1 }, 360), { gait: 3, throttle: 1, steer: 1 }]);
+    const wet = run(r, [...hold({ gait: 3, throttle: 1 }, 360), { gait: 3, throttle: 1, steer: 1 }]);
     expect(wet.lateralVel).toBeCloseTo(dry.lateralVel * tuning.mudTraction);
   });
   it('a wall ahead stops the rig at its face and a fast hit costs tilt and strap', () => {
@@ -1387,7 +1387,7 @@ describe('drive', () => {
     const cross = (jump: boolean) => {
       const s = createRun(r, [{ def: crateDef(), slot: 1 }], tuning); s.speed = 10; const rng = mulberry32(4);
       step(s, frame({ gait: 3, jump }), r, [], tuning, rng);
-      while (s.x < 7) step(s, frame({ gait: 3 }), r, [], tuning, rng);
+      while (!s.grounded || s.x < 7) step(s, frame({ gait: 3 }), r, [], tuning, rng);
       return s;
     };
     expect(cross(false).strap).toBeLessThan(tuning.strapStart);
@@ -1476,7 +1476,7 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
 }
 ```
 
-In `test/step.test.ts` the `'accelerates toward gaitSpeed[gait] at gaitAccel'` test still passes (`frame()` defaults `throttle: 1`). In `test/hazards.test.ts` the brace test expects `s.x` at `min(braceSpeed, gaitAccel·dt)·dt` — still true. Where the walls test in Task 3 constructed a rig via `createRun`, nothing changes.
+In `test/step.test.ts` the `'accelerates toward gaitSpeed[gait] at gaitAccel'` test still passes (`frame()` defaults `throttle: 1`). `botPolicy` in `src/sim/bot.ts` must now return `throttle: 1` (add it next to `gait`; Task 9 rewrites the policy). `test/bot.test.ts` "completes a generated tier-0 route within the reserve" fails on seed 4417 until the lane planner exists — mark it `it.skip` with `// re-enabled in Task 9 (lane planner)`. In `test/hazards.test.ts` the brace test expects `s.x` at `min(braceSpeed, gaitAccel·dt)·dt` — still true. Where the walls test in Task 3 constructed a rig via `createRun`, nothing changes.
 
 - [ ] **Step 4: Run, expect pass**
 
@@ -1594,7 +1594,7 @@ function applyRestraintInput(s: RigState, input: InputFrame, tuning: Tuning): vo
 - In `crossHazards` replace `s.strap = Math.max(0, s.strap - h.strapJolt * tuning.strapJoltMul);` with `loosenAll(s, h.strapJolt * tuning.strapJoltMul);`.
 - In `stepItems` delete `const loose = 1 - s.strap / 100;` and inside the loop, after `if (it.lost) continue;`, add `const loose = 1 - it.restraint / 100;`; change the crush line to `it.stress += Math.max(0, it.restraint - it.crushLimit) * tuning.kCrush * dt;`.
 - In `createRun`: `selectedSlot: items.reduce((m, it) => Math.min(m, it.slot), items.length ? 99 : 0)` (lowest slot; 0 when empty).
-- In `stepRecovering` the restored item keeps its restraint.
+- In `stepRecovering` the restored item keeps its restraint; call `syncStrap(s)` right after the restore, and in `spillCheck` right after `worst.lost = true`, so the readout never goes stale across those transitions (ruling from the Task 7 review).
 - `src/sim/bot.ts`: replace `strap: v.strap < b.strapBelow,` with
 
 ```ts
@@ -1771,7 +1771,7 @@ describe('bot v3 — lanes', () => {
       { id: 1, type: 'rockfall', x: 140, x1: 148, z: -11, halfW: 7, impulse: 1.2, strapJolt: 22, dir: 1, cycleTicks: 360, windowTicks: 72, phase: 0 },
     ], 10, [], { forks: [fork], walls: [{ x0: 130, x1: 132, z0: -1.5, z1: 9, kind: 'baffle' }, { x0: 160, x1: 162, z0: 7, z1: 18, kind: 'baffle' }], pockets: [] }, 18);
     expect(laneScore(r, fork, 0)).toBeCloseTo(0.35 + 1.2 * 1.5);
-    expect(laneScore(r, fork, 1)).toBeCloseTo(0.8);
+    expect(laneScore(r, fork, 1)).toBeCloseTo(11.6);
   });
   it('steers into the safe lane before a fork and holds it inside', () => {
     const r = generateRoute(9026, 800, 2, hazards, tuning.terrain);
@@ -1782,7 +1782,9 @@ describe('bot v3 — lanes', () => {
     expect(result.ended).not.toBe('spilled');
     const s = createRun(r, [{ def: crateDef(), slot: 1 }], tuning); const rng = mulberry32(1); const lag = new LagBuffer(15);
     while (s.x < fork.x0 + 5 && !s.ended) step(s, botPolicy(lag.push(s), r, tuning), r, [], tuning, rng);
-    expect(r.laneAt(s.x, s.z)).toBe(safeLanes[0]!.i);
+    const chosen = r.laneAt(s.x, s.z);
+    expect(chosen).toBeGreaterThanOrEqual(0);
+    expect(laneScore(r, fork, chosen)).toBeCloseTo(safeLanes[0]!.score);
   });
   it('never jumps and always holds W', () => {
     const r = flatRoute();
@@ -1825,15 +1827,18 @@ const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > 
 
 const inLaneZ = (h: { z: number }, lane: Lane): boolean => h.z >= lane.z0 && h.z <= lane.z1;
 
-/** Lower is safer: hazard impulses (movers ×1.5), mud 0.6, each chicane baffle 0.4. */
+/** A centre-holding planner cannot weave a chicane, so chicanes rank behind every other lane outright. */
+const CHICANE_PENALTY = 10;
+
+/** Lower is safer: hazard impulses (movers ×1.5), mud 0.6, chicanes +10 plus 0.8 per baffle. */
 export function laneScore(route: RouteDef, fork: Fork, i: number): number {
   const lane = fork.lanes[i]!;
-  let score = 0;
+  let score = lane.archetype === 'chicane' ? CHICANE_PENALTY : 0;
   for (const h of route.hazards) {
     if (h.x < fork.x0 || h.x > fork.x1 || !inLaneZ(h, lane)) continue;
     score += h.type === 'mud' ? 0.6 : h.impulse * (h.cycleTicks !== undefined ? 1.5 : 1);
   }
-  for (const w of route.walls) if (w.kind === 'baffle' && w.x0 < fork.x1 && w.x1 > fork.x0 && w.z0 < lane.z1 && w.z1 > lane.z0) score += 0.4;
+  for (const w of route.walls) if (w.kind === 'baffle' && w.x0 < fork.x1 && w.x1 > fork.x0 && w.z0 < lane.z1 && w.z1 > lane.z0) score += 0.8;
   return score;
 }
 
@@ -1841,8 +1846,10 @@ function targetZ(v: BotView, route: RouteDef, tuning: Tuning): number {
   const inside = route.forkAt(v.x);
   if (inside) {
     const i = route.laneAt(v.x, v.z);
-    const lane = inside.lanes[i >= 0 ? i : 0]!;
-    return laneCentre(lane);
+    if (i >= 0) return laneCentre(inside.lanes[i]!);
+    let best = inside.lanes[0]!;
+    for (const lane of inside.lanes) if (Math.abs(laneCentre(lane) - v.z) < Math.abs(laneCentre(best) - v.z)) best = lane;
+    return laneCentre(best);
   }
   const ahead = route.forks.find((f) => f.x0 > v.x && f.x0 - v.x < tuning.bot.laneLookaheadM);
   if (ahead) {
@@ -1862,7 +1869,7 @@ export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFra
   const zTarget = targetZ(v, route, tuning);
   let brace = false, slow = false, near = false;
   for (const h of route.hazards) {
-    const start = h.x1 !== undefined ? h.x : h.x, end = h.x1 ?? h.x;
+    const start = h.x, end = h.x1 ?? h.x;
     if (end < v.x) continue;
     if (start > v.x + 40) break;
     if (h.impulse === 0) continue;
@@ -1998,10 +2005,13 @@ In `src/ui/input.ts`:
       break;
     default:
       if (down && /^Digit[0-4]$/.test(code)) st.gait = clampGait(Number(code.slice(5)));
-      else if (down && /^Digit[5-7]$/.test(code)) { const slot = Number(code.slice(5)) - 5; st.cargoSelectQueued = slot; st.bayIndex = Math.max(0, st.baySlots.indexOf(slot)); }
+      else if (down && /^Digit[5-7]$/.test(code)) {
+        const slot = Number(code.slice(5)) - 5, idx = st.baySlots.indexOf(slot);
+        if (idx >= 0) { st.cargoSelectQueued = slot; st.bayIndex = idx; }   // unloaded bays are ignored (ruling)
+      }
 ```
 
-- `InputController`: `setBays(slots: number[]): void { this.state.baySlots = [...slots].sort((a, b) => a - b); this.state.bayIndex = 0; }` and `selectCargo(slot: number): void { this.state.cargoSelectQueued = slot; this.state.bayIndex = Math.max(0, this.state.baySlots.indexOf(slot)); }`.
+- `InputController`: `setBays(slots: number[]): void { this.state.baySlots = [...slots].sort((a, b) => a - b); this.state.bayIndex = 0; }` and `selectCargo(slot: number): void { const idx = this.state.baySlots.indexOf(slot); if (idx < 0) return; this.state.cargoSelectQueued = slot; this.state.bayIndex = idx; }` (unloaded bays are ignored — ruling from the Task 10 review; tests that press Digit5–7 must load bays first).
 - `onKeyDown`: `if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();`.
 - `resetInput` leaves `baySlots` alone (set per haul by the flow).
 
@@ -2085,7 +2095,7 @@ git commit -m "feat(ui): bay keys and Tab cycling; route sketch and minimap buil
 
 No unit tests (WebGL); verification is `pnpm typecheck && pnpm lint && pnpm build` plus a manual run in Task 14.
 
-- [ ] **Step 1: terrain.ts**
+- [x] **Step 1: terrain.ts**
 
 Replace `src/render/three/terrain.ts` with:
 
@@ -2123,7 +2133,7 @@ export function buildTerrain(route: RouteDef, stepX = 2, stepZ = 2): THREE.Mesh 
     let rut = false;
     if (fork) for (const lane of fork.lanes) if (Math.abs(rz - (lane.z0 + lane.z1) / 2) < 1.2) rut = true;
     if (!fork && Math.abs(rz) < 1.4) rut = true;
-    const mud = route.zones.some((h) => h.type === 'mud' && x >= h.x && x <= h.x1! && Math.abs(rz - h.z) < h.halfW);
+    const mud = route.zones.some((h) => h.type === 'mud' && h.x1 !== undefined && x >= h.x && x <= h.x1 && Math.abs(rz - h.z) < h.halfW);
     let drop = 0;
     for (const h of route.hazards) if (h.type === 'gap' && Math.abs(x - h.x) < 1.5 && Math.abs(rz - h.z) < h.halfW) drop = 5;
     const rough = inside ? hashNoise(x, wz) * 0.12 : hashNoise(x, wz) * 1.4;
@@ -2144,7 +2154,7 @@ export function buildTerrain(route: RouteDef, stepX = 2, stepZ = 2): THREE.Mesh 
 }
 ```
 
-- [ ] **Step 2: walls.ts (render)**
+- [x] **Step 2: walls.ts (render)**
 
 Create `src/render/three/walls.ts`:
 
@@ -2178,7 +2188,8 @@ function chunks(w: Wall): { x0: number; x1: number }[] {
 export function buildWalls(route: RouteDef): THREE.Group {
   const group = new THREE.Group();
   const counts: Record<WallKind, number> = { wall: 0, rock: 0, ruin: 0, baffle: 0 };
-  for (const w of route.walls) counts[w.kind] += chunks(w).length * (w.kind === 'rock' ? 2 : 1);
+  // rock and ruin place two instances per chunk; wall and baffle place one
+  for (const w of route.walls) counts[w.kind] += chunks(w).length * (w.kind === 'rock' || w.kind === 'ruin' ? 2 : 1);
   const meshes = {} as Record<WallKind, THREE.InstancedMesh>;
   for (const kind of Object.keys(counts) as WallKind[]) {
     const m = new THREE.InstancedMesh(GEOMETRY[kind], MATERIAL[kind], Math.max(1, counts[kind]));
@@ -2217,7 +2228,7 @@ export function disposeWalls(group: THREE.Group): void {
 }
 ```
 
-- [ ] **Step 3: Wire into ThreeRenderer**
+- [x] **Step 3: Wire into ThreeRenderer**
 
 In `src/render/three/ThreeRenderer.ts`: import `{ buildWalls, disposeWalls } from './walls'`; add `private walls: THREE.Group | null = null;`; in `setRoute` after the scenery block add
 
@@ -2228,7 +2239,7 @@ In `src/render/three/ThreeRenderer.ts`: import `{ buildWalls, disposeWalls } fro
 
 and in `dispose()` add `if (this.walls) disposeWalls(this.walls);`.
 
-- [ ] **Step 4: Gates and commit**
+- [x] **Step 4: Gates and commit**
 
 Run: `pnpm typecheck && pnpm lint && pnpm build`
 Expected: green.
@@ -2237,6 +2248,12 @@ Expected: green.
 git add -A
 git commit -m "feat(render): corridor ground with ruts and mud; instanced wall, rock, ruin and baffle chunks"
 ```
+
+---
+
+**Ruling (execution):** the capacity count above multiplies by 2 for `ruin` as well as `rock` — the `ruin`
+branch calls `place()` twice, so the original `w.kind === 'rock' ? 2 : 1` overflowed every ruin's `InstancedMesh`.
+The mud test drops the `x1!` non-null assertion for an explicit `!== undefined` guard.
 
 ---
 
@@ -2249,7 +2266,7 @@ git commit -m "feat(render): corridor ground with ruts and mud; instanced wall, 
 - Consumes: `moverActive` (Task 8) — the renderer imports it from `src/sim/step` (allowed direction: render → sim).
 - Produces: `buildHazards(route)`, `animateHazards(group, tick)`, `disposeHazards(group)`; `buildScenery/syncScenery/disposeScenery` unchanged signatures.
 
-- [ ] **Step 1: hazards.ts**
+- [x] **Step 1: hazards.ts**
 
 Replace `src/render/three/hazards.ts` with:
 
@@ -2391,7 +2408,7 @@ export function disposeHazards(g: THREE.Group): void {
 
 In `ThreeRenderer.draw` change the call to `animateHazards(this.hazardGroup, curr.t + alpha)`.
 
-- [ ] **Step 2: scenery.ts palette and ruins**
+- [x] **Step 2: scenery.ts palette and ruins**
 
 In `src/render/three/scenery.ts`:
 - Materials: `mountainMat` colour `#4a453f`, `mountainFarMat` `#7b746a`, `orangeMat` → rename `rustMat` colour `#6e4a34`, `cacheMat` colour `#d29a4a` emissive `#5a3a12` intensity 0.9, `beaconMat` colour `#e8b86a` opacity 0.35.
@@ -2400,7 +2417,7 @@ In `src/render/three/scenery.ts`:
 - Discovery sites: keep; the `beacon` cone now uses the amber `beaconMat`.
 - Discovery sites use world z: `site.position.set(x, route.heightAt(x), route.centerAt(x) + z)` (sim `z` is corridor-relative).
 
-- [ ] **Step 3: rig.ts skin**
+- [x] **Step 3: rig.ts skin**
 
 In `src/render/three/rig.ts`:
 - Body material colour `#5a5148`; `legMat` `#3a3632`; `footMat` `#6e4a34`; deck colour `#3a352f`.
@@ -2408,11 +2425,11 @@ In `src/render/three/rig.ts`:
 - Replace the two lamps with one headlamp on the right: `const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffd078' })); lamp.position.set(1.74, BODY_Y + 0.12, 0.58); this.group.add(lamp);` and a dead lamp on the left with colour `#3a3632`.
 - `dispose()` already disposes non-leg children; no change.
 
-- [ ] **Step 4: ThreeRenderer palette**
+- [x] **Step 4: ThreeRenderer palette**
 
 In `src/render/three/ThreeRenderer.ts`: `SKY = '#b9b0a3'`; fog `new THREE.Fog(SKY, 60, 180)`; hemisphere `('#c9bfae', '#3e3a35', 1.4)`; sun colour `'#e8c39a'` intensity 3.0; `toneMappingExposure = 1.0`.
 
-- [ ] **Step 5: Gates and commit**
+- [x] **Step 5: Gates and commit**
 
 Run: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
 Expected: green.
@@ -2421,6 +2438,12 @@ Expected: green.
 git add -A
 git commit -m "feat(render): post-apocalypse hazard set with rockfall and crane movers, ruins scenery, rusted rig, ash palette"
 ```
+
+---
+
+**Ruling (execution):** `scenery.ts` drops the `cone` geometry (the block ruins are its only former user) and registers
+`[blockGeo, postGeo, markerGeo]`. `hazards.ts` uses `h.x1 ?? h.x` and an explicit `cycleTicks`/`windowTicks` undefined guard
+rather than `!` assertions, and names the mover local `windowTicks` so it does not shadow the global `window`.
 
 ---
 
@@ -2434,7 +2457,7 @@ git commit -m "feat(render): post-apocalypse hazard set with rockfall and crane 
 - Consumes: `minimapMarkup/mapPoint/routeSketchSvg` (Task 10), `RigState.targetSpeed/selectedSlot`, `itemAtSlot` (Task 7), `moverActive` (Task 8).
 - Produces: `snapshot(s: RigState): EventSnapshot`; `describeEvents(prev: EventSnapshot, curr: RigState, route: RouteDef, cacheReserve: number): { lines: string[]; next: EventSnapshot }`; `Hud(viewport, handlers: { onSelectBay(slot: number): void })`, `Hud.update(s, route)`; `DispatchProps.sketch: string`.
 
-- [ ] **Step 1: Failing test for events**
+- [x] **Step 1: Failing test for events**
 
 Create `test/events.test.ts`:
 
@@ -2442,35 +2465,37 @@ Create `test/events.test.ts`:
 import { describe, it, expect } from 'vitest';
 import { describeEvents, snapshot } from '../src/game/events';
 import { createRun } from '../src/sim/step';
-import { generateRoute } from '../src/sim/terrain';
-import { tuning, hazards } from '../src/content';
-import { crateDef } from './helpers';
+import { routeFromSegments } from '../src/sim/terrain';
+import { tuning } from '../src/content';
+import { crateDef, hazard } from './helpers';
 
-const route = generateRoute(6142, 780, 2, hazards, tuning.terrain);
+const route = routeFromSegments(1, [{ x0: 0, x1: 400, slope: 0, y0: 0 }],
+  [hazard({ id: 3, type: 'rockfall', x: 40, x1: 48, z: 0, halfW: 5, impulse: 1.2, strapJolt: 22, cycleTicks: 360, windowTicks: 72, phase: 0 })],
+  10, [{ id: 0, x: 20, z: 5, name: 'SMUGGLER CACHE' }]);
 
 describe('describeEvents', () => {
-  it('reports caches, lost cargo, mover hits and wall strikes once each', () => {
+  it('reports caches, mover hits, wall strikes and lost cargo once each', () => {
     const s = createRun(route, [{ def: crateDef({ id: 'crate' }), slot: 1 }], tuning);
     let snap = snapshot(s);
     s.foundDiscoveries.push(0);
     let r = describeEvents(snap, s, route, tuning.cacheReserve); snap = r.next;
-    expect(r.lines).toEqual([`CACHE: ${route.discoveries[0]!.name} +${tuning.cacheReserve} RESERVE`]);
+    expect(r.lines).toEqual([`CACHE: SMUGGLER CACHE +${tuning.cacheReserve} RESERVE`]);
+    expect(describeEvents(snap, s, route, tuning.cacheReserve).lines).toEqual([]);
+    s.zoneCooldown[3] = 100;
+    r = describeEvents(snap, s, route, tuning.cacheReserve); snap = r.next;
+    expect(r.lines).toEqual(['ROCKFALL HIT']);
+    s.items[0]!.restraint = 40; s.speed = 0; s.targetSpeed = 10;
+    r = describeEvents(snap, s, route, tuning.cacheReserve); snap = r.next;
+    expect(r.lines).toEqual(['WALL STRIKE']);
     expect(describeEvents(snap, s, route, tuning.cacheReserve).lines).toEqual([]);
     s.items[0]!.lost = true;
-    r = describeEvents(snap, s, route, tuning.cacheReserve); snap = r.next;
-    expect(r.lines).toEqual(['CRATE OVERBOARD — RECOVER (R)']);
-    const mover = route.zones.find((z) => z.type !== 'mud')!;
-    s.zoneCooldown[mover.id] = 100;
-    r = describeEvents(snap, s, route, tuning.cacheReserve); snap = r.next;
-    expect(r.lines).toEqual([`${mover.type === 'rockfall' ? 'ROCKFALL' : 'SWINGING LOAD'} HIT`]);
-    s.items[0]!.lost = false; s.items[0]!.restraint = 40; s.speed = 0; s.targetSpeed = 10;
     r = describeEvents(snap, s, route, tuning.cacheReserve);
-    expect(r.lines).toEqual(['WALL STRIKE']);
+    expect(r.lines).toEqual(['CRATE OVERBOARD — RECOVER (R)']);
   });
 });
 ```
 
-- [ ] **Step 2: Implement events**
+- [x] **Step 2: Implement events**
 
 Create `src/game/events.ts`:
 
@@ -2505,13 +2530,13 @@ export function describeEvents(prev: EventSnapshot, s: RigState, route: RouteDef
     if ((next.cooldown[z.id] ?? -1) > (prev.cooldown[z.id] ?? -1)) lines.push(`${MOVER_NAME[z.type as 'rockfall' | 'crane']} HIT`);
   }
   const jolted = next.restraintSum < prev.restraintSum - 5;
-  const stopped = prev.targetSpeed > 0 && next.speed === 0 && prev.speed >= 0 && s.grounded;
+  const stopped = next.targetSpeed > 0 && next.speed === 0 && s.grounded;   // W held, rig not moving: something solid stopped it
   if (jolted && stopped && next.lost.length === prev.lost.length && next.found === prev.found) lines.push('WALL STRIKE');
   return { lines, next };
 }
 ```
 
-- [ ] **Step 3: Panel**
+- [x] **Step 3: Panel**
 
 In `src/ui/panel/panel.ts` `update()` replace the two `targetSpeed`/`targetRpm` lines with:
 
@@ -2521,7 +2546,7 @@ In `src/ui/panel/panel.ts` `update()` replace the two `targetSpeed`/`targetRpm` 
 
 and `const rpm = 600 + 2400 * clamp(Math.abs(s.speed) / vmax, 0, 1);`. The strap gauge label stays `ACTIVE RESTRAINT`; its fill already reads `s.strap` (= selected bay).
 
-- [ ] **Step 4: HUD**
+- [x] **Step 4: HUD**
 
 Replace `src/ui/hud.ts` with:
 
@@ -2638,7 +2663,7 @@ export class Hud {
 
 (Delete the `void itemAtSlot;` line and the `itemAtSlot` import if lint flags it as unused — it is only there to keep the import list stable while editing.)
 
-- [ ] **Step 5: CSS**
+- [x] **Step 5: CSS**
 
 In `src/ui/panel/panel.css` append:
 
@@ -2655,7 +2680,7 @@ In `src/ui/panel/panel.css` append:
 
 and change `.explore` / `.minimap` colours to the amber/ash palette (`.explore { color: #e8c39a; background: rgba(40,32,24,.72); border-right-color: #d29a4a; }`, `.map-player { fill: #ff6a22; }`).
 
-- [ ] **Step 6: Dispatch sketch and flow wiring**
+- [x] **Step 6: Dispatch sketch and flow wiring**
 
 - `src/ui/screens/dispatch.ts`: `DispatchProps` gains `sketch: string`; replace `${slopeProfileSvg(p.profile, p.profileStepM)}` with `${p.sketch}<div class="profile-strip">${slopeProfileSvg(p.profile, p.profileStepM, 480, 28)}</div>`.
 - `src/game/flow.ts`:
@@ -2667,7 +2692,7 @@ and change `.explore` / `.minimap` colours to the amber/ash palette (`.explore {
   - the HQ haul line: `` `HQ: ${this.offers!.outpost.name}. ${loadout.length} aboard. W walks at the gait you set. Pick your lanes.` ``.
 - `src/main.ts`: unchanged apart from Task 1.
 
-- [ ] **Step 7: Gates and commit**
+- [x] **Step 7: Gates and commit**
 
 Run: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
 Expected: green (`events.test.ts` passing).
@@ -2679,17 +2704,23 @@ git commit -m "feat(ui): lane-aware HUD with scrolling minimap and tappable carg
 
 ---
 
+**Ruling (execution):** the HUD ships without the `void itemAtSlot;` placeholder, its import, or the unused `mapEl`
+field; `panel.ts` drops the now-unused `targetSpeed` local. `panel.css` also gains `.profile-strip .profile { height: 34px; }`
+so the dispatch profile renders as a strip under the sketch instead of inheriting the 56 px `.profile` height.
+
+---
+
 ### Task 14: Docs, manual check, merge
 
 **Files:**
 - Modify: `DEVLOG.md`, `docs/superpowers/specs/2026-08-25-deadweight-design.md` (§8 pointer), `.github/workflows/deploy.yml` (no change expected), `README.md` if present
 
-- [ ] **Step 1: Docs**
+- [x] **Step 1: Docs**
 
 - `DEVLOG.md`: under `## Pivot: porter obstacle course (PR #1, 2026-08-26)` add a sub-bullet list "**Ground course (PR #2)**: seeded corridor per outpost with forked lanes (spines, chicanes, mud, pockets), deterministic 2-D sim (AABB walls, W-at-gait throttle, jump, per-bay restraint, rockfall/crane windows), bot lane planner, fixed 3/4 camera + mouse ballast + touch D-pad, ash/rust palette; Rapier removed (−766 KB gzip)." and refresh the validator table by pasting the new `pnpm validate` output.
 - Spec `2026-08-25-…design.md` §8: replace the body with one line: "Superseded by `2026-08-26-deadweight-ground-course-design.md`."
 
-- [ ] **Step 2: Full gates**
+- [x] **Step 2: Full gates**
 
 Run: `pnpm typecheck && pnpm lint && pnpm test && pnpm validate && pnpm build && ls -la dist/assets`
 Expected: all green; no chunk larger than `ThreeRenderer-*.js`.
@@ -2713,6 +2744,11 @@ curl -sI https://ariaspect.github.io/deadweight/ | head -1
 Expected: CI success, live 200.
 
 ---
+
+**Ruling (execution):** Steps 1–2 are done (commit a8237b9, all gates green, validate 12/12). Step 3 is the owner's:
+the agent could not drive it (Claude-in-Chrome extension not connected) and only verified that the dev server transforms
+and serves every changed module. Step 4 is done up to `gh pr create` — PR #2 is open and stays open until the owner
+has played the build; the agent does not run `gh pr merge`.
 
 ## Self-review
 

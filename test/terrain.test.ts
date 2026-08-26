@@ -41,8 +41,7 @@ describe('generateRoute', () => {
     const r = generateRoute(4417, 700, 2, hz, tuning.terrain);
     expect(r.centerAt(0)).toBe(0); expect(r.centerAt(r.length)).toBe(0);
     expect(r.segments.some((s) => Math.abs(s.z1 ?? 0) > 0.5)).toBe(true);
-    expect(r.discoveries).toHaveLength(5);
-    for (const d of r.discoveries) expect(Math.abs(d.z - r.centerAt(d.x))).toBeGreaterThanOrEqual(tuning.terrain.discoveryOffset);
+    expect(r.discoveries).toHaveLength(4);
   });
   it('covers exactly [0, length] with contiguous segments', () => {
     const r = generateRoute(5, 600, 1, hz, tuning.terrain);
@@ -74,5 +73,62 @@ describe('generateRoute', () => {
     const grades = r.hazards.filter((h) => h.type === 'grade');
     expect(grades.length).toBeGreaterThan(0);
     for (const g of grades) expect(Math.abs(r.slopeAt(g.x))).toBeCloseTo(tuning.terrain.gradeSlope);
+  });
+});
+
+const full: HazardDef[] = [
+  ...hz,
+  { type: 'rubble', impulse: 0.35, strapJolt: 25, telegraphM: 20, counter: 'slow', weight: 0.4, minTier: 0 },
+  { type: 'gap', impulse: 1.4, strapJolt: 20, telegraphM: 30, counter: 'brace', weight: 0.3, minTier: 1 },
+  { type: 'rockfall', impulse: 1.2, strapJolt: 22, telegraphM: 35, counter: 'wait', weight: 0.3, minTier: 1, cycleTicks: 360, windowTicks: 72 },
+  { type: 'mud', impulse: 0, strapJolt: 0, telegraphM: 20, counter: 'slow', weight: 0, minTier: 0 },
+];
+
+describe('generateRoute — lanes', () => {
+  it('populates the layout and puts every fork hazard inside a lane of its fork', () => {
+    for (const seed of [3350, 9026, 5518]) {
+      const r = generateRoute(seed, 800, 2, full, tuning.terrain);
+      expect(r.forks.length).toBeGreaterThanOrEqual(3); expect(r.walls.length).toBeGreaterThan(r.forks.length);
+      for (const h of r.hazards) {
+        const f = r.forkAt(h.x); if (!f || h.halfW >= r.halfWidth) continue;   // corridor-wide hazards (grade, gust) are not lane hazards
+        const lane = f.lanes.find((l) => h.z >= l.z0 && h.z <= l.z1);
+        expect(lane, `${h.type}@${h.x}`).toBeDefined();
+        expect(h.halfW).toBeLessThanOrEqual((lane!.z1 - lane!.z0) / 2 + 1e-9);
+        if (h.impulse > 0) expect(lane!.archetype).toBe('direct');
+        if (h.type === 'mud') expect(lane!.archetype).toBe('mud');
+      }
+    }
+  });
+  it('every fork keeps a lane with no impulse hazard', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const r = generateRoute(seed, 900, 3, full, tuning.terrain);
+      for (const f of r.forks) {
+        const safe = f.lanes.some((lane) => !r.hazards.some((h) => h.impulse > 0 && h.x >= f.x0 && h.x <= f.x1 && h.z >= lane.z0 && h.z <= lane.z1));
+        expect(safe, `seed ${seed} fork ${f.x0}`).toBe(true);
+      }
+    }
+  });
+  it('zones span x..x1 inside their fork and movers carry a cycle', () => {
+    const r = generateRoute(4417, 900, 3, full, tuning.terrain);
+    expect(r.zones.length).toBeGreaterThan(0);
+    for (const z of r.zones) {
+      expect(z.x1!).toBeGreaterThan(z.x);
+      const f = r.forkAt(z.x)!; expect(z.x).toBeGreaterThanOrEqual(f.x0); expect(z.x1!).toBeLessThanOrEqual(f.x1);
+      if (z.type !== 'mud') { expect(z.cycleTicks).toBe(360); expect(z.windowTicks).toBe(72); expect(z.phase).toBeGreaterThanOrEqual(0); expect(z.phase).toBeLessThan(360); }
+    }
+    expect(r.hazards.filter((h) => h.x1 === undefined).every((h) => h.cycleTicks === undefined)).toBe(true);
+  });
+  it('stretch hazards leave a way past: rubble and scree sit on one side with halfW < halfWidth', () => {
+    const r = generateRoute(9026, 900, 3, full, tuning.terrain);
+    const stretch = r.hazards.filter((h) => !r.forkAt(h.x) && (h.type === 'rubble' || h.type === 'scree'));
+    for (const h of stretch) { expect(Math.abs(h.z)).toBeGreaterThan(3); expect(h.halfW).toBeLessThan(r.halfWidth * 0.6); }
+  });
+  it('places 2 + min(2, tier) discoveries, pockets first', () => {
+    for (const [tier, count] of [[0, 2], [1, 3], [2, 4], [3, 4]] as const) {
+      const r = generateRoute(6142, 900, tier, full, tuning.terrain);
+      expect(r.discoveries).toHaveLength(count);
+      r.pockets.forEach((p, i) => { const d = r.discoveries[i]!; expect(d.x).toBeGreaterThanOrEqual(p.x0); expect(d.x).toBeLessThanOrEqual(p.x1); expect(d.z).toBeGreaterThanOrEqual(p.z0); expect(d.z).toBeLessThanOrEqual(p.z1); });
+      for (const d of r.discoveries.slice(r.pockets.length)) expect(Math.abs(d.z)).toBeCloseTo(r.halfWidth - 3);
+    }
   });
 });

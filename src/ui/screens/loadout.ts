@@ -4,7 +4,9 @@ import { predictTrim } from '../../sim/step';
 const SLOT_NAMES = ['FORE', 'MID', 'AFT'];
 
 export function renderLoadout(el: HTMLElement, p: { items: ItemDef[]; tuning: Tuning }, onHaul: (loadout: LoadoutItem[]) => void): void {
-  const slots = p.tuning.capacity >= 3 ? [0, 1, 2] : [0, 2];
+  // one crate has nothing to balance against, so it rides the centre bay and there is no choice to offer
+  const single = p.items.length === 1;
+  const slots = single ? [1] : p.tuning.capacity >= 3 ? [0, 1, 2] : [0, 2];
   const assign = new Map<string, number>();
   p.items.forEach((it, i) => assign.set(it.id, slots[i]!));
   const loadout = (): LoadoutItem[] => p.items.map((def) => ({ def, slot: assign.get(def.id)! }));
@@ -16,7 +18,7 @@ export function renderLoadout(el: HTMLElement, p: { items: ItemDef[]; tuning: Tu
         <h2>LOAD BAYS</h2>
         <ul class="bays">${p.items.map((it) => `
           <li data-id="${it.id}"><b>${it.name}</b><span class="meta">${it.mass.toFixed(1)} t</span>
-            <div class="slots">${slots.map((s) => `<button data-slot="${s}" class="${assign.get(it.id) === s ? 'on' : ''}">${SLOT_NAMES[s]}</button>`).join('')}</div>
+            <div class="slots">${single ? '<span class="fixed">CENTRE BAY</span>' : slots.map((s) => `<button data-slot="${s}" class="${assign.get(it.id) === s ? 'on' : ''}">${SLOT_NAMES[s]}</button>`).join('')}</div>
           </li>`).join('')}
         </ul>
         <div class="trim">PREDICTED NEUTRAL TRIM <b>${trim > 0 ? '+' : ''}${trim}</b><span class="hint">${trim === 0 ? 'balanced' : trim > 0 ? 'nose-heavy — dial aft' : 'tail-heavy — dial fore'}</span></div>

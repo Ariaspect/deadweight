@@ -3,10 +3,10 @@ import { createRun, step, drainRate, hazardScale } from '../src/sim/step';
 import { routeFromSegments } from '../src/sim/terrain';
 import { mulberry32 } from '../src/sim/rng';
 import { tuning } from '../src/content';
-import { flatRoute, slopeRoute, crateDef, frame } from './helpers';
+import { flatRoute, slopeRoute, crateDef, frame, hazard } from './helpers';
 import type { HazardInstance, Trace } from '../src/sim/types';
 
-const hz = (over: Partial<HazardInstance>): HazardInstance => ({ id: 0, type: 'gust', x: 100, impulse: 0.9, strapJolt: 12, dir: 1, ...over });
+const hz = (over: Partial<HazardInstance> = {}): HazardInstance => hazard(over);
 const hzRoute = (h: HazardInstance[]) => routeFromSegments(9, [{ x0: 0, x1: 400, slope: 0, y0: 0 }], h, 10);
 
 function runUntil(route: ReturnType<typeof flatRoute>, input: ReturnType<typeof frame>, xTarget: number, loadout = [{ def: crateDef(), slot: 1 }]) {
@@ -17,7 +17,7 @@ function runUntil(route: ReturnType<typeof flatRoute>, input: ReturnType<typeof 
 
 describe('strap and brace', () => {
   it('strap tap adds strapTap, capped at 100', () => {
-    const r = flatRoute(); const s = createRun(r, [], tuning); const rng = mulberry32(1);
+    const r = flatRoute(); const s = createRun(r, [{ def: crateDef(), slot: 1 }], tuning); const rng = mulberry32(1);
     step(s, frame({ strap: true }), r, [], tuning, rng);
     expect(s.strap).toBe(Math.min(100, tuning.strapStart + tuning.strapTap));
     for (let i = 0; i < 10; i++) step(s, frame({ strap: true }), r, [], tuning, rng);
@@ -71,7 +71,7 @@ describe('hazards', () => {
   });
   it('a plank trace absorbs a gap', () => {
     const r = hzRoute([hz({ type: 'gap', impulse: 1.4, strapJolt: 20 })]);
-    const traces: Trace[] = [{ id: 't1', seed: r.seed, x: 102, type: 'plank', ownerName: 'x', useCount: 0, ageHours: 1 }];
+    const traces: Trace[] = [{ id: 't1', seed: r.seed, x: 102, z: 0, type: 'plank', ownerName: 'x', useCount: 0, ageHours: 1 }];
     const s = createRun(r, [{ def: crateDef(), slot: 1 }], tuning); const rng = mulberry32(1);
     while (s.x < 101) step(s, frame({ gait: 2 }), r, traces, tuning, rng);
     expect(s.strap).toBe(tuning.strapStart);

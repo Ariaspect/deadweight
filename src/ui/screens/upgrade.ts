@@ -6,11 +6,11 @@ export function renderUpgrade(el: HTMLElement, p: { defs: UpgradeDef[]; save: Sa
     el.innerHTML = `
       <div class="screen upgrade">
         <h2>WORKSHOP</h2>
-        <div class="ledger">LEDGER <b>${p.save.cash}</b></div>
+        <div class="scrap">SCRAP <b>${p.save.cash}</b></div>
         <div class="grid">${p.defs.map((d) => {
           const owned = p.save.upgrades.includes(d.id); const afford = p.save.cash >= d.cost;
           return `<button class="tile ${owned ? 'owned' : afford ? '' : 'locked'}" data-id="${d.id}" ${owned || !afford ? 'disabled' : ''}>
-            <b>${d.name}</b><span>${d.blurb}</span><em>${owned ? 'INSTALLED' : `${d.cost}`}</em></button>`;
+            <b>${d.name}</b><span>${d.blurb}</span><em>${owned ? 'INSTALLED' : `${d.cost} SCRAP`}</em></button>`;
         }).join('')}</div>
         <button class="big primary done">DISPATCH</button>
       </div>`;

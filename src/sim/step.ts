@@ -1,5 +1,6 @@
 import type { HazardInstance, InputFrame, ItemState, LoadoutItem, RigState, RouteDef, Trace, Tuning } from './types';
 import type { Rng } from './rng';
+import { resolveWalls } from './walls';
 
 export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tuning): RigState {
   void route;
@@ -8,12 +9,13 @@ export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tunin
     behavior: li.def.behavior, payout: li.def.payout,
     offset: 0, offsetVel: 0, stress: 0, lost: false,
     deadlineTick: li.def.rush !== undefined ? Math.round(li.def.rush / tuning.dt) : -1,
+    restraint: Math.min(tuning.strapStart, li.def.crushLimit),   // strapping past the crush limit would rot the load from tick 0
   }));
   return {
     t: 0, x: 0, z: 0, lateralVel: 0, lift: 0, liftVel: 0, grounded: true,
-    tilt: 0, tiltVel: 0, gait: 0, speed: 0, ballast: 0,
-    strap: tuning.strapStart, reserve: tuning.reserveStart, braced: false,
-    items, foundDiscoveries: [], recovering: 0, hazardCursor: 0, overTiltTicks: 0, ended: null,
+    tilt: 0, tiltVel: 0, gait: 0, speed: 0, targetSpeed: 0, ballast: 0, trimTarget: 0,
+    strap: tuning.strapStart, selectedSlot: items.reduce((m, it) => Math.min(m, it.slot), items.length ? 99 : 0), reserve: tuning.reserveStart, braced: false,
+    items, foundDiscoveries: [], zoneCooldown: [], recovering: 0, hazardCursor: 0, overTiltTicks: 0, ended: null,
   };
 }
 
@@ -40,48 +42,81 @@ export function predictTrim(loadout: LoadoutItem[], tuning: Tuning): number {
   return Math.round(-(tuning.kLoad * load) / tuning.kBallast * 100) || 0; // normalise -0 (balanced load) to 0
 }
 
+export function inZone(s: RigState, h: HazardInstance): boolean {
+  return h.x1 !== undefined && s.x >= h.x && s.x <= h.x1 && Math.abs(s.z - h.z) < h.halfW;
+}
+
+export function itemAtSlot(s: RigState, slot: number): ItemState | undefined {
+  return s.items.find((it) => it.slot === slot);
+}
+
+function syncStrap(s: RigState): void {
+  const sel = itemAtSlot(s, s.selectedSlot);
+  s.strap = sel && !sel.lost ? sel.restraint : 0;
+}
+
+export function loosenAll(s: RigState, amount: number): void {
+  for (const it of s.items) if (!it.lost) it.restraint = Math.max(0, it.restraint - amount);
+  syncStrap(s);
+}
+
+function applyRestraintInput(s: RigState, input: InputFrame, tuning: Tuning): void {
+  if (input.cargoSelect !== undefined && itemAtSlot(s, input.cargoSelect)) s.selectedSlot = input.cargoSelect;
+  const sel = itemAtSlot(s, s.selectedSlot);
+  if (input.strap && sel && !sel.lost) sel.restraint = Math.min(100, sel.restraint + tuning.strapTap);
+  for (const it of s.items) if (!it.lost) it.restraint = Math.max(0, it.restraint - tuning.restraintDecay[it.behavior] * tuning.dt);
+  syncStrap(s);
+}
+
 export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning: Tuning): void {
-  const dt = tuning.dt;
+  const dt = tuning.dt, mul = tuning.gaitSpeedMul, vmax = tuning.gaitSpeed[4]! * mul;
   s.gait = input.gait;
   s.ballast = clamp(Math.round(input.ballast), -tuning.ballastRange, tuning.ballastRange);
   s.braced = input.brace;
-  if (input.strap) s.strap = Math.min(100, s.strap + tuning.strapTap);
+  applyRestraintInput(s, input, tuning);
 
   const slope = route.slopeAt(s.x);
   const load = loadOffsetOf(s.items, tuning);
   const ideal = -(tuning.kSlope * slope + tuning.kLoad * load) / tuning.kBallast * 100;
+  s.trimTarget = clamp(Math.round(ideal), -tuning.ballastRange, tuning.ballastRange);   // read by the panel's ballast target pip
   const effBallast = s.ballast + tuning.autoTrim * (ideal - s.ballast);
-  const torque = tuning.kSlope * slope + tuning.kBallast * (effBallast / 100) + tuning.kLoad * load - s.lateralVel * 0.045;
+  const torque = tuning.kSlope * slope + tuning.kBallast * (effBallast / 100) + tuning.kLoad * load - s.lateralVel * tuning.lateralTip;
   const acc = torque - tuning.damping * s.tiltVel - tuning.stiffness * s.tilt;
   s.tiltVel += acc * dt;
   if (s.braced) s.tiltVel *= tuning.braceDamp;
   s.tilt += s.tiltVel * dt;
 
-  let target = tuning.gaitSpeed[s.gait]! * tuning.gaitSpeedMul;
-  if (input.throttle === 1) target = tuning.gaitSpeed[4]! * tuning.gaitSpeedMul;
-  else if (input.throttle === -1) target = -tuning.gaitSpeed[1]! * tuning.gaitSpeedMul;
-  if (s.braced) target = Math.sign(target || s.speed || 1) * tuning.braceSpeed;
-  const delta = target - s.speed;
-  s.speed += clamp(delta, -tuning.gaitDecel * dt, tuning.gaitAccel * dt);
+  const inMud = route.zones.some((h) => h.type === 'mud' && inZone(s, h));
+  const throttle = input.throttle ?? 0;
+  let target = throttle === 1 ? tuning.gaitSpeed[s.gait]! * mul : throttle === -1 ? -tuning.gaitSpeed[1]! * mul : 0;
+  if (s.braced) target = clamp(target, -tuning.braceSpeed, tuning.braceSpeed);
+  if (inMud) target *= tuning.mudSpeedMul;
+  s.targetSpeed = target;
+  s.speed += clamp(target - s.speed, -tuning.gaitDecel * dt, tuning.gaitAccel * dt);
   s.x = Math.max(0, s.x + s.speed * dt);
 
   const steer = input.steer ?? 0;
-  const traction = s.grounded ? 1 : 0.28;
+  const traction = !s.grounded ? tuning.airTraction : inMud ? tuning.mudTraction : 1;
   s.lateralVel += steer * tuning.steerAccel * traction * dt;
   s.lateralVel *= Math.max(0, 1 - tuning.lateralDamping * dt * (steer === 0 ? 1 : 0.35));
   s.z += s.lateralVel * dt;
-  const courseCenter = route.centerAt(s.x);
-  const offset = s.z - courseCenter;
-  if (Math.abs(offset) > tuning.courseHalfWidth) {
-    s.z = courseCenter + Math.sign(offset) * tuning.courseHalfWidth;
-    s.lateralVel *= -0.32;
-    s.tiltVel += -Math.sign(offset) * 0.18;
+
+  const strike = resolveWalls(s, route.walls, tuning.rigRadius, tuning.wallStrikeSpeed);
+  if (strike) {
+    s.tiltVel += strike.dir * tuning.wallStrikeTilt * strike.speed / vmax;
+    loosenAll(s, tuning.wallStrikeJolt * tuning.strapJoltMul);
   }
+  const bound = route.halfWidth + tuning.terrain.pocketDepth;
+  if (s.z < -bound) { s.z = -bound; s.lateralVel = 0; } else if (s.z > bound) { s.z = bound; s.lateralVel = 0; }
 
   if (input.jump && s.grounded) { s.grounded = false; s.liftVel = tuning.jumpSpeed; }
   if (!s.grounded) {
     s.liftVel -= tuning.gravity * dt; s.lift += s.liftVel * dt;
-    if (s.lift <= 0) { s.lift = 0; s.liftVel = 0; s.grounded = true; s.tiltVel += Math.abs(s.speed) * 0.018; }
+    if (s.lift <= 0) {
+      s.lift = 0; s.liftVel = 0; s.grounded = true;
+      s.tiltVel += Math.abs(s.speed) * tuning.landingTilt;
+      loosenAll(s, tuning.landingJolt * tuning.strapJoltMul);
+    }
   }
   s.reserve -= (drainRate(route, tuning) + (s.braced ? tuning.braceDrain : 0)) * dt;
 }
@@ -93,40 +128,38 @@ export function hazardScale(s: RigState, tuning: Tuning): number {
 
 function traceCancels(h: HazardInstance, traces: Trace[], route: RouteDef): boolean {
   if (h.type !== 'gap') return false;
-  return traces.some((t) => t.seed === route.seed && t.type === 'plank' && Math.abs(t.x - h.x) <= 5);
+  return traces.some((t) => t.seed === route.seed && t.type === 'plank' && Math.abs(t.x - h.x) <= 5 && Math.abs(t.z - h.z) <= h.halfW + 2);
 }
 
-function spatiallyHits(s: RigState, h: HazardInstance, route: RouteDef): boolean {
-  const centre = h.z ?? route.centerAt(h.x);
-  if (h.type === 'gap') return Math.abs(s.z - centre) < 5 && s.lift < 0.55;
-  if (h.type === 'rubble' || h.type === 'scree' || h.type === 'hammer') {
-    const hz = (h.z ?? route.centerAt(h.x)) + h.dir * 2.1;
-    return Math.abs(s.z - hz) < 1.65 && s.lift < 0.8;
-  }
-  if (h.type === 'crusher') {
-    if (Math.abs(s.z - centre) > 3.8) return false;
-    const cycleTick = (s.t + h.id * 73) % 180;
-    const open = cycleTick > 105 && cycleTick < 155;
-    return !open;
-  }
-  if (h.type === 'launchpad') return Math.abs(s.z - centre) < 3.8;
-  return true;
-}
+function inLane(s: RigState, h: HazardInstance): boolean { return Math.abs(s.z - h.z) < h.halfW; }
+function airborneClears(s: RigState, h: HazardInstance): boolean { return (h.type === 'gap' && s.lift >= 0.55) || (h.type === 'rubble' && s.lift >= 0.8); }
 
 function crossHazards(s: RigState, route: RouteDef, traces: Trace[], tuning: Tuning): void {
   const hz = route.hazards;
   while (s.hazardCursor < hz.length && hz[s.hazardCursor]!.x <= s.x) {
     const h = hz[s.hazardCursor]!;
     s.hazardCursor++;
-    if (h.type === 'launchpad' && spatiallyHits(s, h, route)) {
-      s.grounded = false; s.liftVel = Math.max(s.liftVel, tuning.jumpSpeed * 1.28);
-      s.tiltVel += h.dir * h.impulse * 0.35; s.strap = Math.max(0, s.strap - h.strapJolt * 0.5 * tuning.strapJoltMul);
-      continue;
-    }
-    if (h.impulse === 0 || s.braced || traceCancels(h, traces, route) || !spatiallyHits(s, h, route)) continue;
+    if (h.x1 !== undefined) continue;   // zones are handled every tick, not by crossing
+    if (h.impulse === 0 || s.braced || traceCancels(h, traces, route) || !inLane(s, h) || airborneClears(s, h)) continue;
     s.tiltVel += h.dir * h.impulse * hazardScale(s, tuning);
-    s.strap = Math.max(0, s.strap - h.strapJolt * tuning.strapJoltMul);
-    if (h.type === 'fan') s.lateralVel += h.dir * 6.5 * hazardScale(s, tuning);
+    loosenAll(s, h.strapJolt * tuning.strapJoltMul);
+  }
+}
+
+export function moverActive(t: number, h: HazardInstance): boolean {
+  if (h.cycleTicks === undefined || h.windowTicks === undefined) return false;
+  return ((t + (h.phase ?? 0)) % h.cycleTicks) < h.windowTicks;
+}
+
+function stepZones(s: RigState, route: RouteDef, tuning: Tuning): void {
+  for (const h of route.zones) {
+    if (h.type === 'mud' || !inZone(s, h) || !moverActive(s.t, h)) continue;
+    if (s.t < (s.zoneCooldown[h.id] ?? -1)) continue;
+    s.zoneCooldown[h.id] = s.t + tuning.hazardCooldownTicks;
+    loosenAll(s, h.strapJolt * tuning.strapJoltMul);
+    if (s.braced) continue;
+    s.tiltVel += h.dir * h.impulse * hazardScale(s, tuning);
+    if (h.type === 'crane') s.lateralVel += h.dir * tuning.craneShove * hazardScale(s, tuning);
   }
 }
 
@@ -146,9 +179,9 @@ export function stepItems(s: RigState, tuning: Tuning, rng: Rng): void {
   const over = Math.abs(s.tilt) > tuning.driftThreshold;
   s.overTiltTicks = over ? s.overTiltTicks + 1 : 0;
   const drifting = s.overTiltTicks > tuning.graceTicks;
-  const loose = 1 - s.strap / 100;
   for (const it of s.items) {
     if (it.lost) continue;
+    const loose = 1 - it.restraint / 100;
     switch (it.behavior) {
       case 'static':
         if (drifting) it.offset += tuning.kDrift * s.tilt * loose * dt;
@@ -170,7 +203,7 @@ export function stepItems(s: RigState, tuning: Tuning, rng: Rng): void {
     }
     it.offset = clamp(it.offset, -1.5, 1.5);
     it.stress += Math.max(0, Math.abs(s.tilt) - it.tolerance) * tuning.kStress * dt;
-    it.stress += Math.max(0, s.strap - it.crushLimit) * tuning.kCrush * dt;
+    it.stress += Math.max(0, it.restraint - it.crushLimit) * tuning.kCrush * dt;
   }
 }
 
@@ -184,6 +217,7 @@ function spillCheck(s: RigState, tuning: Tuning): void {
   }
   if (!worst) return;
   worst.lost = true;
+  syncStrap(s);
   s.tilt = s.tilt > 0 ? Math.max(0, s.tilt - tuning.spillRelief) : Math.min(0, s.tilt + tuning.spillRelief);
   s.tiltVel = 0;
   s.overTiltTicks = 0;
@@ -193,6 +227,7 @@ function spillCheck(s: RigState, tuning: Tuning): void {
 export function stepEvents(s: RigState, input: InputFrame, route: RouteDef, traces: Trace[], tuning: Tuning, rng: Rng): void {
   void rng;
   crossHazards(s, route, traces, tuning);
+  stepZones(s, route, tuning);
   collectDiscoveries(s, route, tuning);
   spillCheck(s, tuning);
   if (input.recover && s.recovering === 0 && s.reserve > tuning.recoverCost && s.items.some((it) => it.lost)) {
@@ -211,6 +246,7 @@ function stepRecovering(s: RigState, tuning: Tuning): void {
   if (s.recovering > 0) return;
   const it = s.items.find((i) => i.lost);
   if (it) { it.lost = false; it.offset = 0; it.offsetVel = 0; it.stress += tuning.recoverStress; }
+  syncStrap(s);
   s.overTiltTicks = 0;
   s.speed = 0;
 }

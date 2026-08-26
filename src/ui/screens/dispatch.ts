@@ -1,29 +1,32 @@
-import type { ItemDef } from '../../sim/types';
-import type { Offers } from '../../game/orders';
+import type { ItemDef, Tuning } from '../../sim/types';
+import { cargoDifficulty, type Offers, type RouteRating } from '../../game/orders';
+import { slopeProfileSvg } from '../profile';
 
-export interface DispatchProps { offers: Offers; hqLine: string; capacity: number; cash: number; tier: number; traceCount: number }
+export interface DispatchProps { offers: Offers; profile: number[]; profileStepM: number; sketch: string; hqLine: string; capacity: number; cash: number; tier: number; traceCount: number; tuning: Tuning; rating: RouteRating }
 
 const fragility = (c: ItemDef): string => (c.tolerance < 0.4 ? 'FRAGILE' : c.tolerance < 0.6 ? 'DELICATE' : 'STURDY');
+
+/** What the ratchet can do to this load before it starts crushing it. */
+function strapNote(c: ItemDef, t: Tuning): string {
+  return `MAX STRAP <b>${c.crushLimit}</b> · LOADS AT <b>${Math.min(t.strapStart, c.crushLimit)}</b>`;
+}
 
 export function renderDispatch(el: HTMLElement, p: DispatchProps, onLoad: (selected: ItemDef[]) => void): void {
   const o = p.offers.outpost;
   const selected = new Set<string>();
   el.innerHTML = `
     <div class="screen dispatch">
-      <pre class="tele-block">DISPATCH ── ${o.name.toUpperCase()}  ·  OPEN COURSE  ·  TIER ${o.tier}
+      <pre class="tele-block">MANIFEST ── ${o.name.toUpperCase()}  ·  ${o.lengthM} m  ·  ${p.rating.label.toUpperCase()}  ·  FEES ×${p.rating.payoutMul.toFixed(2)}
 ${o.flavor}
 ${p.hqLine}
-LEDGER ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
-      <div class="route-brief">
-        <div><b>SERVICE YARD</b><span>Direct · crushers · hammers</span></div>
-        <div><b>FAN CANYON</b><span>Elevated · exposed · relay salvage</span></div>
-        <div><b>QUARRY LINE</b><span>Ramps · sweepers · fastest shortcut</span></div>
-      </div>
+SCRAP ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
+      ${p.sketch}<div class="profile-strip">${slopeProfileSvg(p.profile, p.profileStepM, 480, 28)}</div>
       <ul class="offers">${p.offers.cargo.map((c) => `
         <li data-id="${c.id}">
-          <b>${c.name}</b>
+          <b>${c.name} <em class="diff ${cargoDifficulty(c, p.tuning)}">${cargoDifficulty(c, p.tuning).toUpperCase()}</em></b>
           <span class="meta">${c.mass.toFixed(1)} t · ${fragility(c)} · ${c.behavior.toUpperCase()}${c.rush ? ` · RUSH ${c.rush}s` : ''}</span>
-          <span class="pay">${c.payout}</span>
+          <span class="pay">${Math.round(c.payout * p.rating.payoutMul)}</span>
+          <span class="strapinfo">${strapNote(c, p.tuning)}</span>
         </li>`).join('')}
       </ul>
       <div class="row"><span class="cap">0 / ${p.capacity} BAYS</span><button class="big primary" disabled>LOAD</button></div>

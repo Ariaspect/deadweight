@@ -16,7 +16,6 @@ input.attach(viewportEl, document);
 mountDpad(viewportEl, { onDrive: (axis, on) => input.setDrive(axis, on) });
 const panel = new Panel(panelEl, {
   onGait: (g) => input.setGait(g),
-  onCargoSelect: (index) => input.selectCargo(index),
   onStrap: () => input.queueStrap(),
   onBrace: (on) => input.setBrace(on),
   onRecover: () => input.queueRecover(),

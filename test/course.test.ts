@@ -1,92 +1,75 @@
-import { describe, expect, it } from 'vitest';
-import { buildShowcaseCourse } from '../src/course/map';
-import { PhysicsCourse } from '../src/course/PhysicsCourse';
-import { cargo, tuning } from '../src/content';
-import type { InputFrame } from '../src/sim/types';
+import { describe, it, expect } from 'vitest';
+import { layoutCourse, laneCentre, laneHalfWidth } from '../src/sim/course';
+import { isPassable } from '../src/sim/walls';
+import { mulberry32 } from '../src/sim/rng';
+import { tuning } from '../src/content';
 
-const input = (over: Partial<InputFrame> = {}): InputFrame => ({ gait: 0, ballast: 0, strap: false, brace: false, deploy: 0, recover: false, throttle: 0, steer: 0, jump: false, ...over });
+const t = tuning.terrain;
+const layout = (seed: number, tier: number, length = 800) => layoutCourse(mulberry32(seed), length, tier, t);
 
-describe('authored obstacle course', () => {
-  it('contains three distinct route families, checkpoints, salvage, and a shared summit', () => {
-    const course = buildShowcaseCourse(2);
-    expect(course.platforms.some((platform) => platform.id.startsWith('service'))).toBe(true);
-    expect(course.platforms.some((platform) => platform.id.startsWith('north'))).toBe(true);
-    expect(course.platforms.some((platform) => platform.id.startsWith('quarry') || platform.id.startsWith('south'))).toBe(true);
-    expect(course.checkpoints.length).toBeGreaterThanOrEqual(3);
-    expect(course.salvage.length).toBeGreaterThanOrEqual(4);
-    expect(course.finish.x).toBeGreaterThan(course.spawn.x + 150);
+describe('layoutCourse', () => {
+  it('is deterministic per seed and differs across seeds', () => {
+    expect(layout(7, 2)).toEqual(layout(7, 2));
+    expect(layout(7, 2).forks).not.toEqual(layout(8, 2).forks);
   });
-
-  it('adds the summit gauntlet at higher contract tiers', () => {
-    expect(buildShowcaseCourse(0).obstacles.some((obstacle) => obstacle.id === 'summit-spinner')).toBe(false);
-    expect(buildShowcaseCourse(2).obstacles.some((obstacle) => obstacle.id === 'summit-spinner')).toBe(true);
+  it('places forks only between the safe zones, with 2 lanes at tier ≤ 1 and 3 at tier ≥ 2', () => {
+    for (const [seed, tier, lanes] of [[1, 0, 2], [2, 1, 2], [3, 2, 3], [4, 3, 3]] as const) {
+      const l = layout(seed, tier);
+      expect(l.forks.length).toBeGreaterThanOrEqual(3);
+      for (const f of l.forks) {
+        expect(f.x0).toBeGreaterThanOrEqual(t.safeStartM); expect(f.x1).toBeLessThanOrEqual(800 - t.safeEndM);
+        expect(f.lanes).toHaveLength(lanes);
+        expect(f.x1 - f.x0).toBeGreaterThanOrEqual(t.forkLenMin); expect(f.x1 - f.x0).toBeLessThanOrEqual(t.forkLenMax);
+      }
+      for (let i = 1; i < l.forks.length; i++) expect(l.forks[i]!.x0 - l.forks[i - 1]!.x1).toBeGreaterThanOrEqual(t.stretchLenMin);
+    }
   });
-
-  it('runs a real rigid-body chassis and attached cargo', async () => {
-    const course = buildShowcaseCourse(0);
-    const session = await PhysicsCourse.create(course, [{ def: cargo[0]!, slot: 1 }], tuning);
-    let frame = session.frame(); const startX = frame.vehicle.position.x;
-    for (let i = 0; i < 90; i++) frame = session.step(input({ throttle: 1 }));
-    expect(Number.isFinite(frame.vehicle.position.x)).toBe(true);
-    expect(frame.vehicle.position.x).toBeGreaterThan(startX + 1);
-    expect(frame.cargo).toHaveLength(1);
-    expect(Number.isFinite(frame.cargo[0]!.pose.position.y)).toBe(true);
+  it('lanes tile the corridor with spines between them and every fork has a lane that is not direct', () => {
+    const l = layout(11, 3);
+    for (const f of l.forks) {
+      expect(f.lanes[0]!.z0).toBeCloseTo(-t.corridorHalfWidth); expect(f.lanes.at(-1)!.z1).toBeCloseTo(t.corridorHalfWidth);
+      for (let i = 1; i < f.lanes.length; i++) expect(f.lanes[i]!.z0 - f.lanes[i - 1]!.z1).toBeCloseTo(t.spineThick);
+      expect(f.lanes.some((lane) => lane.archetype === 'direct')).toBe(true);
+      expect(f.lanes.some((lane) => lane.archetype !== 'direct')).toBe(true);
+      for (const lane of f.lanes) expect(laneHalfWidth(lane) * 2).toBeGreaterThan(tuning.rigRadius * 2 + 1);
+    }
   });
-
-  it('keeps sustained controls bounded and stops when throttle is released', async () => {
-    const session = await PhysicsCourse.create(buildShowcaseCourse(0), [{ def: cargo[0]!, slot: 1 }], tuning);
-    let frame = session.frame();
-    for (let i = 0; i < 120; i++) frame = session.step(input({ throttle: 1, steer: i > 50 ? 1 : 0 }));
-    expect(frame.speed).toBeGreaterThan(2);
-    expect(frame.speed).toBeLessThanOrEqual(22.01);
-    expect(Math.abs(frame.vehicle.position.z)).toBeGreaterThan(0.5);
-    for (let i = 0; i < 90; i++) frame = session.step(input());
-    expect(frame.speed).toBeLessThan(0.6);
+  it('keeps every lane centre line passable and blocks the spines', () => {
+    const l = layout(12, 2);
+    const bound = t.corridorHalfWidth + t.pocketDepth;
+    for (const f of l.forks) {
+      for (let x = f.x0 + 1; x < f.x1; x += 2) {
+        for (const lane of f.lanes) {
+          // a chicane baffle may cover the centre line, but never the full lane width
+          const zs = [lane.z0 + tuning.rigRadius + 0.2, laneCentre(lane), lane.z1 - tuning.rigRadius - 0.2];
+          expect(zs.some((z) => isPassable(l.walls, bound, x, z)), `fork ${f.x0} lane ${lane.z0} x ${x}`).toBe(true);
+        }
+      }
+      // a spine still commits you to a lane, but carries weave gaps the rig can cross through
+      for (let i = 1; i < f.lanes.length; i++) {
+        const line = f.lanes[i]!.z0 - t.spineThick / 2;
+        let open = 0, longest = 0, run = 0;
+        for (let x = f.x0; x <= f.x1; x += 0.25) {
+          if (isPassable(l.walls, bound, x, line)) { open += 0.25; run += 0.25; if (run > longest) longest = run; } else run = 0;
+        }
+        expect(longest, `fork ${f.x0} spine ${i}`).toBeGreaterThanOrEqual(2 * tuning.rigRadius);
+        expect(open, `fork ${f.x0} spine ${i}`).toBeLessThan((f.x1 - f.x0) * 0.3);
+      }
+    }
   });
-
-  it('simulates cargo in world space with finite anchors and strap tension', async () => {
-    const session = await PhysicsCourse.create(buildShowcaseCourse(0), [{ def: cargo[1]!, slot: 1 }], tuning);
-    let frame = session.frame();
-    for (let i = 0; i < 75; i++) frame = session.step(input({ throttle: 1, steer: 1 }));
-    const load = frame.cargo[0]!;
-    expect(Number.isFinite(load.anchor.x + load.anchor.y + load.anchor.z + load.tension)).toBe(true);
-    expect(load.tension).toBeGreaterThan(0);
-    expect(load.pose.position).not.toEqual(load.anchor);
-  });
-
-  it('moves directly in world intent and ratchets only the selected cargo bay', async () => {
-    const session = await PhysicsCourse.create(buildShowcaseCourse(0), cargo.slice(0, 3).map((def, slot) => ({ def, slot })), tuning);
-    let frame = session.step(input({ cargoSelect: 1, strap: true, moveX: 0, moveZ: 1 }));
-    const restraints = frame.cargo.map((load) => load.restraint);
-    expect(frame.cargo[1]!.selected).toBe(true);
-    expect(restraints[1]).toBeGreaterThan(restraints[0]!);
-    expect(restraints[1]).toBeGreaterThan(restraints[2]!);
-    for (let i = 0; i < 75; i++) frame = session.step(input({ moveX: 0, moveZ: 1 }));
-    expect(frame.vehicle.position.z).toBeGreaterThan(2);
-    expect(Math.abs(frame.vehicle.position.x - buildShowcaseCourse(0).spawn.x)).toBeLessThan(4);
-  });
-
-  it('reports drive intent as gait so the RPM target tick moves', async () => {
-    const session = await PhysicsCourse.create(buildShowcaseCourse(0), [], tuning);
-    expect(session.step(input({ moveX: 1, moveZ: 0 })).state.gait).toBe(4);
-    expect(session.step(input({ moveX: 0.5, moveZ: 0 })).state.gait).toBe(2);
-    expect(session.step(input()).state.gait).toBe(0);
-  });
-
-  it('dispose() frees the world once and makes step()/frame() no-ops', async () => {
-    const session = await PhysicsCourse.create(buildShowcaseCourse(0), [{ def: cargo[0]!, slot: 1 }], tuning);
-    const last = session.step(input({ throttle: 1 }));
-    session.dispose(); session.dispose();
-    expect(session.frame().vehicle.position).toEqual(last.vehicle.position);
-    expect(session.step(input({ throttle: 1 })).vehicle.position).toEqual(last.vehicle.position);
-  });
-
-  it('supports immediate manual checkpoint recovery', async () => {
-    const course = buildShowcaseCourse(0);
-    const session = await PhysicsCourse.create(course, [], tuning);
-    const frame = session.step(input({ recover: true }));
-    expect(frame.resets).toBe(1);
-    expect(frame.state.reserve).toBeLessThan(100);
-    expect(frame.message).toContain('CHECKPOINT RESET');
+  it('fences the corridor edges except at pockets, whose interiors are passable', () => {
+    const l = layout(13, 3);
+    const bound = t.corridorHalfWidth + t.pocketDepth;
+    expect(l.pockets.length).toBeGreaterThanOrEqual(1);
+    for (const p of l.pockets) {
+      expect(isPassable(l.walls, bound, (p.x0 + p.x1) / 2, (p.z0 + p.z1) / 2)).toBe(true);
+      expect(isPassable(l.walls, bound, (p.x0 + p.x1) / 2, p.side * (t.corridorHalfWidth + 0.5))).toBe(true);   // the doorway
+    }
+    for (let x = 5; x < 800; x += 7) {
+      for (const side of [-1, 1]) {
+        const inPocket = l.pockets.some((p) => p.side === side && x >= p.x0 && x <= p.x1);
+        expect(isPassable(l.walls, bound, x, side * (t.corridorHalfWidth + 0.5)), `x ${x} side ${side}`).toBe(inPocket);
+      }
+    }
   });
 });

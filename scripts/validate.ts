@@ -13,6 +13,10 @@ let failures = 0;
 console.log('outpost         tier lag  loadout  ended     stars  reserve');
 for (const o of outposts) {
   const route = generateRoute(o.seed, o.lengthM, o.tier, hazards, tuning.terrain);
+  for (const f of route.forks) {
+    const safe = f.lanes.some((lane) => !route.hazards.some((h) => h.impulse > 0 && h.x >= f.x0 && h.x <= f.x1 && h.z >= lane.z0 && h.z <= lane.z1));
+    if (!safe) { failures++; console.log(`${o.name}: fork at ${f.x0.toFixed(0)} m has no hazard-free lane`); }
+  }
   for (const [name, loadout] of Object.entries(LOADOUTS)) {
     for (const lag of LAGS) {
       const { state, result } = runHeadless(route, loadout, tuning, { lagTicks: lag });

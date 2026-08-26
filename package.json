@@ -26,7 +26,6 @@
     "validate": "tsx scripts/validate.ts"
   },
   "dependencies": {
-    "@dimforge/rapier3d-compat": "0.12.0",
     "three": "^0.185.1"
   },
   "devDependencies": {
