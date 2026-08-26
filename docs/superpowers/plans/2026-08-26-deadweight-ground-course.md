@@ -2715,12 +2715,12 @@ so the dispatch profile renders as a strip under the sketch instead of inheritin
 **Files:**
 - Modify: `DEVLOG.md`, `docs/superpowers/specs/2026-08-25-deadweight-design.md` (§8 pointer), `.github/workflows/deploy.yml` (no change expected), `README.md` if present
 
-- [ ] **Step 1: Docs**
+- [x] **Step 1: Docs**
 
 - `DEVLOG.md`: under `## Pivot: porter obstacle course (PR #1, 2026-08-26)` add a sub-bullet list "**Ground course (PR #2)**: seeded corridor per outpost with forked lanes (spines, chicanes, mud, pockets), deterministic 2-D sim (AABB walls, W-at-gait throttle, jump, per-bay restraint, rockfall/crane windows), bot lane planner, fixed 3/4 camera + mouse ballast + touch D-pad, ash/rust palette; Rapier removed (−766 KB gzip)." and refresh the validator table by pasting the new `pnpm validate` output.
 - Spec `2026-08-25-…design.md` §8: replace the body with one line: "Superseded by `2026-08-26-deadweight-ground-course-design.md`."
 
-- [ ] **Step 2: Full gates**
+- [x] **Step 2: Full gates**
 
 Run: `pnpm typecheck && pnpm lint && pnpm test && pnpm validate && pnpm build && ls -la dist/assets`
 Expected: all green; no chunk larger than `ThreeRenderer-*.js`.
@@ -2744,6 +2744,11 @@ curl -sI https://ariaspect.github.io/deadweight/ | head -1
 Expected: CI success, live 200.
 
 ---
+
+**Ruling (execution):** Steps 1–2 are done (commit a8237b9, all gates green, validate 12/12). Step 3 is the owner's:
+the agent could not drive it (Claude-in-Chrome extension not connected) and only verified that the dev server transforms
+and serves every changed module. Step 4 is done up to `gh pr create` — PR #2 is open and stays open until the owner
+has played the build; the agent does not run `gh pr merge`.
 
 ## Self-review
 
