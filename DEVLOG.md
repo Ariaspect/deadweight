@@ -15,6 +15,7 @@
 - The deterministic 1-D sim, bot and validator are kept (and gained lateral steering, jumps, discoveries and four hazard types) but are no longer the player's path; dispatch/loadout/upgrade screens are currently bypassed (fixed loadout, straight to the yard).
 - Merge-time fixes: touch D-pad (coarse pointers) so phones can drive; Rapier `World.free()` between runs; drive intent reported as gait so the RPM target tick still leads the needle; render-side interpolation between physics frames (snap on teleport); cargo-rack DOM rebuilt only on change.
 - Costs accepted: +766 KB gzip (inlined WASM), no cross-platform replay determinism on the course path, gait rail repurposed as CARGO BAY. Open follow-ups: restore dispatch/upgrade loop around the course, move the physics literals into tuning.json, gate keyboard `R` like the panel button.
+- **Ground course (PR #2)**: seeded corridor per outpost with forked lanes (spines, chicanes, mud, pockets), deterministic 2-D sim (AABB walls, W-at-gait throttle, jump, per-bay restraint, rockfall/crane windows), bot lane planner, fixed 3/4 camera + mouse ballast + touch D-pad, ash/rust palette; Rapier removed (-766 KB gzip).
 
 ## What AI built
 - M0: seeded piecewise-linear terrain generator, fixed-step loop with input log, Three.js ribbon + procedural hexapod behind a Renderer interface.
@@ -22,78 +23,78 @@
 - M2: validator over 12 outposts × 2 loadouts × 3 lags:
 ```
 outpost         tier lag  loadout  ended     stars  reserve
-Gravel Hollow   0      0  crate    arrived   5      44
-Gravel Hollow   0     15  crate    arrived   5      45
-Gravel Hollow   0     30  crate    arrived   5      45
-Gravel Hollow   0      0  stress   arrived   5      44
-Gravel Hollow   0     15  stress   arrived   3      45
-Gravel Hollow   0     30  stress   arrived   3      45
-Wren Station    0      0  crate    arrived   5      41
-Wren Station    0     15  crate    arrived   5      42
-Wren Station    0     30  crate    arrived   5      44
-Wren Station    0      0  stress   arrived   5      41
-Wren Station    0     15  stress   arrived   3      42
-Wren Station    0     30  stress   arrived   3      44
-Sump Nine       0      0  crate    arrived   5      42
-Sump Nine       0     15  crate    arrived   5      43
-Sump Nine       0     30  crate    arrived   5      44
-Sump Nine       0      0  stress   arrived   5      42
-Sump Nine       0     15  stress   arrived   2      43
-Sump Nine       0     30  stress   arrived   2      44
-Tallow Ridge    1      0  crate    arrived   5      11
-Tallow Ridge    1     15  crate    arrived   5      16
-Tallow Ridge    1     30  crate    arrived   4      23
-Tallow Ridge    1      0  stress   arrived   5      11
-Tallow Ridge    1     15  stress   arrived   2      16
-Tallow Ridge    1     30  stress   arrived   2      23
-Kettle Pass     1      0  crate    stalled   2      0
-Kettle Pass     1     15  crate    arrived   5      6
-Kettle Pass     1     30  crate    arrived   5      14
-Kettle Pass     1      0  stress   stalled   2      0
-Kettle Pass     1     15  stress   arrived   3      6
-Kettle Pass     1     30  stress   arrived   2      14
-Marrow Flats    1      0  crate    arrived   5      21
-Marrow Flats    1     15  crate    arrived   5      26
-Marrow Flats    1     30  crate    arrived   5      30
-Marrow Flats    1      0  stress   arrived   5      21
-Marrow Flats    1     15  stress   arrived   3      26
-Marrow Flats    1     30  stress   arrived   2      30
-Halfmast        2      0  crate    stalled   2      0
-Halfmast        2     15  crate    arrived   5      5
-Halfmast        2     30  crate    arrived   5      13
-Halfmast        2      0  stress   stalled   2      0
-Halfmast        2     15  stress   arrived   2      5
-Halfmast        2     30  stress   arrived   2      13
-Brine Terrace   2      0  crate    arrived   5      18
-Brine Terrace   2     15  crate    arrived   5      23
-Brine Terrace   2     30  crate    arrived   3      28
-Brine Terrace   2      0  stress   arrived   5      18
-Brine Terrace   2     15  stress   arrived   2      23
-Brine Terrace   2     30  stress   arrived   2      28
-Old Signal      2      0  crate    arrived   5      28
-Old Signal      2     15  crate    arrived   5      30
-Old Signal      2     30  crate    arrived   5      31
-Old Signal      2      0  stress   arrived   5      28
-Old Signal      2     15  stress   arrived   2      30
-Old Signal      2     30  stress   arrived   2      31
-Cinder Stair    3      0  crate    arrived   5      1
-Cinder Stair    3     15  crate    arrived   5      6
-Cinder Stair    3     30  crate    spilled   1      48
-Cinder Stair    3      0  stress   arrived   5      1
-Cinder Stair    3     15  stress   arrived   2      6
-Cinder Stair    3     30  stress   arrived   2      13
-The Shelf       3      0  crate    arrived   5      8
-The Shelf       3     15  crate    arrived   5      12
-The Shelf       3     30  crate    arrived   5      16
-The Shelf       3      0  stress   arrived   5      8
-The Shelf       3     15  stress   arrived   2      12
-The Shelf       3     30  stress   arrived   2      16
-Lantern Reach   3      0  crate    arrived   5      18
-Lantern Reach   3     15  crate    arrived   5      23
-Lantern Reach   3     30  crate    arrived   4      28
-Lantern Reach   3      0  stress   arrived   5      18
-Lantern Reach   3     15  stress   arrived   2      23
-Lantern Reach   3     30  stress   arrived   2      28
+Gravel Hollow   0      0  crate    arrived   5      54
+Gravel Hollow   0     15  crate    arrived   5      54
+Gravel Hollow   0     30  crate    arrived   5      54
+Gravel Hollow   0      0  stress   arrived   5      54
+Gravel Hollow   0     15  stress   arrived   4      54
+Gravel Hollow   0     30  stress   arrived   4      54
+Wren Station    0      0  crate    arrived   5      53
+Wren Station    0     15  crate    arrived   5      54
+Wren Station    0     30  crate    arrived   5      54
+Wren Station    0      0  stress   arrived   5      53
+Wren Station    0     15  stress   arrived   3      54
+Wren Station    0     30  stress   arrived   3      54
+Sump Nine       0      0  crate    arrived   5      53
+Sump Nine       0     15  crate    arrived   5      54
+Sump Nine       0     30  crate    arrived   5      54
+Sump Nine       0      0  stress   arrived   5      53
+Sump Nine       0     15  stress   arrived   4      54
+Sump Nine       0     30  stress   arrived   4      54
+Tallow Ridge    1      0  crate    arrived   5      44
+Tallow Ridge    1     15  crate    arrived   5      45
+Tallow Ridge    1     30  crate    arrived   5      45
+Tallow Ridge    1      0  stress   arrived   5      44
+Tallow Ridge    1     15  stress   arrived   4      45
+Tallow Ridge    1     30  stress   arrived   4      45
+Kettle Pass     1      0  crate    arrived   5      47
+Kettle Pass     1     15  crate    arrived   5      47
+Kettle Pass     1     30  crate    arrived   5      48
+Kettle Pass     1      0  stress   arrived   5      47
+Kettle Pass     1     15  stress   arrived   4      47
+Kettle Pass     1     30  stress   arrived   3      48
+Marrow Flats    1      0  crate    arrived   5      51
+Marrow Flats    1     15  crate    arrived   5      52
+Marrow Flats    1     30  crate    arrived   5      53
+Marrow Flats    1      0  stress   arrived   5      51
+Marrow Flats    1     15  stress   arrived   4      52
+Marrow Flats    1     30  stress   arrived   4      53
+Halfmast        2      0  crate    arrived   5      50
+Halfmast        2     15  crate    arrived   5      51
+Halfmast        2     30  crate    arrived   4      47
+Halfmast        2      0  stress   arrived   5      50
+Halfmast        2     15  stress   arrived   3      51
+Halfmast        2     30  stress   arrived   3      47
+Brine Terrace   2      0  crate    arrived   5      47
+Brine Terrace   2     15  crate    arrived   5      47
+Brine Terrace   2     30  crate    arrived   5      47
+Brine Terrace   2      0  stress   arrived   5      47
+Brine Terrace   2     15  stress   arrived   4      47
+Brine Terrace   2     30  stress   arrived   4      47
+Old Signal      2      0  crate    arrived   5      46
+Old Signal      2     15  crate    arrived   5      46
+Old Signal      2     30  crate    arrived   5      46
+Old Signal      2      0  stress   arrived   5      46
+Old Signal      2     15  stress   arrived   4      46
+Old Signal      2     30  stress   arrived   4      46
+Cinder Stair    3      0  crate    arrived   5      36
+Cinder Stair    3     15  crate    arrived   5      37
+Cinder Stair    3     30  crate    arrived   5      37
+Cinder Stair    3      0  stress   arrived   5      36
+Cinder Stair    3     15  stress   arrived   3      37
+Cinder Stair    3     30  stress   arrived   4      37
+The Shelf       3      0  crate    arrived   5      49
+The Shelf       3     15  crate    arrived   5      48
+The Shelf       3     30  crate    arrived   5      47
+The Shelf       3      0  stress   arrived   5      49
+The Shelf       3     15  stress   arrived   4      48
+The Shelf       3     30  stress   arrived   4      47
+Lantern Reach   3      0  crate    arrived   5      43
+Lantern Reach   3     15  crate    arrived   5      43
+Lantern Reach   3     30  crate    arrived   4      44
+Lantern Reach   3      0  stress   arrived   5      43
+Lantern Reach   3     15  stress   arrived   3      43
+Lantern Reach   3     30  stress   arrived   3      44
 PASS: all 12 outposts solvable at lag 15
 ```
 - M2: content — 20 cargo, 12 outposts, 5 hazards, 6 upgrades, 46 review lines, 20 HQ lines; dispatch/loadout/workshop screens with predicted-trim readout; bot v2 (gap bracing, strap, recover).

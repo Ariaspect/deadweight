@@ -2457,7 +2457,7 @@ rather than `!` assertions, and names the mover local `windowTicks` so it does n
 - Consumes: `minimapMarkup/mapPoint/routeSketchSvg` (Task 10), `RigState.targetSpeed/selectedSlot`, `itemAtSlot` (Task 7), `moverActive` (Task 8).
 - Produces: `snapshot(s: RigState): EventSnapshot`; `describeEvents(prev: EventSnapshot, curr: RigState, route: RouteDef, cacheReserve: number): { lines: string[]; next: EventSnapshot }`; `Hud(viewport, handlers: { onSelectBay(slot: number): void })`, `Hud.update(s, route)`; `DispatchProps.sketch: string`.
 
-- [ ] **Step 1: Failing test for events**
+- [x] **Step 1: Failing test for events**
 
 Create `test/events.test.ts`:
 
@@ -2495,7 +2495,7 @@ describe('describeEvents', () => {
 });
 ```
 
-- [ ] **Step 2: Implement events**
+- [x] **Step 2: Implement events**
 
 Create `src/game/events.ts`:
 
@@ -2536,7 +2536,7 @@ export function describeEvents(prev: EventSnapshot, s: RigState, route: RouteDef
 }
 ```
 
-- [ ] **Step 3: Panel**
+- [x] **Step 3: Panel**
 
 In `src/ui/panel/panel.ts` `update()` replace the two `targetSpeed`/`targetRpm` lines with:
 
@@ -2546,7 +2546,7 @@ In `src/ui/panel/panel.ts` `update()` replace the two `targetSpeed`/`targetRpm` 
 
 and `const rpm = 600 + 2400 * clamp(Math.abs(s.speed) / vmax, 0, 1);`. The strap gauge label stays `ACTIVE RESTRAINT`; its fill already reads `s.strap` (= selected bay).
 
-- [ ] **Step 4: HUD**
+- [x] **Step 4: HUD**
 
 Replace `src/ui/hud.ts` with:
 
@@ -2663,7 +2663,7 @@ export class Hud {
 
 (Delete the `void itemAtSlot;` line and the `itemAtSlot` import if lint flags it as unused — it is only there to keep the import list stable while editing.)
 
-- [ ] **Step 5: CSS**
+- [x] **Step 5: CSS**
 
 In `src/ui/panel/panel.css` append:
 
@@ -2680,7 +2680,7 @@ In `src/ui/panel/panel.css` append:
 
 and change `.explore` / `.minimap` colours to the amber/ash palette (`.explore { color: #e8c39a; background: rgba(40,32,24,.72); border-right-color: #d29a4a; }`, `.map-player { fill: #ff6a22; }`).
 
-- [ ] **Step 6: Dispatch sketch and flow wiring**
+- [x] **Step 6: Dispatch sketch and flow wiring**
 
 - `src/ui/screens/dispatch.ts`: `DispatchProps` gains `sketch: string`; replace `${slopeProfileSvg(p.profile, p.profileStepM)}` with `${p.sketch}<div class="profile-strip">${slopeProfileSvg(p.profile, p.profileStepM, 480, 28)}</div>`.
 - `src/game/flow.ts`:
@@ -2692,7 +2692,7 @@ and change `.explore` / `.minimap` colours to the amber/ash palette (`.explore {
   - the HQ haul line: `` `HQ: ${this.offers!.outpost.name}. ${loadout.length} aboard. W walks at the gait you set. Pick your lanes.` ``.
 - `src/main.ts`: unchanged apart from Task 1.
 
-- [ ] **Step 7: Gates and commit**
+- [x] **Step 7: Gates and commit**
 
 Run: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
 Expected: green (`events.test.ts` passing).
@@ -2701,6 +2701,12 @@ Expected: green (`events.test.ts` passing).
 git add -A
 git commit -m "feat(ui): lane-aware HUD with scrolling minimap and tappable cargo rack; dispatch sketch; teleprinter events"
 ```
+
+---
+
+**Ruling (execution):** the HUD ships without the `void itemAtSlot;` placeholder, its import, or the unused `mapEl`
+field; `panel.ts` drops the now-unused `targetSpeed` local. `panel.css` also gains `.profile-strip .profile { height: 34px; }`
+so the dispatch profile renders as a strip under the sketch instead of inheriting the 56 px `.profile` height.
 
 ---
 

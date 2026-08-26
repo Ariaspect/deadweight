@@ -253,11 +253,4 @@ Unchanged from `HAULER_SPEC.md` §9, plus:
 
 ## 8. Course mode (post-M2 pivot, PR #1)
 
-Amendment, not a rewrite: §2–§4 still describe the deterministic 1-D sim, which remains the bot/validator path. The player path is now `src/course/`:
-
-- `PhysicsCourse` — Rapier (`@dimforge/rapier3d-compat`, loaded via dynamic import) world stepped at `tuning.dt`; capsule chassis + tray, cargo as tethered dynamic bodies (stiffness ∝ restraint), kinematic obstacles (spinner, hammer, crusher), area fans, a dynamic boulder. Reserve drains with time/speed/brace; checkpoints reset (−7 reserve); salvage caches refill reserve and repair stress; `ended` ∈ arrived / stalled / spilled as before, so `evaluate()` and the result screen are unchanged (+ `discoveryBonus`).
-- `map.ts` — one authored course, `buildShowcaseCourse(tier)`; tier ≥ 2 adds the summit spinner.
-- `interp.ts` — `lerpFrame(prev, curr, alpha)` render interpolation with a 6 m teleport snap.
-- Input: camera-relative WASD/`moveX,moveZ` (`InputFrame` extended), Space jump, F ratchet on the selected bay (1/2/3), Shift brace, R checkpoint recovery; touch D-pad for coarse pointers. Drive intent is reported as `state.gait` so the RPM target tick still leads the needle.
-- Flow: `start()` → fixed loadout → `haul()` (course) → result → run again. Dispatch, loadout and upgrade screens are retained in code but not wired; restoring them around the course is the open design question.
-- Not deterministic across platforms (Rapier compat build); the input log is kept but replay is only guaranteed for the 1-D sim.
+Superseded by `2026-08-26-deadweight-ground-course-design.md`.
