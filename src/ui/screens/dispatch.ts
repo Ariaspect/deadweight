@@ -1,8 +1,8 @@
-import type { ItemDef } from '../../sim/types';
-import type { Offers } from '../../game/orders';
+import type { ItemDef, Tuning } from '../../sim/types';
+import { cargoDifficulty, type Offers } from '../../game/orders';
 import { slopeProfileSvg } from '../profile';
 
-export interface DispatchProps { offers: Offers; profile: number[]; profileStepM: number; sketch: string; hqLine: string; capacity: number; cash: number; tier: number; traceCount: number }
+export interface DispatchProps { offers: Offers; profile: number[]; profileStepM: number; sketch: string; hqLine: string; capacity: number; cash: number; tier: number; traceCount: number; tuning: Tuning }
 
 const fragility = (c: ItemDef): string => (c.tolerance < 0.4 ? 'FRAGILE' : c.tolerance < 0.6 ? 'DELICATE' : 'STURDY');
 
@@ -18,7 +18,7 @@ LEDGER ${p.cash}  ·  RANK ${p.tier}  ·  TRACES ON ROUTE ${p.traceCount}</pre>
       ${p.sketch}<div class="profile-strip">${slopeProfileSvg(p.profile, p.profileStepM, 480, 28)}</div>
       <ul class="offers">${p.offers.cargo.map((c) => `
         <li data-id="${c.id}">
-          <b>${c.name}</b>
+          <b>${c.name} <em class="diff ${cargoDifficulty(c, p.tuning)}">${cargoDifficulty(c, p.tuning).toUpperCase()}</em></b>
           <span class="meta">${c.mass.toFixed(1)} t · ${fragility(c)} · ${c.behavior.toUpperCase()}${c.rush ? ` · RUSH ${c.rush}s` : ''}</span>
           <span class="pay">${c.payout}</span>
         </li>`).join('')}

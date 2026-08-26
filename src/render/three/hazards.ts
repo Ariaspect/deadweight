@@ -60,8 +60,15 @@ function buildGust(route: RouteDef, h: HazardInstance): THREE.Group {
 function buildMud(route: RouteDef, h: HazardInstance): THREE.Group {
   const root = new THREE.Group();
   const x1 = h.x1 ?? h.x;
-  const patch = new THREE.Mesh(new THREE.PlaneGeometry(x1 - h.x, h.halfW * 2), new THREE.MeshStandardMaterial({ color: '#2f271f', roughness: 0.35, metalness: 0.05 }));
-  patch.rotation.x = -Math.PI / 2; patch.position.set((h.x + x1) / 2, route.heightAt((h.x + x1) / 2) + 0.06, worldZ(route, h)); patch.receiveShadow = true; root.add(patch);
+  const len = Math.max(0.5, x1 - h.x), mid = (h.x + x1) / 2, midY = route.heightAt(mid);
+  // segmented along x and pinned to heightAt, or a long zone on a grade floats metres above the ground at one end
+  const geo = new THREE.PlaneGeometry(len, h.halfW * 2, Math.max(1, Math.round(len / 3)), 1);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) pos.setY(i, route.heightAt(mid + pos.getX(i)) - midY + 0.06);
+  geo.computeVertexNormals();
+  const patch = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: '#2f271f', roughness: 0.35, metalness: 0.05 }));
+  patch.position.set(mid, midY, worldZ(route, h)); patch.receiveShadow = true; root.add(patch);
   return root;
 }
 

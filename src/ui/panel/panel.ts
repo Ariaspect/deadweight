@@ -7,6 +7,7 @@ function rpmAngle(rpm: number): number { return -120 + 240 * rpm / 3000; }
 
 export class Panel {
   private needle!: HTMLElement; private reserveFill!: HTMLElement; private ballastFill!: HTMLElement; private ballastText!: HTMLElement;
+  private ballastPip!: HTMLElement; private ballastAim!: HTMLElement;
   private strapFill!: HTMLElement; private message!: HTMLElement; private gaitBtns: HTMLElement[] = [];
   private recoverBtn!: HTMLButtonElement; private hazardLamp!: HTMLElement; private rush!: HTMLElement;
   private rpmNeedle!: HTMLElement; private rpmTarget!: HTMLElement; private rpmVal!: HTMLElement;
@@ -22,7 +23,7 @@ export class Panel {
           <div class="gauge reserve"><div class="bar"><div class="fill"></div></div><label>RESERVE</label></div>
           <div class="gauge strap m2"><div class="bar"><div class="fill"></div></div><label>ACTIVE RESTRAINT</label></div>
           <div class="gauge cargo"><div class="bar"><div class="fill"></div></div><label>CARGO <span class="val">100%</span></label></div>
-          <div class="gauge ballast"><div class="bar centred"><div class="fill"></div></div><label>BALLAST <span class="val">0</span></label></div>
+          <div class="gauge ballast"><div class="bar centred"><div class="fill"></div><i class="pip"></i></div><label>BALLAST <span class="val">0</span><span class="aim"></span></label></div>
         </div>
         <div class="rail"><label>GAIT</label>${[4, 3, 2, 1, 0].map((g) => `<button data-gait="${g}">${g}</button>`).join('')}</div>
         <div class="buttons">
@@ -37,7 +38,8 @@ export class Panel {
       </div>`;
     const q = <T extends HTMLElement>(sel: string): T => root.querySelector(sel) as T;
     this.needle = q('.tilt .needle'); this.reserveFill = q('.reserve .fill'); this.strapFill = q('.strap .fill');
-    this.ballastFill = q('.ballast .fill'); this.ballastText = q('.ballast .val'); this.message = q('.tele');
+    this.ballastFill = q('.ballast .fill'); this.ballastText = q('.ballast .val');
+    this.ballastPip = q('.ballast .pip'); this.ballastAim = q('.ballast .aim'); this.message = q('.tele');
     this.hazardLamp = q('.lamp.hazard'); this.recoverBtn = q('button.recover'); this.rush = q('.rush');
     this.rpmNeedle = q('.rpm .needle'); this.rpmTarget = q('.rpm .target'); this.rpmVal = q('.rpm .val');
     this.cargoFill = q('.cargo .fill'); this.cargoVal = q('.cargo .val');
@@ -79,6 +81,11 @@ export class Panel {
     this.ballastFill.style.left = `${50 + Math.min(0, pct)}%`;
     this.ballastFill.style.width = `${Math.abs(pct)}%`;
     this.ballastText.textContent = (s.ballast > 0 ? '+' : '') + String(s.ballast);
+    // where the ballast has to sit to cancel the current slope and load — chase the pip, not the centre
+    this.ballastPip.style.left = `${50 + (s.trimTarget / r) * 50}%`;
+    const off = s.ballast - s.trimTarget;
+    this.ballastAim.textContent = `AIM ${(s.trimTarget > 0 ? '+' : '') + s.trimTarget}`;
+    this.ballastAim.classList.toggle('off', Math.abs(off) > tuning.ballastRange * 0.15);
     const lost = s.items.some((it) => it.lost);
     this.recoverBtn.disabled = !(lost && s.recovering === 0 && (s.ended === null || s.ended === 'spilled') && s.reserve > tuning.recoverCost);
     const rushItems = s.items.filter((it) => it.deadlineTick >= 0 && !it.lost);

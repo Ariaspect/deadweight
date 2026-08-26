@@ -38,6 +38,9 @@ html, body { margin: 0; height: 100%; background: var(--gun-2); color: var(--cre
 .strap .fill { background: var(--cream); }
 .cargo .fill.low { background: var(--red); }
 .bar.centred::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--cream); opacity: .6; }
+.ballast .pip { position: absolute; top: 0; bottom: 0; width: 4px; margin-left: -2px; background: #65efd6; transition: left .1s linear; }
+.ballast .aim { float: right; letter-spacing: .1em; opacity: .85; color: #65efd6; }
+.ballast .aim.off { color: #ff8a4c; }
 .rail { grid-area: rail; display: flex; flex-direction: column; gap: 4px; } .rail label { font-size: 9px; letter-spacing: .14em; text-align: center; opacity: .75; }
 .rail button { flex: 1; font: inherit; font-size: 16px; background: linear-gradient(#2c3135,#1f2326); color: var(--cream); border: 1px solid #666d70; border-radius: 3px; box-shadow: inset 0 1px rgba(255,255,255,.08), 0 2px 2px rgba(0,0,0,.35); }
 .rail button.on { background: linear-gradient(#f17535,#c74b16); color: #17191b; border-color: #ffb480; box-shadow: 0 0 12px rgba(239,91,32,.38); }

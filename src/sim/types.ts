@@ -62,7 +62,7 @@ export interface ItemState {
 
 export interface RigState {
   t: number; x: number; z: number; lateralVel: number; lift: number; liftVel: number; grounded: boolean;
-  tilt: number; tiltVel: number; gait: Gait; speed: number; targetSpeed: number; ballast: number;
+  tilt: number; tiltVel: number; gait: Gait; speed: number; targetSpeed: number; ballast: number; trimTarget: number;
   strap: number; selectedSlot: number; reserve: number; braced: boolean; items: ItemState[]; foundDiscoveries: number[];
   zoneCooldown: number[];            // hazard id → tick until which it cannot hit again
   recovering: number; hazardCursor: number; overTiltTicks: number; ended: EndReason | null;
@@ -81,6 +81,9 @@ export interface TerrainTuning {
   segMin: number; segMax: number; slopeSigma: number[]; maxSlope: number; gradeSlope: number; hazardJitter: number; profileStepM: number; safeStartM: number; safeEndM: number; pathWander: number;
   corridorHalfWidth: number; pocketDepth: number; spineThick: number; spineGapM: number; forkLenMin: number; forkLenMax: number; stretchLenMin: number; stretchLenMax: number;
 }
+export interface DifficultyTuning {
+  fragileWeight: number; precariousWeight: number; rushWeight: number; massWeight: number; easyBelow: number; hardAtOrAbove: number;
+}
 export interface BotTuning { kp: number; kd: number; lagTicks: number; strapBelow: number; braceAheadM: number; leadSec: number; laneLookaheadM: number }
 
 export interface Tuning {
@@ -98,7 +101,7 @@ export interface Tuning {
   rigRadius: number; wallStrikeSpeed: number; wallStrikeTilt: number; wallStrikeJolt: number; airTraction: number; mudTraction: number; mudSpeedMul: number;
   craneShove: number; hazardCooldownTicks: number;
   cacheReserve: number; cacheRepair: number; cacheBonus: number;
-  terrain: TerrainTuning; bot: BotTuning;
+  difficulty: DifficultyTuning; terrain: TerrainTuning; bot: BotTuning;
 }
 
 export interface ItemResult { id: string; condition: number; payout: number; lost: boolean; late: boolean }

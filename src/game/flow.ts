@@ -54,14 +54,14 @@ export class Flow {
 
   private dispatch(): void {
     const { content, panel, screenEl } = this.d;
-    const offers = generateOffers(content.outposts, content.cargo, this.save.runs, this.metaRng);
+    const offers = generateOffers(content.outposts, content.cargo, this.save.runs, this.metaRng, this.tuning);
     this.offers = offers;
     this.route = generateRoute(offers.outpost.seed, offers.outpost.lengthM, offers.outpost.tier, content.hazards, this.tuning.terrain);
     const hqLine = pickHq(content.hq, 'dispatch', offers.cargo[0]?.behavior ?? 'any', this.metaRng);
     panel.setMessage(hqLine);
     renderDispatch(screenEl, {
       offers, profile: this.route.slopeProfile, profileStepM: this.tuning.terrain.profileStepM, sketch: routeSketchSvg(this.route), hqLine,
-      capacity: this.tuning.capacity, cash: this.save.cash, tier: playerTier(this.save.runs), traceCount: 0,
+      capacity: this.tuning.capacity, cash: this.save.cash, tier: playerTier(this.save.runs), traceCount: 0, tuning: this.tuning,
     }, (selected) => this.load(selected));
   }
 

@@ -61,6 +61,7 @@
   "cacheReserve": 8,
   "cacheRepair": 0.12,
   "cacheBonus": 75,
+  "difficulty": { "fragileWeight": 2, "precariousWeight": 0.6, "rushWeight": 0.5, "massWeight": 0.15, "easyBelow": 1.6, "hardAtOrAbove": 2.3 },
   "terrain": {
     "segMin": 20, "segMax": 60,
     "slopeSigma": [0.12, 0.18, 0.24, 0.3],

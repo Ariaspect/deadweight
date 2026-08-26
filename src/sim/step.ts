@@ -13,7 +13,7 @@ export function createRun(route: RouteDef, loadout: LoadoutItem[], tuning: Tunin
   }));
   return {
     t: 0, x: 0, z: 0, lateralVel: 0, lift: 0, liftVel: 0, grounded: true,
-    tilt: 0, tiltVel: 0, gait: 0, speed: 0, targetSpeed: 0, ballast: 0,
+    tilt: 0, tiltVel: 0, gait: 0, speed: 0, targetSpeed: 0, ballast: 0, trimTarget: 0,
     strap: tuning.strapStart, selectedSlot: items.reduce((m, it) => Math.min(m, it.slot), items.length ? 99 : 0), reserve: tuning.reserveStart, braced: false,
     items, foundDiscoveries: [], zoneCooldown: [], recovering: 0, hazardCursor: 0, overTiltTicks: 0, ended: null,
   };
@@ -78,6 +78,7 @@ export function stepRig(s: RigState, input: InputFrame, route: RouteDef, tuning:
   const slope = route.slopeAt(s.x);
   const load = loadOffsetOf(s.items, tuning);
   const ideal = -(tuning.kSlope * slope + tuning.kLoad * load) / tuning.kBallast * 100;
+  s.trimTarget = clamp(Math.round(ideal), -tuning.ballastRange, tuning.ballastRange);   // read by the panel's ballast target pip
   const effBallast = s.ballast + tuning.autoTrim * (ideal - s.ballast);
   const torque = tuning.kSlope * slope + tuning.kBallast * (effBallast / 100) + tuning.kLoad * load - s.lateralVel * tuning.lateralTip;
   const acc = torque - tuning.damping * s.tiltVel - tuning.stiffness * s.tilt;
