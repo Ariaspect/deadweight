@@ -28,7 +28,7 @@ describe('bot', () => {
   });
   it('completes a generated tier-0 route within the reserve', () => {
     for (const seed of [4417, 1, 2, 3, 4]) {
-      const route = generateRoute(seed, 600, 0, [], tuning.terrain);
+      const route = generateRoute(seed, 600, 0, [], tuning);
       const { result } = runHeadless(route, [{ def: crateDef(), slot: 1 }], tuning, { lagTicks: 15 });
       expect(result.ended, `seed ${seed}`).toBe('arrived');
       expect(result.stars, `seed ${seed}`).toBeGreaterThanOrEqual(3);
@@ -68,7 +68,7 @@ describe('bot v2', () => {
   });
   it('every shipped outpost is solvable at bot.lagTicks', () => {
     for (const o of outposts) {
-      const route = generateRoute(o.seed, o.lengthM, o.tier, hazards, tuning.terrain);
+      const route = generateRoute(o.seed, o.lengthM, o.tier, hazards, tuning);
       const { result } = runHeadless(route, [{ def: crateDef(), slot: 1 }], tuning);
       expect(result.ended, o.name).toBe('arrived');
       expect(result.stars, o.name).toBeGreaterThanOrEqual(1);
@@ -87,7 +87,7 @@ describe('bot v3 — lanes', () => {
     expect(laneScore(r, fork, 1)).toBeCloseTo(11.6);
   });
   it('steers into the safe lane before a fork and holds it inside', () => {
-    const r = generateRoute(9026, 800, 2, hazards, tuning.terrain);
+    const r = generateRoute(9026, 800, 2, hazards, tuning);
     const fork = r.forks[0]!;
     const safeLanes = fork.lanes.map((lane, i) => ({ i, lane, score: laneScore(r, fork, i) })).sort((a, b) => a.score - b.score);
     const { state, result } = runHeadless(r, [{ def: crateDef(), slot: 1 }], tuning, { lagTicks: 15, maxTicks: 60 * 60 });

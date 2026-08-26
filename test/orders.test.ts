@@ -47,7 +47,7 @@ describe('pickRoutes', () => {
 describe('routeDifficulty', () => {
   const of = (id: string) => {
     const o = outposts.find((x) => x.id === id)!;
-    return routeDifficulty(generateRoute(o.seed, o.lengthM, o.tier, hazards, tuning.terrain), o, tuning);
+    return routeDifficulty(generateRoute(o.seed, o.lengthM, o.tier, hazards, tuning), o, tuning);
   };
   it('ranks a short tier-0 run below the longest tier-3 run and never pays under 1x', () => {
     const gravel = of('gravel'), lantern = of('lantern');

@@ -7,7 +7,7 @@ import { tuning, hazards } from '../src/content';
 import { crateDef, frame } from './helpers';
 import type { InputFrame, Gait } from '../src/sim/types';
 
-const route = generateRoute(4417, 700, 2, hazards, tuning.terrain);
+const route = generateRoute(4417, 700, 2, hazards, tuning);
 const loadout = [{ def: crateDef({ behavior: 'livestock' }), slot: 0 }, { def: crateDef({ id: 'soup', behavior: 'slosh' }), slot: 2 }];
 
 function script(i: number): InputFrame {

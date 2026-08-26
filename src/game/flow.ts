@@ -59,7 +59,7 @@ export class Flow {
     const { content, panel, screenEl } = this.d;
     const routes = new Map<string, RouteDef>();
     const options: RouteOption[] = pickRoutes(content.outposts, this.save.runs, this.tuning).map((outpost) => {
-      const route = generateRoute(outpost.seed, outpost.lengthM, outpost.tier, content.hazards, this.tuning.terrain);
+      const route = generateRoute(outpost.seed, outpost.lengthM, outpost.tier, content.hazards, this.tuning);
       routes.set(outpost.id, route);
       return {
         outpost, rating: routeDifficulty(route, outpost, this.tuning), sketch: routeSketchSvg(route),

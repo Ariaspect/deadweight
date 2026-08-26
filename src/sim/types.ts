@@ -42,10 +42,11 @@ export interface HazardInstance {
   x1?: number; cycleTicks?: number; windowTicks?: number; phase?: number;
 }
 export interface Discovery { id: number; x: number; z: number; name: string }
+export interface StormFront { id: number; startTick: number; endTick: number }
 
 export interface RouteDef {
   seed: number; length: number; halfWidth: number; segments: Segment[];
-  hazards: HazardInstance[]; zones: HazardInstance[]; discoveries: Discovery[];
+  hazards: HazardInstance[]; zones: HazardInstance[]; discoveries: Discovery[]; storms: StormFront[];
   walls: Wall[]; forks: Fork[]; pockets: Pocket[];
   slopeProfile: number[];            // sampled every terrain.profileStepM
   slopeAt(x: number): number;
@@ -63,14 +64,14 @@ export interface ItemState {
 export interface RigState {
   t: number; x: number; z: number; lateralVel: number; lift: number; liftVel: number; grounded: boolean;
   tilt: number; tiltVel: number; gait: Gait; speed: number; targetSpeed: number; ballast: number; trimTarget: number;
-  strap: number; selectedSlot: number; reserve: number; braced: boolean; items: ItemState[]; foundDiscoveries: number[];
+  strap: number; selectedSlot: number; reserve: number; braced: boolean; storm: number; radar: boolean; items: ItemState[]; foundDiscoveries: number[];
   zoneCooldown: number[];            // hazard id → tick until which it cannot hit again
   recovering: number; hazardCursor: number; overTiltTicks: number; ended: EndReason | null;
 }
 
 export interface InputFrame {
   gait: Gait; ballast: number; strap: boolean; brace: boolean; deploy: KitId | 0; recover: boolean;
-  throttle?: -1 | 0 | 1; steer?: -1 | 0 | 1; jump?: boolean; cargoSelect?: number;
+  throttle?: -1 | 0 | 1; steer?: -1 | 0 | 1; jump?: boolean; radar?: boolean; cargoSelect?: number;
 }
 
 export interface LoadoutItem { def: ItemDef; slot: number }
@@ -83,7 +84,13 @@ export interface TerrainTuning {
 }
 export interface RouteTuning {
   tierWeight: number; lengthWeight: number; hazardWeight: number; zoneWeight: number; slopeWeight: number;
-  payWeight: number; baseScore: number; easyBelow: number; hardAtOrAbove: number; offerCount: number;
+  payWeight: number; baseScore: number; easyBelow: number; hardAtOrAbove: number; offerCount: number; stormWeight: number;
+}
+export interface StormTuning {
+  maxFronts: number[]; frontChance: number[];
+  minDurationS: number; maxDurationS: number; rampS: number;
+  windowLo: number; windowHi: number;
+  speedMul: number; strapDrain: number;
 }
 export interface DifficultyTuning {
   fragileWeight: number; precariousWeight: number; rushWeight: number; massWeight: number; easyBelow: number; hardAtOrAbove: number;
@@ -93,7 +100,7 @@ export interface BotTuning { kp: number; kd: number; lagTicks: number; strapBelo
 export interface Tuning {
   dt: number; gaitSpeed: number[]; gaitSpeedMul: number; gaitAccel: number; gaitDecel: number;
   kSlope: number; kBallast: number; kLoad: number; damping: number; stiffness: number; braceDamp: number; braceSpeed: number;
-  reserveBudget: number; braceDrain: number; reserveStart: number; rushBonusMul: number;
+  reserveBudget: number; braceDrain: number; reserveStart: number; rushBonusMul: number; radarDrain: number;
   ballastRange: number; ballastRate: number; autoTrim: number;
   strapStart: number; strapTap: number; strapJoltMul: number; restraintDecay: Record<Behavior, number>;
   driftThreshold: number; graceTicks: number; kDrift: number; sloshGain: number; sloshStiff: number; sloshDamp: number; kLive: number; precariousMul: number;
@@ -105,7 +112,7 @@ export interface Tuning {
   rigRadius: number; wallStrikeSpeed: number; wallStrikeTilt: number; wallStrikeJolt: number; airTraction: number; mudTraction: number; mudSpeedMul: number;
   craneShove: number; hazardCooldownTicks: number;
   cacheReserve: number; cacheRepair: number; cacheBonus: number;
-  route: RouteTuning; difficulty: DifficultyTuning; terrain: TerrainTuning; bot: BotTuning;
+  route: RouteTuning; difficulty: DifficultyTuning; terrain: TerrainTuning; bot: BotTuning; storm: StormTuning;
 }
 
 export interface ItemResult { id: string; condition: number; payout: number; lost: boolean; rushed: boolean; late: boolean }

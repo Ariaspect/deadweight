@@ -1,6 +1,7 @@
 import { mulberry32, type Rng } from './rng';
 import { layoutCourse, laneCentre, laneHalfWidth } from './course';
-import type { Discovery, Fork, HazardDef, HazardInstance, HazardType, Layout, RouteDef, Segment, TerrainTuning } from './types';
+import { scheduleStorms } from './storm';
+import type { Discovery, Fork, HazardDef, HazardInstance, HazardType, Layout, RouteDef, Segment, StormFront, Tuning } from './types';
 
 function clamp(v: number, lo: number, hi: number): number { return v < lo ? lo : v > hi ? hi : v; }
 
@@ -20,7 +21,7 @@ function findSegment(segments: Segment[], x: number): Segment {
 
 const EMPTY_LAYOUT: Layout = { forks: [], walls: [], pockets: [] };
 
-export function routeFromSegments(seed: number, segments: Segment[], hazards: HazardInstance[], profileStepM: number, discoveries: Discovery[] = [], layout: Layout = EMPTY_LAYOUT, halfWidth = 18): RouteDef {
+export function routeFromSegments(seed: number, segments: Segment[], hazards: HazardInstance[], profileStepM: number, discoveries: Discovery[] = [], layout: Layout = EMPTY_LAYOUT, halfWidth = 18, storms: StormFront[] = []): RouteDef {
   const length = segments[segments.length - 1]!.x1;
   const slopeAt = (x: number): number => findSegment(segments, x).slope;
   const heightAt = (x: number): number => {
@@ -46,7 +47,7 @@ export function routeFromSegments(seed: number, segments: Segment[], hazards: Ha
   for (let x = 0; x <= length; x += profileStepM) slopeProfile.push(slopeAt(x));
   const sorted = [...hazards].sort((a, b) => a.x - b.x);
   return {
-    seed, length, halfWidth, segments, hazards: sorted, zones: sorted.filter((h) => h.x1 !== undefined), discoveries,
+    seed, length, halfWidth, segments, hazards: sorted, zones: sorted.filter((h) => h.x1 !== undefined), discoveries, storms,
     walls: layout.walls, forks: layout.forks, pockets: layout.pockets, slopeProfile, slopeAt, heightAt, centerAt, forkAt, laneAt,
   };
 }
@@ -64,7 +65,8 @@ function weightedPick(rng: Rng, defs: HazardDef[], types: HazardType[]): HazardD
   return pool[pool.length - 1]!;
 }
 
-export function generateRoute(seed: number, lengthM: number, tier: number, hazardDefs: HazardDef[], t: TerrainTuning): RouteDef {
+export function generateRoute(seed: number, lengthM: number, tier: number, hazardDefs: HazardDef[], tuning: Tuning): RouteDef {
+  const t = tuning.terrain;
   const rng = mulberry32(seed);
   const mapRng = mulberry32((seed ^ 0x6d2b79f5) >>> 0);
   const W = t.corridorHalfWidth;
@@ -149,5 +151,5 @@ export function generateRoute(seed: number, lengthM: number, tier: number, hazar
     discoveries.push({ id: discoveries.length, x: (a + b) / 2 + (mapRng.next() - 0.5) * (b - a) * 0.5, z: side * (W - 3), name: CACHE_NAMES[(discoveries.length + tier) % CACHE_NAMES.length]! });
   }
 
-  return routeFromSegments(seed, segments, hazards, t.profileStepM, discoveries, layout, W);
+  return routeFromSegments(seed, segments, hazards, t.profileStepM, discoveries, layout, W, scheduleStorms(rng, lengthM, tier, tuning));
 }

@@ -3,7 +3,7 @@ import { routeSketchSvg, minimapMarkup, mapPoint } from '../src/ui/sketch';
 import { generateRoute } from '../src/sim/terrain';
 import { tuning, hazards } from '../src/content';
 
-const route = generateRoute(6142, 780, 2, hazards, tuning.terrain);
+const route = generateRoute(6142, 780, 2, hazards, tuning);
 
 describe('route sketch', () => {
   it('draws one rect per wall, one glyph per hazard and one marker per discovery', () => {
