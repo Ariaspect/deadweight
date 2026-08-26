@@ -42,7 +42,7 @@ describe('bot v2', () => {
       { id: 0, type: 'gap', x: 100, z: 0, halfW: 40, impulse: 1.4, strapJolt: 20, dir: 1 },
       { id: 1, type: 'grade', x: 200, z: 0, halfW: 40, impulse: 0, strapJolt: 0, dir: 1 },
     ], 10);
-    const v = (x: number) => ({ x, z: 0, lateralVel: 0, tilt: 0, tiltVel: 0, strap: 80, braced: false, recovering: 0, items: [], storm: 0 });
+    const v = (x: number) => ({ x, z: 0, speed: 7, t: 0, lateralVel: 0, tilt: 0, tiltVel: 0, strap: 80, braced: false, recovering: 0, items: [], storm: 0, missiles: [], shield: -1, shieldUntil: 0, shieldReadyAt: 0 });
     expect(botPolicy(v(100 - tuning.bot.braceAheadM + 1), r, tuning).brace).toBe(true);
     expect(botPolicy(v(50), r, tuning).brace).toBe(false);
     expect(botPolicy(v(195), r, tuning).brace).toBe(false);
@@ -51,7 +51,7 @@ describe('bot v2', () => {
   });
   it('taps strap when loose and recovers when an item is lost', () => {
     const r = flatRoute();
-    const base = { x: 10, z: 0, lateralVel: 0, tilt: 0, tiltVel: 0, braced: false, recovering: 0, storm: 0 };
+    const base = { x: 10, z: 0, speed: 7, t: 0, lateralVel: 0, tilt: 0, tiltVel: 0, braced: false, recovering: 0, storm: 0, missiles: [], shield: -1, shieldUntil: 0, shieldReadyAt: 0 };
     const loose = { ...createRun(r, [{ def: crateDef(), slot: 1 }], tuning).items[0]!, restraint: 30 };
     const tight = { ...createRun(r, [{ def: crateDef(), slot: 1 }], tuning).items[0]!, restraint: 90 };
     const loosePolicy = botPolicy({ ...base, strap: 30, items: [loose] }, r, tuning);
@@ -101,7 +101,7 @@ describe('bot v3 — lanes', () => {
   });
   it('never jumps and always holds W', () => {
     const r = flatRoute();
-    const f = botPolicy({ x: 10, z: 0, lateralVel: 0, tilt: 0, tiltVel: 0, strap: 80, braced: false, recovering: 0, items: [], storm: 0 }, r, tuning);
+    const f = botPolicy({ x: 10, z: 0, speed: 7, t: 0, lateralVel: 0, tilt: 0, tiltVel: 0, strap: 80, braced: false, recovering: 0, items: [], storm: 0, missiles: [], shield: -1, shieldUntil: 0, shieldReadyAt: 0 }, r, tuning);
     expect(f.throttle).toBe(1); expect(f.jump).toBeFalsy();
   });
 });
@@ -109,9 +109,35 @@ describe('bot v3 — lanes', () => {
 describe('bot v4 — radar', () => {
   it('runs radar through a front and not outside one', () => {
     const r = flatRoute();
-    const base = { x: 100, z: 0, lateralVel: 0, tilt: 0, tiltVel: 0, strap: 70, braced: false, recovering: 0, items: [] };
+    const base = { x: 100, z: 0, speed: 7, t: 0, lateralVel: 0, tilt: 0, tiltVel: 0, strap: 70, braced: false, recovering: 0, items: [], missiles: [], shield: -1, shieldUntil: 0, shieldReadyAt: 0 };
     expect(botPolicy({ ...base, storm: 0 }, r, tuning).radar).toBe(false);
     expect(botPolicy({ ...base, storm: 0.4 }, r, tuning).radar).toBe(true);
     expect(botPolicy({ ...base, storm: 1 }, r, tuning).radar).toBe(true);
+  });
+});
+
+describe('bot v5 — turrets', () => {
+  const base = { x: 100, z: 0, lateralVel: 0, tilt: 0, tiltVel: 0, strap: 70, braced: false, recovering: 0, items: [], storm: 0, shield: -1, shieldUntil: 0, shieldReadyAt: 0 };
+  const inbound = (over: Partial<{ x: number; z: number; impactTick: number }> = {}) => [{ id: 1, x: 400, z: 0, launchTick: 0, impactTick: 300, ...over }];
+
+  it('brakes for an inbound missile and shields the sector it comes from', () => {
+    const route = flatRoute();
+    // Spec §2: at gait 2 (7 m/s) stopping takes 1.17 s, so the run is given up at about level 4 — not at
+    // launch. Braking the whole flight is what the first measurement did, and it cost twice the standstill.
+    const launch = { ...base, speed: 7, missiles: inbound(), t: 10 };
+    expect(botPolicy(launch, route, tuning).throttle, 'does not throw the run away at launch').toBe(1);
+    const commit = { ...base, speed: 7, missiles: inbound(), t: 149 };
+    expect(botPolicy(commit, route, tuning).throttle, 'commits to braking by level 4').toBe(0);
+    const here = { ...base, speed: 0, missiles: inbound({ x: 100, z: 60 }), t: 295 };
+    expect(botPolicy(here, route, tuning).shieldSector, 'faces the missile').toBe(2);
+  });
+
+  it('keeps its tempo for a missile the shield cooldown cannot answer', () => {
+    const route = flatRoute();
+    // The shield is still down at the tick this missile would have to be met, so stopping buys nothing.
+    const unanswerable = { ...base, speed: 7, missiles: inbound(), t: 149, shieldReadyAt: 280 };
+    expect(botPolicy(unanswerable, route, tuning).throttle, 'takes the hit on the move').toBe(1);
+    const answerable = { ...base, speed: 7, missiles: inbound(), t: 149, shieldReadyAt: 200 };
+    expect(botPolicy(answerable, route, tuning).throttle, 'cooldown clears in time').toBe(0);
   });
 });

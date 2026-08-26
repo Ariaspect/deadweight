@@ -2,12 +2,13 @@ import { createRun, step, loadOffsetOf } from './step';
 import { evaluate } from './score';
 import { mulberry32, hashSeed } from './rng';
 import { laneCentre } from './course';
-import type { Fork, Gait, InputFrame, ItemState, Lane, LoadoutItem, RigState, RouteDef, RunResult, Trace, Tuning } from './types';
+import { octantOf } from './turret';
+import type { Fork, Gait, InputFrame, ItemState, Lane, LoadoutItem, Missile, RigState, RouteDef, RunResult, Trace, Tuning } from './types';
 
-export interface BotView { x: number; z: number; lateralVel: number; tilt: number; tiltVel: number; strap: number; braced: boolean; recovering: number; items: ItemState[]; storm: number }
+export interface BotView { x: number; z: number; speed: number; t: number; lateralVel: number; tilt: number; tiltVel: number; strap: number; braced: boolean; recovering: number; items: ItemState[]; storm: number; missiles: Missile[]; shield: number; shieldUntil: number; shieldReadyAt: number }
 
 function view(s: RigState): BotView {
-  return { x: s.x, z: s.z, lateralVel: s.lateralVel, tilt: s.tilt, tiltVel: s.tiltVel, strap: s.strap, braced: s.braced, recovering: s.recovering, items: s.items.map((it) => ({ ...it })), storm: s.storm };
+  return { x: s.x, z: s.z, speed: s.speed, t: s.t, lateralVel: s.lateralVel, tilt: s.tilt, tiltVel: s.tiltVel, strap: s.strap, braced: s.braced, recovering: s.recovering, items: s.items.map((it) => ({ ...it })), storm: s.storm, missiles: s.missiles.map((m) => ({ ...m })), shield: s.shield, shieldUntil: s.shieldUntil, shieldReadyAt: s.shieldReadyAt };
 }
 
 export class LagBuffer {
@@ -62,6 +63,42 @@ function targetZ(v: BotView, route: RouteDef, tuning: Tuning): number {
   return dodge ? -Math.sign(dodge.z || 1) * route.halfWidth * 0.4 : 0;
 }
 
+/**
+ * A raised shield is only honoured from a standstill, and it drops `shieldTicks` after it goes up, so
+ * it must be raised late enough not to expire before the missile lands. The view is `lagTicks` stale,
+ * which only ever makes a missile *closer* than it looks, so gating on `shieldTicks` minus a margin is
+ * safe at every lag the validator runs: the real gap is `ticksLeft - lag`, never more.
+ */
+const SHIELD_MARGIN = 6;
+
+/**
+ * A homing missile cannot be dodged — the shield is the whole counterplay, and the shield needs a
+ * standstill. So the bot gives up the run's tempo exactly as late as the sums allow: stopping takes
+ * `speed / gaitDecel` seconds, the rig must already be stopped when the shield goes up, and the view
+ * is `lagTicks` stale on top of that. Braking any earlier is pure reserve burnt standing still —
+ * measured at ~210 ticks of standstill per missile when the bot braked at launch, against ~90 here.
+ */
+function intercept(v: BotView, tuning: Tuning): { braking: boolean; shieldSector: number | undefined } {
+  const t = tuning.turret;
+  const raiseAt = t.shieldTicks - SHIELD_MARGIN;
+  const stopTicks = Math.ceil(Math.abs(v.speed) / (tuning.gaitDecel * tuning.dt));
+  // Two missiles inside one cooldown means one of them cannot be answered — the spec's overlap rule.
+  // Stopping for that one buys nothing, so the run keeps its tempo and takes the hit on the move.
+  const readyAt = v.shield >= 0 ? v.shieldUntil + t.shieldCooldown : v.shieldReadyAt;
+  let braking = false, shieldSector: number | undefined, soonest = Infinity;
+  for (const m of v.missiles) {
+    const ticksLeft = m.impactTick - v.t;
+    if (ticksLeft < 0 || m.impactTick - raiseAt < readyAt) continue;
+    if (ticksLeft <= raiseAt + stopTicks + tuning.bot.lagTicks) braking = true;
+    if (ticksLeft > raiseAt || ticksLeft >= soonest) continue;
+    if (Math.abs(v.speed) >= t.shieldStopEpsilon) continue;   // step() refuses it anyway; do not waste the ask
+    soonest = ticksLeft;
+    // The rig is stopped, so the missile closes along a fixed line and this bearing is the impact bearing.
+    shieldSector = octantOf(m.x - v.x, m.z - v.z);
+  }
+  return { braking, shieldSector };
+}
+
 export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFrame {
   const b = tuning.bot;
   const zTarget = targetZ(v, route, tuning);
@@ -86,13 +123,15 @@ export function botPolicy(v: BotView, route: RouteDef, tuning: Tuning): InputFra
   const dv = wantVel - v.lateralVel;
   const steer: -1 | 0 | 1 = dv > 0.6 ? 1 : dv < -0.6 ? -1 : 0;
   const loosest = v.items.filter((it) => !it.lost).sort((a, b2) => a.restraint - b2.restraint)[0];
+  const { braking, shieldSector } = intercept(v, tuning);
   return {
-    gait, throttle: 1, steer, jump: false,
+    gait, throttle: braking ? 0 : 1, steer, jump: false,
     ballast: clampInt(feedForward + feedback, -tuning.ballastRange, tuning.ballastRange),
     strap: loosest !== undefined && loosest.restraint < b.strapBelow,
     cargoSelect: loosest?.slot,
     brace,
     radar: v.storm > 0,   // the bot has no vision to lose, so without this the validator only ever proves the free branch
+    shieldSector,
     deploy: 0,
     recover: v.recovering === 0 && v.items.some((it) => it.lost),
   };
