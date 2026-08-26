@@ -36,6 +36,9 @@ html, body { margin: 0; height: 100%; background: var(--gun-2); color: var(--cre
 .bar .fill { position: absolute; top: 0; bottom: 0; left: 0; background: var(--orange); }
 .reserve .fill.low { background: var(--red); }
 .strap .fill { background: var(--cream); }
+.strap .fill.crush { background: var(--red); }
+.strap .limit { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--red); box-shadow: 0 0 0 1px rgba(28,26,22,.65); }
+.strap .val { float: right; letter-spacing: .1em; opacity: .85; }
 .cargo .fill.low { background: var(--red); }
 .bar.centred::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--cream); opacity: .6; }
 .ballast .pip { position: absolute; top: 0; bottom: 0; width: 4px; margin-left: -2px; background: #65efd6; transition: left .1s linear; }
@@ -70,7 +73,8 @@ button.big:disabled { opacity: .35; }
 .cargo-bay.selected { color: #fff7df; border-left-color: #65efd6; background: rgba(12,57,51,.82); box-shadow: 0 0 12px rgba(79,235,208,.18); }
 .cargo-bay.warning { border-left-color: #ff7036; }
 .cargo-bay b, .cargo-bay span { display: block; font-size: 8px; } .cargo-bay span { float: right; margin-top: -8px; color: #ffad70; }
-.cargo-bay i { display: block; height: 3px; margin-top: 5px; background: #242a2b; } .cargo-bay em { display: block; height: 100%; background: #65efd6; }
+.cargo-bay i { display: block; position: relative; height: 3px; margin-top: 5px; background: #242a2b; } .cargo-bay em { display: block; height: 100%; background: #65efd6; }
+.cargo-bay em.crush { background: #ff5a3c; } .cargo-bay u { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: #ff5a3c; }
 .explore { position: absolute; right: 12px; top: 38px; padding: 6px 9px; color: #e8c39a; background: rgba(40,32,24,.72); border-right: 2px solid #d29a4a; font-size: 9px; }
 .minimap { position: absolute; left: 12px; top: 38px; width: 180px; height: 100px; padding: 5px; background: rgba(14,17,18,.74); border: 1px solid rgba(244,234,210,.22); }
 .map-route { fill: none; stroke: rgba(244,234,210,.62); stroke-width: 1.4; stroke-dasharray: 2 1; }

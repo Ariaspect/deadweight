@@ -1,4 +1,5 @@
 import type { Gait, RigState, Tuning } from '../../sim/types';
+import { itemAtSlot } from '../../sim/step';
 
 export interface PanelHandlers { onGait(g: Gait): void; onStrap(): void; onBrace(on: boolean): void; onRecover(): void; onJump(): void }
 
@@ -8,6 +9,7 @@ function rpmAngle(rpm: number): number { return -120 + 240 * rpm / 3000; }
 export class Panel {
   private needle!: HTMLElement; private reserveFill!: HTMLElement; private ballastFill!: HTMLElement; private ballastText!: HTMLElement;
   private ballastPip!: HTMLElement; private ballastAim!: HTMLElement;
+  private strapLimit!: HTMLElement; private strapVal!: HTMLElement;
   private strapFill!: HTMLElement; private message!: HTMLElement; private gaitBtns: HTMLElement[] = [];
   private recoverBtn!: HTMLButtonElement; private hazardLamp!: HTMLElement; private rush!: HTMLElement;
   private rpmNeedle!: HTMLElement; private rpmTarget!: HTMLElement; private rpmVal!: HTMLElement;
@@ -21,7 +23,7 @@ export class Panel {
         <div class="gauge rpm"><div class="dial"><div class="zone rpm"></div><div class="target"></div><div class="needle"></div></div><label>RPM <span class="val">600</span></label></div>
         <div class="gauges">
           <div class="gauge reserve"><div class="bar"><div class="fill"></div></div><label>RESERVE</label></div>
-          <div class="gauge strap m2"><div class="bar"><div class="fill"></div></div><label>ACTIVE RESTRAINT</label></div>
+          <div class="gauge strap m2"><div class="bar"><div class="fill"></div><i class="limit"></i></div><label>ACTIVE RESTRAINT <span class="val"></span></label></div>
           <div class="gauge cargo"><div class="bar"><div class="fill"></div></div><label>CARGO <span class="val">100%</span></label></div>
           <div class="gauge ballast"><div class="bar centred"><div class="fill"></div><i class="pip"></i></div><label>BALLAST <span class="val">0</span><span class="aim"></span></label></div>
         </div>
@@ -38,6 +40,7 @@ export class Panel {
       </div>`;
     const q = <T extends HTMLElement>(sel: string): T => root.querySelector(sel) as T;
     this.needle = q('.tilt .needle'); this.reserveFill = q('.reserve .fill'); this.strapFill = q('.strap .fill');
+    this.strapLimit = q('.strap .limit'); this.strapVal = q('.strap .val');
     this.ballastFill = q('.ballast .fill'); this.ballastText = q('.ballast .val');
     this.ballastPip = q('.ballast .pip'); this.ballastAim = q('.ballast .aim'); this.message = q('.tele');
     this.hazardLamp = q('.lamp.hazard'); this.recoverBtn = q('button.recover'); this.rush = q('.rush');
@@ -65,6 +68,12 @@ export class Panel {
     this.reserveFill.style.width = `${Math.max(0, s.reserve)}%`;
     this.reserveFill.classList.toggle('low', s.reserve < 20);
     this.strapFill.style.width = `${s.strap}%`;
+    // the crush limit of the selected bay: past this mark the ratchet is grinding the load, not securing it
+    const sel = itemAtSlot(s, s.selectedSlot);
+    const limit = sel && !sel.lost ? sel.crushLimit : 100;
+    this.strapLimit.style.left = `${limit}%`;
+    this.strapFill.classList.toggle('crush', s.strap > limit);
+    this.strapVal.textContent = sel && !sel.lost ? `${Math.round(s.strap)} / ${limit}` : '';
     const vmax = tuning.gaitSpeed[4]! * tuning.gaitSpeedMul;
     const rpm = 600 + 2400 * clamp(Math.abs(s.speed) / vmax, 0, 1);
     const targetRpm = 600 + 2400 * clamp(Math.abs(s.targetSpeed) / vmax, 0, 1);

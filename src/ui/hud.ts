@@ -68,9 +68,10 @@ export class Hud {
       this.rackKey = rackKey;
       this.cargoRackEl.innerHTML = [...s.items].sort((a, b) => a.slot - b.slot).map((it) => {
         const condition = Math.max(0, Math.round((1 - it.stress) * 100));
-        const warning = it.lost ? 'LOST' : it.restraint < 30 ? 'LOOSE' : `${condition}% OK`;
+        const crushing = !it.lost && it.restraint > it.crushLimit;
+        const warning = it.lost ? 'LOST' : crushing ? 'CRUSHING' : it.restraint < 30 ? 'LOOSE' : `${condition}% OK`;
         const selected = it.slot === s.selectedSlot;
-        return `<div class="cargo-bay${selected ? ' selected' : ''}${it.lost || it.restraint < 30 ? ' warning' : ''}" data-slot="${it.slot}"><b>${['FORE', 'MID', 'AFT'][it.slot]} · ${it.id.toUpperCase()}</b><span>${warning}</span><i><em style="width:${Math.round(it.restraint)}%"></em></i></div>`;
+        return `<div class="cargo-bay${selected ? ' selected' : ''}${it.lost || crushing || it.restraint < 30 ? ' warning' : ''}" data-slot="${it.slot}"><b>${['FORE', 'MID', 'AFT'][it.slot]} · ${it.id.toUpperCase()}</b><span>${warning}</span><i><em class="${crushing ? 'crush' : ''}" style="width:${Math.round(it.restraint)}%"></em><u style="left:${it.crushLimit}%"></u></i></div>`;
       }).join('');
     }
 
